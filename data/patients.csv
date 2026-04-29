@@ -1,0 +1,3 @@
+id,name,dob,gender,contact,consent_emergency,consent_specialist,consent_research
+P001,John Doe,1985-04-12,Male,john.doe@example.com,true,true,true
+P002,Jane Smith,1990-08-25,Female,jane.smith@example.com,true,false,true

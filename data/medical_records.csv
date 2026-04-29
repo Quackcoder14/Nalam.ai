@@ -1,0 +1,8 @@
+record_id,patient_id,date,type,provider,diagnosis,notes,lab_results
+R100,P001,2020-05-10,Encounter,Dr. Adams (General),Hypertension,Patient reports occasional dizziness. Prescribed Lisinopril 10mg.,BP:145/90
+R101,P001,2022-08-15,Lab,City Labs,,,"HbA1c: 6.2%, Fasting Glucose: 110mg/dL"
+R102,P001,2024-01-20,Specialist,Dr. Chen (Cardiology),Hypertension,BP remains elevated despite Lisinopril. Added Amlodipine 5mg. Mild left ventricular hypertrophy on echo.,BP:142/88
+R103,P001,2025-11-05,Encounter,Dr. Adams (General),Pre-diabetes,Weight increased by 5kg. Advised lifestyle changes. Renal markers stable.,eGFR:85
+R104,P002,2023-03-12,Encounter,Dr. Smith (Psychiatry),Anxiety,Started Sertraline 50mg. Responding well.,
+R105,P002,2025-06-18,ER,General Hospital,Asthma Exacerbation,Treated with Albuterol nebs and oral steroids. Discharged same day.,SpO2:92% on room air
+R106,P001,2026-04-29,Document Scan,nalam.ai OCR Engine,,"The patient, Sarah Anderson, presented in good health with no irregularities observed during the examination. Vital signs were within normal ranges and no significant issues were detected. The clinical findings indicated a healthy status with no evidence of underlying health issues, and therefore, no prescription or further medical action was necessary.",

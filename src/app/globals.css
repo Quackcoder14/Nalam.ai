@@ -1,26 +1,280 @@
-@import "tailwindcss";
-
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ─── nalam.ai Color System ─────────────────────────────────────────── */
+
+  /* Primary Palette */
+  --deep-blue:          #1A2B4A;   /* Deep Blue – headings, primary text  */
+  --powder-blue:        #A5D8FF;   /* Powder Blue – accent, highlights     */
+  --powder-blue-dark:   #5BAFD6;   /* Darker Powder Blue for text on light */
+  --charcoal:           #4A5568;   /* Charcoal Grey – body / muted text    */
+  --charcoal-light:     #718096;   /* Lighter Charcoal – placeholder text  */
+
+  /* Apollo-Inspired Action Colors */
+  --primary:            #0052A5;   /* Apollo Blue – CTAs, links            */
+  --primary-light:      #EBF3FF;   /* Light tint of primary                */
+  --primary-hover:      #003D7A;   /* Darker blue for hover states         */
+  --accent-orange:      #F4831F;   /* Apollo Orange – secondary accent     */
+  --accent-orange-bg:   #FFF4EB;
+
+  /* Semantic */
+  --accent-teal:        #0097A7;
+  --accent-teal-bg:     #E0F7FA;
+  --accent-amber:       #C07A00;
+  --accent-amber-bg:    #FFF8E1;
+  --accent-red:         #C62828;
+  --accent-red-bg:      #FFEBEE;
+  --accent-green:       #2E7D32;
+  --accent-green-bg:    #E8F5E9;
+  --accent-purple:      #5C35A1;
+  --accent-purple-bg:   #F0EBFF;
+
+  /* Surfaces */
+  --background:         #F2F5FB;   /* Warm off-white page background       */
+  --surface:            #FFFFFF;   /* Card/panel background                */
+  --surface-muted:      #F7F9FC;   /* Subtler inner surfaces               */
+
+  /* Text */
+  --foreground:         var(--deep-blue);          /* #1A2B4A – main text  */
+  --foreground-muted:   var(--charcoal);           /* #4A5568 – muted text */
+  --foreground-subtle:  var(--charcoal-light);     /* #718096 – faint text */
+
+  /* Borders & Glass */
+  --border:             #DDE3EE;
+  --glass-bg:           rgba(255,255,255,0.92);
+  --glass-border:       rgba(0,82,165,0.12);
+  --shadow-sm:          0 1px 4px rgba(26,43,74,0.07);
+  --shadow-md:          0 4px 16px rgba(26,43,74,0.10);
+  --shadow-lg:          0 8px 32px rgba(26,43,74,0.12);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* ─── Reset ──────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--deep-blue);
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+a:hover { color: var(--primary-hover); }
+
+/* ─── Card / Panel ───────────────────────────────────────────────────── */
+.glass-panel {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.glass-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Section header strip (powder blue accent bar) ──────────────────── */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--deep-blue);
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--powder-blue);
+  margin-bottom: 1rem;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────── */
+.glass-button {
+  background: var(--primary-light);
+  border: 1.5px solid var(--primary);
+  color: var(--primary);
+  padding: 0.5rem 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.glass-button:hover {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,82,165,0.22);
+  transform: translateY(-1px);
+}
+.glass-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ─── Navigation Links ───────────────────────────────────────────────── */
+.nav-link {
+  color: var(--charcoal);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.nav-link:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.nav-button {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.nav-button:hover {
+  background: var(--primary-hover);
+  color: #fff;
+}
+
+/* ─── Animations ─────────────────────────────────────────────────────── */
+.fade-in  { animation: fadeIn  0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.slide-up { animation: slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+
+@keyframes fadeIn  { from { opacity: 0; }                     to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+.pulse-glow { animation: pulseGlow 2.5s infinite; }
+@keyframes pulseGlow {
+  0%   { box-shadow: 0 0 0 0   rgba(0,82,165,0.3); }
+  70%  { box-shadow: 0 0 0 8px rgba(0,82,165,0);   }
+  100% { box-shadow: 0 0 0 0   rgba(0,82,165,0);   }
+}
+
+.stagger-1 { animation-delay: 0.07s; }
+.stagger-2 { animation-delay: 0.14s; }
+.stagger-3 { animation-delay: 0.21s; }
+
+@keyframes heartbeat {
+  0%   { transform: scale(1);    }
+  14%  { transform: scale(1.2);  }
+  28%  { transform: scale(1);    }
+  42%  { transform: scale(1.15); }
+  70%  { transform: scale(1);    }
+  100% { transform: scale(1);    }
+}
+@keyframes spin      { from { transform: rotate(0deg); }  to { transform: rotate(360deg); } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ─── Layout ─────────────────────────────────────────────────────────── */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+@media (min-width: 768px) {
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+}
+.flex-center  { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+
+/* ─── Badges ─────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.2rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+.badge.teal    { background: var(--accent-teal-bg);   color: var(--accent-teal);   border-color: rgba(0,151,167,0.25); }
+.badge.amber   { background: var(--accent-amber-bg);  color: var(--accent-amber);  border-color: rgba(192,122,0,0.25); }
+.badge.red     { background: var(--accent-red-bg);    color: var(--accent-red);    border-color: rgba(198,40,40,0.25); }
+.badge.purple  { background: var(--accent-purple-bg); color: var(--accent-purple); border-color: rgba(92,53,161,0.25); }
+.badge.orange  { background: var(--accent-orange-bg); color: var(--accent-orange); border-color: rgba(244,131,31,0.25); }
+.badge.blue    { background: var(--primary-light);    color: var(--primary);       border-color: rgba(0,82,165,0.25); }
+.badge.powder  { background: rgba(165,216,255,0.2);   color: var(--powder-blue-dark); border-color: rgba(91,175,214,0.3); }
+
+/* ─── Consent Toggle Buttons ──────────────────────────────────────────── */
+.consent-toggle {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--charcoal);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  font-family: inherit;
+}
+.consent-toggle.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+}
+.consent-toggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ─── Terminal / Glass Box Log Panel ─────────────────────────────────── */
+.log-panel {
+  background: var(--deep-blue);
+  border-radius: 12px;
+  padding: 1rem;
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 0.78rem;
+  color: #A5D8FF;
+  overflow-y: auto;
+  max-height: 260px;
+}
+
+/* ─── Timeline ───────────────────────────────────────────────────────── */
+.timeline-item {
+  display: flex;
+  gap: 1rem;
+  animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
+  opacity: 0;
+}
+.timeline-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--powder-blue-dark);
+  border: 2px solid var(--primary);
+  flex-shrink: 0;
+  margin-top: 4px;
+  box-shadow: 0 0 0 3px rgba(165,216,255,0.25);
+}
+.timeline-line {
+  width: 2px;
+  background: linear-gradient(to bottom, var(--powder-blue), var(--border));
+  margin-left: 5px;
+  margin-top: 16px;
+  min-height: 30px;
+  flex-shrink: 0;
 }
