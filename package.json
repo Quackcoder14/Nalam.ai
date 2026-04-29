@@ -10,13 +10,13 @@
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
-    "@prisma/client": "^7.8.0",
+    "@prisma/client": "^5.22.0",
     "framer-motion": "^12.38.0",
     "groq-sdk": "^1.1.2",
     "lucide-react": "^1.13.0",
+    "mysql2": "^3.22.3",
     "next": "16.2.4",
     "papaparse": "^5.5.3",
-    "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
@@ -24,13 +24,16 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^20.19.39",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "prisma": "^5.22.0",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

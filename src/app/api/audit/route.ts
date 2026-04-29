@@ -1,31 +1,35 @@
 import { NextResponse } from 'next/server';
-
-// In-memory audit log (persists per server process lifetime)
-// In production this would be a database table
-const auditLog: { patientId: string; clinician: string; reason: string; timestamp: string }[] = [
-  { patientId: 'P001', clinician: 'Dr. Chen (Cardiology)', reason: 'Specialist Context Request', timestamp: new Date(Date.now() - 1000 * 60 * 47).toISOString() },
-  { patientId: 'P001', clinician: 'General Hospital ER', reason: 'Emergency Access', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString() },
-];
+import { addAuditEntry, getAuditEntries } from '@/lib/data';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const patientId = searchParams.get('patientId');
-  const entries = auditLog.filter(e => e.patientId === patientId).reverse();
+  if (!patientId) return NextResponse.json({ entries: [] });
+
+  const entries = await getAuditEntries(patientId);
   return NextResponse.json({ entries });
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const entry = {
-      patientId: body.patientId,
-      clinician: body.clinician || 'Unknown Clinician',
-      reason: body.reason || 'Context Request',
-      timestamp: new Date().toISOString(),
-    };
-    auditLog.push(entry);
-    return NextResponse.json({ success: true, entry });
-  } catch {
+    const { patientId, clinician, reason, contextType } = body;
+
+    if (!patientId) {
+      return NextResponse.json({ error: 'patientId is required' }, { status: 400 });
+    }
+
+    // Persist encrypted audit entry to MySQL
+    await addAuditEntry({
+      patient_id:   patientId,
+      clinician:    clinician    || 'Unknown Clinician',
+      reason:       reason       || 'Context Request',
+      context_type: contextType  || 'specialist',
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    console.error('Audit log error:', e);
     return NextResponse.json({ error: 'Failed to log audit entry' }, { status: 500 });
   }
 }

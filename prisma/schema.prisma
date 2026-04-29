@@ -1,13 +1,65 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// This is your Prisma schema for nalam.ai (Prisma v5)
+// All PHI/PII fields stored as AES-256-GCM encrypted blobs
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Patient ─────────────────────────────────────────────────────────────────
+model Patient {
+  id                  String          @id
+  name_enc            String          @db.Text
+  dob_enc             String          @db.Text
+  gender_enc          String          @db.Text
+  contact_enc         String          @db.Text
+  blood_type_enc      String          @db.Text
+  allergies_enc       String          @db.Text
+  consent_emergency   Boolean         @default(false)
+  consent_specialist  Boolean         @default(false)
+  consent_research    Boolean         @default(false)
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  records             MedicalRecord[]
+  auditLogs           AuditLog[]
+
+  @@map("patients")
+}
+
+// ─── Medical Record ───────────────────────────────────────────────────────────
+model MedicalRecord {
+  id              String   @id @default(cuid())
+  patient_id      String
+  date            String
+  type_enc        String   @db.Text
+  provider_enc    String   @db.Text
+  diagnosis_enc   String   @db.Text
+  notes_enc       String?  @db.LongText
+  lab_results_enc String?  @db.Text
+  created_at      DateTime @default(now())
+
+  patient         Patient  @relation(fields: [patient_id], references: [id])
+
+  @@index([patient_id, date])
+  @@map("medical_records")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+model AuditLog {
+  id             String   @id @default(cuid())
+  patient_id     String
+  clinician_enc  String   @db.Text
+  reason_enc     String   @db.Text
+  context_type   String
+  created_at     DateTime @default(now())
+
+  patient        Patient  @relation(fields: [patient_id], references: [id])
+
+  @@index([patient_id, created_at])
+  @@map("audit_logs")
 }

@@ -1,7 +1,25 @@
 'use client';
 
-import { useState } from 'react';
-import { Lock, Unlock, Database, Cpu, Stethoscope, AlertTriangle, FlaskConical, Eye, EyeOff, CheckCircle, XCircle, SkipForward, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Lock, Unlock, Database, Cpu, Stethoscope, AlertTriangle, FlaskConical, Eye, EyeOff, CheckCircle, XCircle, SkipForward, Clock, FileText, Activity, ChevronDown } from 'lucide-react';
+
+const MEDICATIONS = [
+  { name: 'Amlodipine',          dosages: ['2.5mg', '5mg', '10mg'] },
+  { name: 'Metoprolol',          dosages: ['25mg', '50mg', '100mg', '200mg'] },
+  { name: 'Lisinopril',          dosages: ['5mg', '10mg', '20mg', '40mg'] },
+  { name: 'Atorvastatin',        dosages: ['10mg', '20mg', '40mg', '80mg'] },
+  { name: 'Losartan',            dosages: ['25mg', '50mg', '100mg'] },
+  { name: 'Ramipril',            dosages: ['2.5mg', '5mg', '10mg'] },
+  { name: 'Bisoprolol',          dosages: ['2.5mg', '5mg', '10mg'] },
+  { name: 'Furosemide',          dosages: ['20mg', '40mg', '80mg'] },
+  { name: 'Carvedilol',          dosages: ['3.125mg', '6.25mg', '12.5mg', '25mg'] },
+  { name: 'Hydrochlorothiazide', dosages: ['12.5mg', '25mg', '50mg'] },
+  { name: 'Spironolactone',      dosages: ['25mg', '50mg', '100mg'] },
+  { name: 'Telmisartan',         dosages: ['20mg', '40mg', '80mg'] },
+  { name: 'Rosuvastatin',        dosages: ['5mg', '10mg', '20mg', '40mg'] },
+  { name: 'Aspirin',             dosages: ['75mg', '100mg', '325mg'] },
+  { name: 'Other (type below)',  dosages: [] },
+];
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -174,29 +192,54 @@ function GlassBoxPanel({ entries }: { entries: GlassBoxEntry[] }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ClinicianView() {
   const [patientId, setPatientId]         = useState('P001');
-  const [role, setRole]                   = useState('specialist');
-  const [data, setData]                   = useState<any>(null);
-  const [error, setError]                 = useState<string | null>(null);
-  const [simulation, setSimulation]       = useState<PrecisionData | null>(null);
-  const [loadingContext, setLoadingContext]     = useState(false);
+  const [role, setRole]                       = useState('specialist');
+  const [allPatients, setAllPatients]         = useState<any[]>([]);
+  const [data, setData]                       = useState<any>(null);
+  const [error, setError]                     = useState<string | null>(null);
+  const [simulation, setSimulation]           = useState<PrecisionData | null>(null);
+  const [biography, setBiography]             = useState<string>('');
+  const [loadingBio, setLoadingBio]           = useState(false);
+  const [loadingContext, setLoadingContext]    = useState(false);
   const [loadingSimulation, setLoadingSimulation] = useState(false);
-  const [medicationInput, setMedicationInput]  = useState('');
-  const [showGlassBox, setShowGlassBox]   = useState(false);
-  const [glassBoxLogs, setGlassBoxLogs]   = useState<GlassBoxEntry[]>([]);
+  const [showGlassBox, setShowGlassBox]       = useState(false);
+  const [glassBoxLogs, setGlassBoxLogs]       = useState<GlassBoxEntry[]>([]);
+  const [selectedMed, setSelectedMed]         = useState('');
+  const [selectedDosage, setSelectedDosage]   = useState('');
+  const [manualMed, setManualMed]             = useState('');
+  const [expandedRecord, setExpandedRecord]   = useState<string | null>(null);
+
+  const selectedMedObj = MEDICATIONS.find(m => m.name === selectedMed);
+  const medicationInput = selectedMed === 'Other (type below)' ? manualMed
+    : (selectedMed && selectedDosage) ? `${selectedMed} ${selectedDosage}` : manualMed;
+
+  useEffect(() => {
+    fetch('/api/patient?id=ALL')
+      .then(r => r.json())
+      .then(d => { if (d.patients) setAllPatients(d.patients); })
+      .catch(() => {});
+  }, []);
 
   const requestContext = async () => {
-    setError(null); setData(null); setSimulation(null); setGlassBoxLogs([]);
+    setError(null); setData(null); setSimulation(null); setGlassBoxLogs([]); setBiography('');
     setLoadingContext(true);
-    
-    let clinicianName = 'Dr. Chen (Cardiology)';
-    if (role === 'emergency') clinicianName = 'Dr. Smith (ER Attending)';
-    if (role === 'research') clinicianName = 'BioPharm Research Lab';
-
+    let clinicianName = 'Dr. Anand Krishnan (Cardiology)';
+    if (role === 'emergency') clinicianName = 'Dr. Sinha (ER Attending)';
+    if (role === 'research')  clinicianName = 'BioPharm Research Lab';
     try {
       const res = await fetch(`/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}`);
       const result = await res.json();
       if (!res.ok) { setError(result.error); }
-      else { setData(result.data); }
+      else {
+        setData(result.data);
+        setLoadingBio(true);
+        try {
+          const br = await fetch('/api/agents/biographer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: result.data.patient, records: result.data.records }) });
+          const bd = await br.json();
+          setBiography(bd.summary || '');
+          if (bd.glassBox) setGlassBoxLogs(prev => [...prev, ...bd.glassBox]);
+        } catch { setBiography('Unable to generate synthesis.'); }
+        finally { setLoadingBio(false); }
+      }
     } catch { setError('Failed to communicate with Patient Memory Layer.'); }
     finally { setLoadingContext(false); }
   };
@@ -267,12 +310,16 @@ export default function ClinicianView() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            <input
-              type="text" value={patientId}
+            <select
+              value={patientId}
               onChange={e => setPatientId(e.target.value)}
-              placeholder="Patient ID (e.g. P001)"
-              style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '150px', fontFamily: 'inherit' }}
-            />
+              style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '180px', fontFamily: 'inherit' }}
+            >
+              {allPatients.length > 0
+                ? allPatients.map((p: any) => <option key={p.id} value={p.id}>{p.id} — {p.name}</option>)
+                : ['P001','P002','P003','P004','P005','P006','P007','P008','P009','P010','P011','P012'].map(id => <option key={id} value={id}>{id}</option>)
+              }
+            </select>
             <select
               value={role}
               onChange={e => setRole(e.target.value)}
@@ -337,23 +384,46 @@ export default function ClinicianView() {
             Proposes an intervention through the sklearn Medication Effectiveness model, then synthesizes precision narratives via Groq.
           </p>
 
-          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <input
-              type="text" value={medicationInput}
-              onChange={e => setMedicationInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && runSimulation()}
-              placeholder="e.g. Add Amlodipine 10mg"
-              style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', fontFamily: 'inherit' }}
-            />
-            <button
-              className="glass-button"
-              style={{ borderColor: 'var(--accent-purple)', color: 'var(--accent-purple)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-              onClick={runSimulation}
-              disabled={loadingSimulation}
-            >
+          {/* Medicine Selector */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1.25rem' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Select Medicine</label>
+            <select value={selectedMed} onChange={e => { setSelectedMed(e.target.value); setSelectedDosage(''); }}
+              style={{ width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', fontFamily: 'inherit' }}>
+              <option value="">— Choose a medicine —</option>
+              {MEDICATIONS.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+            </select>
+
+            {selectedMedObj && selectedMedObj.dosages.length > 0 && (
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.4rem' }}>Dosage</label>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {selectedMedObj.dosages.map(d => (
+                    <button key={d} onClick={() => setSelectedDosage(d)}
+                      style={{ padding: '0.35rem 0.8rem', borderRadius: 20, border: `1.5px solid ${selectedDosage === d ? 'var(--primary)' : 'var(--border)'}`, background: selectedDosage === d ? 'var(--primary-light)' : 'var(--surface-muted)', color: selectedDosage === d ? 'var(--primary)' : 'var(--charcoal)', cursor: 'pointer', fontWeight: 600, fontSize: '0.83rem', transition: 'all 0.18s', fontFamily: 'inherit' }}>
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(!selectedMed || selectedMed === 'Other (type below)') && (
+              <input type="text" value={manualMed} onChange={e => setManualMed(e.target.value)}
+                placeholder="Type intervention e.g. Add Amlodipine 10mg"
+                style={{ width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            )}
+
+            {medicationInput && (
+              <div style={{ padding: '0.5rem 0.85rem', background: 'var(--primary-light)', borderRadius: 8, fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600, border: '1px solid var(--glass-border)' }}>
+                Simulating: <strong>{medicationInput}</strong>
+              </div>
+            )}
+
+            <button className="glass-button" onClick={runSimulation} disabled={loadingSimulation || !medicationInput.trim()}
+              style={{ borderColor: 'var(--accent-purple)', color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
               {loadingSimulation
                 ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--accent-purple)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> Simulating...</>
-                : 'Simulate'}
+                : '⚗️ Run Twin Simulation'}
             </button>
           </div>
 
@@ -430,6 +500,30 @@ export default function ClinicianView() {
               Run a Twin Simulation above to see the predicted BP trajectory
             </p>
           )}
+        </section>
+      )}
+
+      {/* Biographer Agent Synthesis — full width below grid */}
+      {(biography || loadingBio) && (
+        <section className="glass-panel slide-up" style={{ marginTop: '1.5rem', borderLeft: '4px solid var(--accent-purple)' }}>
+          <div className="flex-between" style={{ marginBottom: '1rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-purple)' }}>
+              <FileText size={20} /> Biographer Agent Synthesis
+            </h3>
+            <span className="badge purple">AI Generated · Groq</span>
+          </div>
+          <div style={{ background: 'var(--surface-muted)', padding: '1.25rem', borderRadius: 10, minHeight: 100 }}>
+            {loadingBio ? (
+              <div className="flex-center" style={{ flexDirection: 'column', gap: '0.6rem', color: 'var(--accent-purple)', minHeight: 80 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid var(--accent-purple)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+                Synthesizing patient history...
+              </div>
+            ) : (
+              <div className="fade-in" style={{ whiteSpace: 'pre-wrap', fontSize: '0.93rem', color: 'var(--foreground)', lineHeight: 1.8 }}>
+                {biography}
+              </div>
+            )}
+          </div>
         </section>
       )}
     </div>
