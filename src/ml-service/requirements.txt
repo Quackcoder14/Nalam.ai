@@ -1,0 +1,25 @@
+# Web Framework
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+python-dotenv>=1.0.0
+
+# LangGraph + LangChain
+langgraph>=0.2.0
+langchain-core>=0.3.0
+langchain-groq>=0.1.9
+
+# Vector Store
+chromadb>=0.5.0
+sentence-transformers>=3.0.0
+
+# LLM
+groq>=0.9.0
+
+# ML
+scikit-learn>=1.4.0
+numpy>=1.26.0
+pandas>=2.2.0
+
+# HTTP
+httpx>=0.26.0

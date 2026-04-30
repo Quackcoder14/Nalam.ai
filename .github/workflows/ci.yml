@@ -1,0 +1,52 @@
+name: CI — Type Check & Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: TypeScript & Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sentinel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: sentinel/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: mysql://root:test@localhost:3306/nalamdb
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+  security-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for committed secrets
+        run: |
+          if grep -r "ENCRYPTION_KEY=" --include="*.ts" --include="*.tsx" --include="*.js" src/ 2>/dev/null; then
+            echo "ERROR: Hardcoded ENCRYPTION_KEY found in source files!"
+            exit 1
+          fi
+          echo "No hardcoded secrets found."

@@ -39,3 +39,50 @@ next-env.d.ts
 /prisma/data.db
 /prisma/data.db-journal
 /src/generated/prisma
+
+# python & ml-service
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# virtual environments
+venv/
+.venv/
+env/
+.env_python/
+ENV/
+env.bak/
+venv.bak/
+sentinel-ml/venv/
+src/ml-service/.venv/
+
+# docker volumes & data
+nalam_mysql_data/
+nalam_chroma_data/
+chroma/
+.chroma/
+
+# ide
+.vscode/
+.idea/
+*.swp
+*.swo

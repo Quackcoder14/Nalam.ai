@@ -22,7 +22,7 @@ async function main() {
   console.log('🌱 Starting nalam.ai DB seed...\n');
 
   // ── Patients ────────────────────────────────────────────────────────────────
-  const patientsCsv = fs.readFileSync(path.join(__dirname, '../data/patients.csv'), 'utf-8');
+  const patientsCsv = fs.readFileSync(path.join(__dirname, '../datasets/patients.csv'), 'utf-8');
   const patients    = (Papa.parse(patientsCsv, { header: true, skipEmptyLines: true }).data) as any[];
 
   let pCount = 0;
@@ -48,7 +48,7 @@ async function main() {
   }
 
   // ── Medical Records ─────────────────────────────────────────────────────────
-  const recordsCsv = fs.readFileSync(path.join(__dirname, '../data/medical_records.csv'), 'utf-8');
+  const recordsCsv = fs.readFileSync(path.join(__dirname, '../datasets/medical_records.csv'), 'utf-8');
   const records    = (Papa.parse(recordsCsv, { header: true, skipEmptyLines: true }).data) as any[];
 
   let rCount = 0;

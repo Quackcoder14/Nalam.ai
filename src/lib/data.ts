@@ -73,7 +73,7 @@ async function csvGetPatients(): Promise<Patient[]> {
   const fs   = await import('fs');
   const path = await import('path');
   const Papa = (await import('papaparse')).default;
-  const csvContent = fs.readFileSync(path.join(process.cwd(), 'data', 'patients.csv'), 'utf-8');
+  const csvContent = fs.readFileSync(path.join(process.cwd(), 'datasets', 'patients.csv'), 'utf-8');
   return new Promise(resolve => Papa.parse<Patient>(csvContent, { header: true, skipEmptyLines: true, complete: r => resolve(r.data) }));
 }
 
@@ -81,7 +81,7 @@ async function csvGetRecords(patientId: string): Promise<MedicalRecord[]> {
   const fs   = await import('fs');
   const path = await import('path');
   const Papa = (await import('papaparse')).default;
-  const csvContent = fs.readFileSync(path.join(process.cwd(), 'data', 'medical_records.csv'), 'utf-8');
+  const csvContent = fs.readFileSync(path.join(process.cwd(), 'datasets', 'medical_records.csv'), 'utf-8');
   return new Promise(resolve => Papa.parse<MedicalRecord>(csvContent, {
     header: true, skipEmptyLines: true,
     complete: r => resolve(r.data.filter((row: any) => row.patient_id === patientId)),

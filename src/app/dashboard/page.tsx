@@ -250,11 +250,11 @@ export default function PatientDashboard() {
               {records.map((r, i) => (
                 <div key={r.record_id}
                   className={`timeline-entry${expandedRecord === r.record_id ? ' expanded' : ''}`}
-                  style={{ marginBottom: '0.5rem', animationDelay: `${i * 0.05}s` }}
+                  style={{ position: 'relative', marginBottom: '0.5rem', animationDelay: `${i * 0.05}s` }}
                   onClick={() => setExpandedRecord(expandedRecord === r.record_id ? null : r.record_id)}
                 >
                   {/* Dot */}
-                  <div className="timeline-dot" style={{ position: 'absolute', left: 0, top: '0.9rem', width: 12, height: 12, borderRadius: '50%', background: expandedRecord === r.record_id ? 'var(--primary)' : 'var(--powder-blue-dark)', border: '2px solid var(--primary)', boxShadow: '0 0 0 3px rgba(165,216,255,0.25)' }} />
+                  <div className="timeline-dot" style={{ position: 'absolute', left: '-1.5rem', top: '0.2rem', width: 12, height: 12, borderRadius: '50%', background: expandedRecord === r.record_id ? 'var(--primary)' : 'var(--powder-blue-dark)', border: '2px solid var(--primary)', boxShadow: '0 0 0 3px rgba(165,216,255,0.25)' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: expandedRecord === r.record_id ? '0.5rem' : 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--deep-blue)' }}>{r.diagnosis || r.type}</span>
