@@ -1,0 +1,35 @@
+name: Build Android APK
+
+on:
+  push:
+    paths:
+      - 'mobile-app/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+        working-directory: mobile-app/android
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+        working-directory: mobile-app/android
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NalamAI-app-debug
+          path: mobile-app/android/app/build/outputs/apk/debug/app-debug.apk
