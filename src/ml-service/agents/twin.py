@@ -24,7 +24,7 @@ _model = None
 def _get_groq() -> Groq:
     global _groq
     if _groq is None:
-        _groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        _groq = Groq()
     return _groq
 
 
@@ -123,11 +123,11 @@ Predicted BP Trajectory: {trajectory[0]['predicted_systolic']} → {trajectory[1
 Similar Patient Context:
 {context_text}
 
-Respond in this EXACT JSON format (no markdown):
+Respond in this EXACT JSON format (no markdown). Provide detailed, comprehensive, and well-reasoned clinical explanations for each field (at least 3-4 sentences per field):
 {{
-  "treatmentDecision": "<evidence-based recommendation for or against this intervention>",
-  "riskPrediction": "<cardiovascular risk projection over 3-5 years with this intervention>",
-  "personalizedCare": "<monitoring plan, contraindications, and follow-up schedule>"
+  "treatmentDecision": "<detailed evidence-based recommendation for or against this intervention>",
+  "riskPrediction": "<detailed cardiovascular risk projection over 3-5 years with this intervention>",
+  "personalizedCare": "<comprehensive monitoring plan, contraindications, and follow-up schedule>"
 }}"""
 
     try:
@@ -137,7 +137,7 @@ Respond in this EXACT JSON format (no markdown):
                 {"role": "system", "content": "You are a precision medicine AI. Always respond with valid JSON only."},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=400,
+            max_tokens=1500,
             temperature=0.2,
         )
         narratives = json.loads(resp.choices[0].message.content.strip())

@@ -17,7 +17,7 @@ _groq = None
 def _get_groq() -> Groq:
     global _groq
     if _groq is None:
-        _groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        _groq = Groq()
     return _groq
 
 

@@ -21,6 +21,18 @@ export default function HomePage() {
   }, []);
 
   const handleLogin = (role: 'patient' | 'clinician') => {
+    if (password !== '123') {
+      alert('Invalid credentials');
+      return;
+    }
+    if (role === 'patient' && username.toLowerCase() !== 'dhanush@nalam.ai') {
+      alert('Invalid patient credentials');
+      return;
+    }
+    if (role === 'clinician' && username.toLowerCase() !== 'monissha@nalam.ai') {
+      alert('Invalid clinician credentials');
+      return;
+    }
     localStorage.setItem('nalamRole', role);
     localStorage.setItem('nalamPatientId', 'P001');
     router.push(role === 'patient' ? '/dashboard' : '/clinician');
@@ -126,8 +138,8 @@ export default function HomePage() {
                     type={label === 'Password' ? 'password' : 'text'}
                     value={label === 'Username' ? username : password}
                     onChange={e => label === 'Username' ? setUsername(e.target.value) : setPassword(e.target.value)}
-                    placeholder={label === 'Password' ? '••••••••' : loginType === 'patient' ? 'patient@nalam.ai' : 'clinician@nalam.ai'}
-                    onKeyDown={e => e.key === 'Enter' && handleLogin(loginType)}
+                    placeholder={label === 'Password' ? '••••••••' : loginType === 'patient' ? 'dhanush@nalam.ai' : 'monissha@nalam.ai'}
+                    onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
                     style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', transition: 'border-color 0.2s', background: '#FAFBFD' }}
                     onFocus={e => e.target.style.borderColor = loginType === 'patient' ? '#0052A5' : '#0097A7'}
                     onBlur={e => e.target.style.borderColor = '#e2e8f0'}
@@ -135,14 +147,13 @@ export default function HomePage() {
                 </div>
               ))}
               <button
-                onClick={() => handleLogin(loginType)}
+                onClick={() => handleLogin(loginType!)}
                 style={{ width: '100%', padding: '0.9rem', marginTop: '0.5rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : 'linear-gradient(135deg,#0097A7,#00BCD4)', color: 'white', border: 'none', borderRadius: 10, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s', fontFamily: 'inherit' }}
                 onMouseOver={e => e.currentTarget.style.opacity = '0.88'}
                 onMouseOut={e => e.currentTarget.style.opacity = '1'}
               >
                 Sign In →
               </button>
-              <p style={{ fontSize: '0.76rem', color: '#94a3b8', textAlign: 'center' }}>Demo mode — any credentials are accepted</p>
             </div>
           </div>
         )}

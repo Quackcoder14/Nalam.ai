@@ -16,13 +16,17 @@ Legacy endpoints kept for backward compat:
 import os
 import logging
 import time
+from pathlib import Path
 from typing import Any, Dict, List
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-load_dotenv()
+# Resolve the repo root (two levels up from src/ml-service/main.py)
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+load_dotenv(_REPO_ROOT / ".env")          # base vars (DATABASE_URL, ENCRYPTION_KEY)
+load_dotenv(_REPO_ROOT / ".env.local", override=True)  # local overrides incl. GROQ_API_KEY
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 logger = logging.getLogger("nalam.ml")
 

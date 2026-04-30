@@ -46,7 +46,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo Starting Sentinel-Health ML Engine on http://localhost:8001 ...
+echo Starting Sentinel-Health ML Engine on http://localhost:8005 ...
 echo Press Ctrl+C to stop.
 echo.
-%VENV_PYTHON% -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+%VENV_PYTHON% -m uvicorn main:app --host 0.0.0.0 --port 8005 --reload

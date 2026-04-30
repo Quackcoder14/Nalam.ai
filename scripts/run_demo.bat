@@ -5,7 +5,7 @@ echo ============================================
 echo.
 
 echo [1/2] Starting Python ML service (LangGraph + ChromaDB)...
-start "nalam-ml" cmd /c "C:\Users\dhanu\Downloads\HH26\sentinel\sentinel-ml\venv\Scripts\uvicorn.exe main:app --host 0.0.0.0 --port 8005 --app-dir C:\Users\dhanu\Downloads\HH26\sentinel\src\ml-service"
+start "nalam-ml" cmd /c "cd /d C:\Users\dhanu\Downloads\HH26\sentinel\src\ml-service && start.bat"
 
 echo Waiting 8s for ML service to initialise...
 timeout /t 8 /nobreak >nul

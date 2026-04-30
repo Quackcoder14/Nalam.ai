@@ -222,7 +222,7 @@ export default function ClinicianView() {
   const requestContext = async () => {
     setError(null); setData(null); setSimulation(null); setGlassBoxLogs([]); setBiography('');
     setLoadingContext(true);
-    let clinicianName = 'Dr. Anand Krishnan (Cardiology)';
+    let clinicianName = 'Dr. Monissha (Cardiology)';
     if (role === 'emergency') clinicianName = 'Dr. Sinha (ER Attending)';
     if (role === 'research')  clinicianName = 'BioPharm Research Lab';
     try {
@@ -325,7 +325,7 @@ export default function ClinicianView() {
               onChange={e => setRole(e.target.value)}
               style={{ padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '200px', fontFamily: 'inherit' }}
             >
-              <option value="specialist">Dr. Chen (Specialist)</option>
+              <option value="specialist">Dr. Monissha (Specialist)</option>
               <option value="emergency">Dr. Smith (Emergency)</option>
               <option value="research">BioPharm (Research)</option>
             </select>

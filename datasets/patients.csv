@@ -1,5 +1,5 @@
 id,name,dob,gender,contact,consent_emergency,consent_specialist,consent_research
-P001,Arjun Mehta,1985-04-12,Male,arjun.mehta@example.com,true,true,true
+P001,Dhanush,1985-04-12,Male,dhanush@nalam.ai,true,true,true
 P002,Priya Nair,1990-08-25,Female,priya.nair@example.com,true,false,true
 P003,Kavya Reddy,1978-11-03,Female,kavya.reddy@example.com,true,true,false
 P004,Ravi Shankar,1965-07-19,Male,ravi.shankar@example.com,true,true,true
