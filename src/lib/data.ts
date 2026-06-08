@@ -30,8 +30,13 @@ export interface MedicalRecord {
 }
 
 /* ─── Helper: pick DB mode ──────────────────────────────────────────────── */
-function useMySQL(): boolean {
-  return !!(process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mysql'));
+function useDb(): boolean {
+  return !!(
+    process.env.DATABASE_URL &&
+    (process.env.DATABASE_URL.startsWith('mysql') ||
+      process.env.DATABASE_URL.startsWith('postgres') ||
+      process.env.DATABASE_URL.startsWith('postgresql'))
+  );
 }
 
 /* ─── MySQL helpers ─────────────────────────────────────────────────────── */
@@ -91,7 +96,7 @@ async function csvGetRecords(patientId: string): Promise<MedicalRecord[]> {
 /* ─── Public API ────────────────────────────────────────────────────────── */
 
 export async function getPatients(): Promise<Patient[]> {
-  if (!useMySQL()) return csvGetPatients();
+  if (!useDb()) return csvGetPatients();
   const db = await getPrisma();
   const rows = await db.patient.findMany();
   return rows.map(rowToPatient);
@@ -102,7 +107,7 @@ export const getAllPatients = getPatients;
 
 
 export async function getPatientById(id: string): Promise<Patient | null> {
-  if (!useMySQL()) {
+  if (!useDb()) {
     const all = await csvGetPatients();
     return all.find(p => p.id === id) || null;
   }
@@ -112,7 +117,7 @@ export async function getPatientById(id: string): Promise<Patient | null> {
 }
 
 export async function getMedicalRecords(patientId: string): Promise<MedicalRecord[]> {
-  if (!useMySQL()) return csvGetRecords(patientId);
+  if (!useDb()) return csvGetRecords(patientId);
   const db   = await getPrisma();
   const rows = await db.medicalRecord.findMany({
     where: { patient_id: patientId },
@@ -124,7 +129,7 @@ export async function getMedicalRecords(patientId: string): Promise<MedicalRecor
 export async function updatePatientConsent(
   id: string, emergency: string, specialist: string, research: string
 ): Promise<boolean> {
-  if (!useMySQL()) {
+  if (!useDb()) {
     // CSV fallback
     const fs   = await import('fs');
     const path = await import('path');
@@ -151,7 +156,7 @@ export async function addMedicalRecord(record: {
   patient_id: string; type: string; provider: string;
   diagnosis: string; notes: string; lab_results: string;
 }): Promise<MedicalRecord> {
-  if (!useMySQL()) throw new Error('addMedicalRecord requires MySQL to be configured.');
+  if (!useDb()) throw new Error('addMedicalRecord requires a database to be configured.');
   const db  = await getPrisma();
   const row = await db.medicalRecord.create({
     data: {
@@ -170,7 +175,7 @@ export async function addMedicalRecord(record: {
 export async function addAuditEntry(entry: {
   patient_id: string; clinician: string; reason: string; context_type: string;
 }): Promise<void> {
-  if (!useMySQL()) return; // CSV mode: audit is handled separately
+  if (!useDb()) return; // CSV mode: audit is handled separately
   const db = await getPrisma();
   await db.auditLog.create({
     data: {
@@ -183,7 +188,7 @@ export async function addAuditEntry(entry: {
 }
 
 export async function getAuditEntries(patientId: string): Promise<Array<{ clinician: string; reason: string; timestamp: string; }>> {
-  if (!useMySQL()) return [];
+  if (!useDb()) return [];
   const db   = await getPrisma();
   const rows = await db.auditLog.findMany({
     where: { patient_id: patientId },

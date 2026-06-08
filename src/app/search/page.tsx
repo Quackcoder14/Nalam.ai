@@ -1,0 +1,281 @@
+'use client';
+import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Search, FileText, Microscope, User, Calendar, Tag, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
+
+interface SearchRecord {
+  id: string;
+  type: string;
+  diagnosis?: string;
+  notes?: string;
+  lab_results?: string;
+  provider?: string;
+  visit_date?: string;
+  patient_id?: string;
+  score: number;
+  highlights: {
+    diagnosis: string;
+    notes: string;
+    lab_results: string;
+    provider: string;
+  };
+}
+
+const SEVERITY_COLORS: Record<string, string> = {
+  critical: 'var(--accent-red)',
+  warning:  'var(--accent-amber)',
+  normal:   'var(--accent-green)',
+};
+
+function HighlightedText({ html }: { html: string }) {
+  return (
+    <span
+      dangerouslySetInnerHTML={{ __html: html }}
+      style={{ lineHeight: 1.6 }}
+    />
+  );
+}
+
+export default function SearchPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [query, setQuery]       = useState(searchParams.get('q') || '');
+  const [field, setField]       = useState('all');
+  const [results, setResults]   = useState<SearchRecord[]>([]);
+  const [total, setTotal]       = useState(0);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+  const [searched, setSearched] = useState(false);
+
+  const runSearch = useCallback(async (q: string, f: string) => {
+    if (q.trim().length < 2) return;
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({ q: q.trim(), field: f });
+      const patientId = localStorage.getItem('nalamPatientId');
+      if (patientId) params.set('patientId', patientId);
+
+      const res = await fetch(`/api/search?${params}`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setResults(data.records || []);
+      setTotal(data.total || 0);
+      setSearched(true);
+    } catch (e: any) {
+      setError(e.message || 'Search failed');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Auto-search on URL param
+  useEffect(() => {
+    const q = searchParams.get('q') || '';
+    if (q) {
+      setQuery(q);
+      runSearch(q, field);
+    }
+  }, [searchParams, runSearch, field]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+    runSearch(query, field);
+  };
+
+  const typeIcon = (type: string) => {
+    if (type?.toLowerCase().includes('lab'))  return <Microscope size={15} color="var(--accent-teal)" />;
+    if (type?.toLowerCase().includes('visit')) return <User size={15} color="var(--primary)" />;
+    return <FileText size={15} color="var(--accent-purple)" />;
+  };
+
+  return (
+    <div style={{ maxWidth: 900, margin: '2rem auto', padding: '0 1.5rem' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--foreground)', marginBottom: '0.25rem' }}>
+          <Search size={22} style={{ verticalAlign: 'middle', marginRight: '0.5rem', color: 'var(--primary)' }} />
+          Medical Record Search
+        </h1>
+        <p style={{ color: 'var(--foreground-muted)', fontSize: '0.9rem' }}>
+          Full-text search across your health records. All data is decrypted in-memory and never logged.
+        </p>
+      </div>
+
+      {/* Search form */}
+      <form onSubmit={handleSubmit}>
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--foreground-subtle)' }} />
+            <input
+              id="search-input"
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Diagnoses, notes, lab results, providers…"
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '0.8rem 1rem 0.8rem 2.6rem',
+                borderRadius: 12,
+                border: '2px solid var(--border)',
+                background: 'var(--surface)',
+                color: 'var(--foreground)',
+                fontSize: '1rem',
+                outline: 'none',
+              }}
+            />
+          </div>
+          <select
+            id="field-filter"
+            value={field}
+            onChange={e => setField(e.target.value)}
+            style={{
+              padding: '0.8rem 1rem',
+              borderRadius: 12,
+              border: '2px solid var(--border)',
+              background: 'var(--surface)',
+              color: 'var(--foreground)',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="all">All fields</option>
+            <option value="diagnosis">Diagnosis</option>
+            <option value="notes">Notes</option>
+            <option value="labs">Lab Results</option>
+            <option value="provider">Provider</option>
+          </select>
+          <button
+            type="submit"
+            id="search-submit"
+            disabled={loading || query.trim().length < 2}
+            style={{
+              padding: '0.8rem 1.5rem',
+              borderRadius: 12,
+              border: 'none',
+              background: 'var(--primary)',
+              color: 'white',
+              fontWeight: 700,
+              fontSize: '0.95rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              opacity: loading || query.trim().length < 2 ? 0.6 : 1,
+            }}
+          >
+            {loading ? <Loader2 size={16} className="spin" /> : <Search size={16} />}
+            Search
+          </button>
+        </div>
+      </form>
+
+      {/* Error */}
+      {error && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', borderRadius: 10, background: 'var(--accent-red-bg)', color: 'var(--accent-red)', marginBottom: '1rem' }}>
+          <AlertCircle size={16} /> {error}
+        </div>
+      )}
+
+      {/* Results count */}
+      {searched && !loading && (
+        <div style={{ fontSize: '0.88rem', color: 'var(--foreground-muted)', marginBottom: '1rem' }}>
+          {total > 0 ? (
+            <><strong style={{ color: 'var(--foreground)' }}>{total}</strong> result{total !== 1 ? 's' : ''} for "<strong style={{ color: 'var(--primary)' }}>{searchParams.get('q')}</strong>"</>
+          ) : (
+            <>No results found for "<strong>{searchParams.get('q')}</strong>". Try different keywords.</>
+          )}
+        </div>
+      )}
+
+      {/* Results list */}
+      {results.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {results.map((rec) => (
+            <div
+              key={rec.id}
+              className="glass-panel"
+              style={{ cursor: 'default', padding: '1.25rem', borderRadius: 14 }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.6rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {typeIcon(rec.type)}
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--foreground)' }}>
+                    {rec.type || 'Medical Record'}
+                  </span>
+                  <span style={{
+                    padding: '0.15rem 0.6rem',
+                    borderRadius: 50,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    background: 'var(--primary-light)',
+                    color: 'var(--primary)',
+                  }}>
+                    {Math.round(rec.score * 100)}% match
+                  </span>
+                </div>
+                {rec.visit_date && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--foreground-subtle)' }}>
+                    <Calendar size={13} />
+                    {new Date(rec.visit_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                )}
+              </div>
+
+              {rec.highlights.diagnosis && (
+                <div style={{ marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Diagnosis</span>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--foreground)', marginTop: '0.15rem' }}>
+                    <HighlightedText html={rec.highlights.diagnosis} />
+                  </div>
+                </div>
+              )}
+
+              {rec.highlights.notes && (
+                <div style={{ marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notes</span>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--foreground-muted)', marginTop: '0.15rem', lineHeight: 1.5 }}>
+                    <HighlightedText html={rec.highlights.notes} />
+                  </div>
+                </div>
+              )}
+
+              {rec.highlights.lab_results && (
+                <div style={{ marginBottom: '0.4rem' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lab Results</span>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)', marginTop: '0.15rem', fontFamily: 'monospace' }}>
+                    <HighlightedText html={rec.highlights.lab_results} />
+                  </div>
+                </div>
+              )}
+
+              {rec.provider && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.5rem', fontSize: '0.82rem', color: 'var(--foreground-subtle)' }}>
+                  <User size={13} />
+                  <HighlightedText html={rec.highlights.provider || rec.provider} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {searched && !loading && results.length === 0 && !error && (
+        <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--foreground-muted)' }}>
+          <Search size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+          <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>No matching records found</p>
+          <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>Try shorter terms, alternate spellings, or switch the field filter.</p>
+        </div>
+      )}
+
+      <style>{`
+        mark { background: rgba(245,158,11,0.25); color: inherit; border-radius: 2px; padding: 0 2px; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  );
+}

@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server';
 const ML_SERVICE = process.env.ML_SERVICE_URL ?? 'http://localhost:8005';
 
 export async function POST(request: Request) {
-  const { patient, records } = await request.json();
+  const { patient, records, role = 'specialist' } = await request.json();
 
   if (!patient?.id) {
     return NextResponse.json({ error: 'patient.id is required.' }, { status: 400 });
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         patient_id: patient.id,
-        role: 'specialist',
+        role: role,
         patient,
         records,
       }),
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         step: 1,
         agentName: 'Guardrails Agent',
         model: 'Consent + Role-Based Data Filter',
-        inputSummary: { patientId: patient.id, role: 'specialist', recordsAvailable: records.length },
+        inputSummary: { patientId: patient.id, role: role, recordsAvailable: records.length },
         output: data.guardrail_log ?? [],
         durationMs: 0,
         status: data.errors?.length ? 'error' : 'success',

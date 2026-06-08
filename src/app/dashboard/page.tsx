@@ -1,7 +1,33 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Activity, BellRing, Network, Database, Heart, Watch, Rss, Clock, Eye, Download, ChevronDown, ChevronRight } from 'lucide-react';
+import { Shield, Activity, BellRing, Network, Database, Heart, Watch, Rss, Clock, Eye, Download, ChevronDown, ChevronRight, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, Search } from 'lucide-react';
+
+const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+
+async function subscribePush(patientId: string, role = 'patient') {
+  if (!('serviceWorker' in navigator) || !VAPID_PUBLIC) return false;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    const sub = existing || await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC),
+    });
+    await fetch('/api/notify/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON(), patientId, role }),
+    });
+    return true;
+  } catch { return false; }
+}
+
+function urlBase64ToUint8Array(base64: string) {
+  const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+  const raw = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
 
 interface ConsentState { emergency: boolean; specialist: boolean; research: boolean; }
 interface AuditEntry { clinician: string; reason: string; timestamp: string; }
@@ -29,14 +55,22 @@ function ConsentToggle({ label, desc, active, onToggle }: { label: string; desc:
 }
 
 export default function PatientDashboard() {
-  const [patient, setPatient] = useState<any>(null);
-  const [records, setRecords] = useState<any[]>([]);
-  const [consent, setConsent] = useState<ConsentState>({ emergency: false, specialist: false, research: false });
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
-  const [showAudit, setShowAudit] = useState(false);
-  const [heartRate, setHeartRate] = useState(72);
+  const [patient, setPatient]         = useState<any>(null);
+  const [records, setRecords]         = useState<any[]>([]);
+  const [consent, setConsent]         = useState<ConsentState>({ emergency: false, specialist: false, research: false });
+  const [auditLog, setAuditLog]       = useState<AuditEntry[]>([]);
+  const [showAudit, setShowAudit]     = useState(false);
+  const [heartRate, setHeartRate]     = useState(72);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
-  const [intervention, setIntervention] = useState<any>(null);
+  const [intervention, setIntervention]     = useState<any>(null);
+  // Anomaly state
+  const [anomaly, setAnomaly]         = useState<any>(null);
+  const [anomalyLoading, setAL]       = useState(false);
+  // Push
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [demoScenario, setDemoScenario] = useState<string | null>(null);
+  const anomalyRef                    = useRef<any>(null);
   const router = useRouter();
 
   // Live HR simulation
@@ -45,9 +79,57 @@ export default function PatientDashboard() {
     return () => clearInterval(iv);
   }, []);
 
+  // Anomaly polling (every 30s)
+  const checkAnomaly = useCallback(async (hr: number, overrides?: any) => {
+    setAL(true);
+    try {
+      const payload = { heart_rate: hr, systolic_bp: 120, diastolic_bp: 80, spo2: 98, temperature: 36.9, ...overrides };
+      const res = await fetch('/api/anomaly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      setAnomaly(data);
+      anomalyRef.current = data;
+      // Fire push if anomaly
+      if (data.is_anomaly && pushEnabled) {
+        const severity = data.severity;
+        await fetch('/api/notify/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patientId: 'P001',
+            title: severity === 'critical' ? '🚨 Critical Vital Anomaly' : '⚠️ Vital Anomaly Detected',
+            message: data.flags?.[0]?.message || 'An anomaly was detected in your vitals.',
+            severity,
+          }),
+        });
+      }
+    } catch { /* ML offline */ }
+    finally { setAL(false); }
+  }, [pushEnabled]);
+
+  useEffect(() => {
+    if (!demoScenario) {
+      checkAnomaly(heartRate);
+      const iv = setInterval(() => checkAnomaly(heartRate), 30000);
+      return () => clearInterval(iv);
+    }
+  }, [checkAnomaly, heartRate, demoScenario]);
+
+  const runDemo = (scenario: string) => {
+    setDemoScenario(scenario);
+    if (scenario === 'normal') checkAnomaly(72, { systolic_bp: 120, diastolic_bp: 80 });
+    if (scenario === 'tachycardia') checkAnomaly(135, { systolic_bp: 125 });
+    if (scenario === 'hypoxemia') checkAnomaly(95, { spo2: 91 });
+    if (scenario === 'hypertension') checkAnomaly(88, { systolic_bp: 185, diastolic_bp: 115 });
+  };
+
   const fetchAudit = useCallback(async () => {
     try {
       const r = await fetch('/api/audit?patientId=P001');
+      if (!r.ok) return;
       const d = await r.json();
       setAuditLog(d.entries || []);
     } catch { /* silent */ }
@@ -62,6 +144,7 @@ export default function PatientDashboard() {
     (async () => {
       try {
         const res = await fetch('/api/patient?id=P001');
+        if (!res.ok) throw new Error(`API Error: ${res.status}`);
         const data = await res.json();
         setPatient(data.patient);
         setRecords(data.records || []);
@@ -72,7 +155,9 @@ export default function PatientDashboard() {
         });
         // Fetch intervention
         const ir = await fetch('/api/agents/intervention', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: data.patient, records: data.records }) });
-        setIntervention(await ir.json());
+        if (ir.ok) {
+          setIntervention(await ir.json());
+        }
       } catch (e) { console.error(e); }
     })();
     fetchAudit();
@@ -110,11 +195,41 @@ export default function PatientDashboard() {
           <p style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>Identity Verified · {patient.id}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <button className="glass-button" onClick={() => router.push('/search')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Search size={15} /> Search Records
+          </button>
+          <button className="glass-button" onClick={() => router.push('/xai')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Brain size={15} /> AI Insights
+          </button>
           <button className="glass-button" onClick={() => { setShowAudit(p => !p); fetchAudit(); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Clock size={15} /> Audit Log
           </button>
           <button className="glass-button" onClick={exportVault} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderColor: 'var(--powder-blue-dark)' }}>
             <Download size={15} /> Export FHIR Vault
+          </button>
+          {/* Push toggle */}
+          <button
+            id="push-toggle"
+            disabled={pushLoading}
+            onClick={async () => {
+              if (pushEnabled) { setPushEnabled(false); return; }
+              setPushLoading(true);
+              const ok = await subscribePush('P001');
+              setPushEnabled(ok);
+              setPushLoading(false);
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.45rem 0.9rem', borderRadius: 8,
+              border: `1px solid ${pushEnabled ? 'var(--accent-green)' : 'var(--border)'}`,
+              background: pushEnabled ? 'var(--accent-green-bg)' : 'var(--surface)',
+              color: pushEnabled ? 'var(--accent-green)' : 'var(--foreground-muted)',
+              fontWeight: 600, fontSize: '0.84rem', cursor: 'pointer',
+              opacity: pushLoading ? 0.6 : 1,
+            }}
+          >
+            {pushEnabled ? <Bell size={15} /> : <BellOff size={15} />}
+            {pushEnabled ? 'Alerts On' : 'Enable Alerts'}
           </button>
         </div>
       </div>
@@ -212,6 +327,93 @@ export default function PatientDashboard() {
 
         {/* RIGHT */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* ── Anomaly Detection Panel ─────────────────────────────── */}
+          <section className="glass-panel slide-up stagger-2" style={{
+            borderColor: anomaly?.is_anomaly
+              ? (anomaly.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)')
+              : 'var(--glass-border)',
+          }}>
+            <div className="flex-between" style={{ marginBottom: '0.85rem' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)') : 'var(--accent-green)' }}>
+                <Zap size={18} /> Real-Time Anomaly Monitor
+              </h3>
+              <span style={{
+                padding: '0.2rem 0.65rem', borderRadius: 50,
+                fontSize: '0.75rem', fontWeight: 700,
+                background: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red-bg)' : 'var(--accent-amber-bg)') : 'var(--accent-green-bg)',
+                color: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)') : 'var(--accent-green)',
+              }}>
+                {anomalyLoading ? '⟳ Checking…' : anomaly?.is_anomaly ? `⚠ ${anomaly.severity?.toUpperCase()}` : '✓ Normal'}
+              </span>
+            </div>
+
+            {anomaly?.flags?.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.75rem' }}>
+                {anomaly.flags.map((f: any, i: number) => (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                    padding: '0.55rem 0.75rem', borderRadius: 8,
+                    background: f.severity === 'critical' ? 'var(--accent-red-bg)' : 'var(--accent-amber-bg)',
+                    borderLeft: `3px solid ${f.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)'}`,
+                  }}>
+                    <AlertTriangle size={14} color={f.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)'} style={{ marginTop: 2, flexShrink: 0 }} />
+                    <span style={{ fontSize: '0.83rem', color: 'var(--foreground)', lineHeight: 1.5 }}>{f.message}</span>
+                  </div>
+                ))}
+              </div>
+            ) : anomaly && !anomaly.is_anomaly ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: 'var(--accent-green-bg)', marginBottom: '0.75rem' }}>
+                <CheckCircle size={15} color="var(--accent-green)" />
+                <span style={{ fontSize: '0.83rem', color: 'var(--accent-green)', fontWeight: 600 }}>All vitals within expected ranges</span>
+              </div>
+            ) : null}
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                id="anomaly-check"
+                onClick={() => checkAnomaly(heartRate)}
+                disabled={anomalyLoading}
+                className="glass-button"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', opacity: anomalyLoading ? 0.6 : 1 }}
+              >
+                <Zap size={13} /> Check Now
+              </button>
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <select
+                  value={demoScenario || ''}
+                  onChange={(e) => runDemo(e.target.value)}
+                  style={{
+                    appearance: 'none',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '0.4rem 2rem 0.4rem 0.8rem',
+                    fontSize: '0.8rem',
+                    color: 'var(--foreground)',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <option value="" disabled>▶ Simulate Demo...</option>
+                  <option value="normal">Normal Vitals</option>
+                  <option value="tachycardia">Tachycardia (HR: 135)</option>
+                  <option value="hypoxemia">Hypoxemia (SpO2: 91%)</option>
+                  <option value="hypertension">Hypertensive Crisis (185/115)</option>
+                </select>
+                <ChevronDown size={14} style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--foreground-muted)' }} />
+              </div>
+              <button
+                className="glass-button"
+                onClick={() => router.push('/xai')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Brain size={13} /> Explain
+              </button>
+            </div>
+          </section>
+
           {/* Live Vitals (preview) */}
           <section className="glass-panel slide-up stagger-2">
             <div className="flex-between" style={{ marginBottom: '1rem' }}>
@@ -227,8 +429,8 @@ export default function PatientDashboard() {
                     <Icon size={17} color={color.replace('18', '')} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--deep-blue)' }}>{value}</div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)' }}>{label}</div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--foreground)' }}>{value}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--foreground-muted)' }}>{label}</div>
                   </div>
                 </div>
               ))}

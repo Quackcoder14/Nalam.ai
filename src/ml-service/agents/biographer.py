@@ -50,14 +50,24 @@ Medical Timeline ({len(records)} records):
 Semantically Retrieved Context (top-5 similar records):
 {context_text}
 
-Write a structured clinical biography covering:
-1. Chief concerns and primary diagnoses
-2. Disease progression and trends
-3. Key laboratory findings and trajectories
-4. Active clinical risk factors
-5. Clinical recommendations for the receiving provider
+Write a structured clinical biography using the following exact format (use bold text for section headers instead of markdown hashes):
 
-Be precise, evidence-based, and under 500 words."""
+**🏥 Chief Concerns & Diagnoses**
+• [Bullet point]
+
+**📈 Disease Progression**
+• [Bullet point]
+
+**🔬 Key Laboratory Findings**
+• [Bullet point]
+
+**⚠️ Active Clinical Risks**
+• [Bullet point]
+
+**💡 Clinical Recommendations**
+• [Bullet point]
+
+Be extremely concise, evidence-based, use short bullet points, and keep the total output under 200 words. Do NOT use any ### headers."""
 
     try:
         resp = _get_groq().chat.completions.create(

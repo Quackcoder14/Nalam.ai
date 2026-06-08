@@ -223,7 +223,7 @@ export default function ClinicianView() {
     setError(null); setData(null); setSimulation(null); setGlassBoxLogs([]); setBiography('');
     setLoadingContext(true);
     let clinicianName = 'Dr. Monissha (Cardiology)';
-    if (role === 'emergency') clinicianName = 'Dr. Sinha (ER Attending)';
+    if (role === 'emergency') clinicianName = 'Dr. Dhanush (ER Attending)';
     if (role === 'research')  clinicianName = 'BioPharm Research Lab';
     try {
       const res = await fetch(`/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}`);
@@ -233,7 +233,7 @@ export default function ClinicianView() {
         setData(result.data);
         setLoadingBio(true);
         try {
-          const br = await fetch('/api/agents/biographer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: result.data.patient, records: result.data.records }) });
+          const br = await fetch('/api/agents/biographer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: result.data.patient, records: result.data.records, role }) });
           const bd = await br.json();
           setBiography(bd.summary || '');
           if (bd.glassBox) setGlassBoxLogs(prev => [...prev, ...bd.glassBox]);
@@ -251,7 +251,7 @@ export default function ClinicianView() {
       const res = await fetch('/api/agents/twin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient: data.patient, records: data.records, intervention: medicationInput }),
+        body: JSON.stringify({ patient: data.patient, records: data.records, intervention: medicationInput, role }),
       });
       const result = await res.json();
       setSimulation(result);
@@ -326,7 +326,7 @@ export default function ClinicianView() {
               style={{ padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '200px', fontFamily: 'inherit' }}
             >
               <option value="specialist">Dr. Monissha (Specialist)</option>
-              <option value="emergency">Dr. Smith (Emergency)</option>
+              <option value="emergency">Dr. Dhanush (Emergency)</option>
               <option value="research">BioPharm (Research)</option>
             </select>
             <button className="glass-button" onClick={requestContext} disabled={loadingContext}
@@ -440,7 +440,7 @@ export default function ClinicianView() {
                 <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', marginBottom: '0.4rem', fontSize: '0.92rem' }}>
                   <Stethoscope size={16} /> Better Treatment Decisions
                 </h4>
-                <p style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65 }}>{simulation.treatmentDecision}</p>
+                <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{simulation.treatmentDecision}</div>
               </div>
 
               <div className="slide-up stagger-2" style={{ background: 'var(--accent-amber-bg)', borderLeft: '4px solid var(--accent-amber)', padding: '0.9rem', borderRadius: 8, transition: 'transform 0.2s' }}
@@ -448,7 +448,7 @@ export default function ClinicianView() {
                 <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-amber)', marginBottom: '0.4rem', fontSize: '0.92rem' }}>
                   <AlertTriangle size={16} /> Risk Prediction
                 </h4>
-                <p style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65 }}>{simulation.riskPrediction}</p>
+                <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{simulation.riskPrediction}</div>
               </div>
 
               <div className="slide-up stagger-3" style={{ background: 'var(--accent-teal-bg)', borderLeft: '4px solid var(--accent-teal)', padding: '0.9rem', borderRadius: 8, transition: 'transform 0.2s' }}
@@ -456,7 +456,7 @@ export default function ClinicianView() {
                 <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-teal)', marginBottom: '0.4rem', fontSize: '0.92rem' }}>
                   <FlaskConical size={16} /> Personalized Care
                 </h4>
-                <p style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65 }}>{simulation.personalizedCare}</p>
+                <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{simulation.personalizedCare}</div>
               </div>
             </div>
           )}

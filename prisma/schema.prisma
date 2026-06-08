@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Patient ─────────────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ model MedicalRecord {
   type_enc        String   @db.Text
   provider_enc    String   @db.Text
   diagnosis_enc   String   @db.Text
-  notes_enc       String?  @db.LongText
+  notes_enc       String?  @db.Text
   lab_results_enc String?  @db.Text
   created_at      DateTime @default(now())
 
@@ -62,4 +63,31 @@ model AuditLog {
 
   @@index([patient_id, created_at])
   @@map("audit_logs")
+}
+
+// ─── Push Notification Subscriptions ─────────────────────────────────────────
+model PushSubscription {
+  id         String   @id @default(cuid())
+  patient_id String?
+  role       String   @default("patient")  // "patient" | "clinician"
+  endpoint   String   @unique @db.Text
+  keys_json  String   @db.Text
+  created_at DateTime @default(now())
+
+  @@index([patient_id])
+  @@map("push_subscriptions")
+}
+
+// ─── Clinical Alerts (Active Notifications) ──────────────────────────────────
+model ClinicalAlert {
+  id         String   @id @default(cuid())
+  patient_id String
+  severity   String
+  title      String   @db.Text
+  message    String   @db.Text
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@index([patient_id, is_read])
+  @@map("clinical_alerts")
 }

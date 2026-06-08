@@ -72,8 +72,13 @@ env/
 ENV/
 env.bak/
 venv.bak/
-sentinel-ml/venv/
-src/ml-service/.venv/
+**/venv/
+**/.venv/
+**/env/
+**/local_venv/
+/sentinel-ml/venv/
+/src/ml-service/.venv/
+/src/ml-service/local_venv/
 
 # docker volumes & data
 nalam_mysql_data/

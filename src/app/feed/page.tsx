@@ -9,7 +9,7 @@ interface OcrResult {
   confidence: number; durationMs: number;
 }
 
-type ActiveModule = null | 'wearables' | 'scanner';
+type ActiveModule = null | 'wearables';
 
 export default function FeedInputPage() {
   const router = useRouter();
@@ -91,9 +91,9 @@ export default function FeedInputPage() {
             </button>
           )}
           <div>
-            <h2 style={{ fontSize: '1.9rem' }}>{active === 'wearables' ? '⌚ Live Wearables' : active === 'scanner' ? '🔍 Document Scanner' : '📡 Feed Input'}</h2>
+            <h2 style={{ fontSize: '1.9rem' }}>{active === 'wearables' ? '⌚ Live Wearables' : '📡 Feed Input'}</h2>
             <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem' }}>
-              {active === 'wearables' ? 'Real-time health metrics from your devices' : active === 'scanner' ? 'Upload a medical document to extract and store data' : 'Choose a module below'}
+              {active === 'wearables' ? 'Real-time health metrics from your devices' : 'Choose a module below'}
             </p>
           </div>
         </div>
@@ -116,20 +116,6 @@ export default function FeedInputPage() {
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {['Heart Rate', 'SpO₂', 'Sleep', 'HRV'].map(t => <span key={t} className="badge teal" style={{ fontSize: '0.72rem' }}>{t}</span>)}
-            </div>
-          </button>
-
-          {/* Document Scanner Card */}
-          <button className="feed-card" onClick={() => setActive('scanner')}>
-            <div style={{ width: 60, height: 60, background: 'linear-gradient(135deg,#0052A5,#5C35A1)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem', boxShadow: '0 4px 16px rgba(0,82,165,0.3)' }}>
-              <ScanLine size={30} color="white" />
-            </div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.5rem' }}>Document Scanner</h3>
-            <p style={{ color: 'var(--charcoal)', fontSize: '0.875rem', lineHeight: 1.65, marginBottom: '1rem' }}>
-              Scan prescriptions, lab reports, discharge summaries, or any medical document. AI extracts diagnoses, medications, and lab values automatically.
-            </p>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {['Groq Vision AI', 'OCR', 'Auto-Extract', 'FHIR'].map(t => <span key={t} className="badge purple" style={{ fontSize: '0.72rem' }}>{t}</span>)}
             </div>
           </button>
         </div>
@@ -161,84 +147,6 @@ export default function FeedInputPage() {
             <h4 style={{ color: 'var(--primary)', marginBottom: '0.75rem', fontSize: '0.95rem' }}>ℹ️ Wearable Integration</h4>
             <p style={{ color: 'var(--charcoal)', fontSize: '0.87rem', lineHeight: 1.65 }}>Heart rate updates live every 2 seconds. In production, this connects directly to Apple HealthKit, Fitbit, or Garmin APIs via OAuth. All data is encrypted and stored in your longitudinal vault.</p>
           </section>
-        </div>
-      )}
-
-      {/* Document Scanner Module */}
-      {active === 'scanner' && (
-        <div className="fade-in">
-          <section className="glass-panel" style={{ marginBottom: '1.5rem' }}>
-            {/* Drop zone */}
-            <div
-              style={{ border: `2px dashed ${dragOver ? 'var(--primary)' : 'var(--border)'}`, borderRadius: 14, padding: '2rem', textAlign: 'center', background: dragOver ? 'var(--primary-light)' : 'var(--surface-muted)', transition: 'all 0.2s', cursor: 'pointer', marginBottom: preview ? '1rem' : 0 }}
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-              onClick={() => inputRef.current?.click()}
-            >
-              <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-              <Upload size={36} color="var(--primary)" style={{ margin: '0 auto 0.75rem' }} />
-              <div style={{ fontWeight: 600, color: 'var(--deep-blue)', marginBottom: '0.3rem' }}>Drop a medical document here</div>
-              <div style={{ fontSize: '0.83rem', color: 'var(--charcoal)' }}>or click to browse · PNG, JPG, WEBP supported</div>
-            </div>
-
-            {preview && (
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <img src={preview} alt="Preview" style={{ maxHeight: 200, borderRadius: 10, border: '1px solid var(--border)', objectFit: 'contain' }} />
-                <button className="glass-button" onClick={scan} disabled={scanning} style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {scanning ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> Scanning...</> : <><ScanLine size={15} /> Scan with Groq AI</>}
-                </button>
-              </div>
-            )}
-          </section>
-
-          {ocrError && (
-            <div className="fade-in" style={{ background: 'var(--accent-red-bg)', border: '1px solid var(--accent-red)', borderRadius: 10, padding: '0.9rem 1.1rem', color: 'var(--accent-red)', display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
-              <XCircle size={16} /> {ocrError}
-            </div>
-          )}
-
-          {result && (
-            <section className="glass-panel fade-in">
-              <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                <h3 style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CheckCircle size={18} /> Extracted Data</h3>
-                <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: 'var(--charcoal)' }}>
-                  <span>Confidence: <strong style={{ color: result.confidence > 70 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{result.confidence}%</strong></span>
-                  <span>Time: <strong style={{ color: 'var(--primary)' }}>{result.durationMs}ms</strong></span>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-                {result.medications.length > 0 && (
-                  <div style={{ background: 'var(--primary-light)', borderLeft: '3px solid var(--primary)', padding: '0.75rem', borderRadius: 8 }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 700 }}>💊 Medications</div>
-                    {result.medications.map((m, i) => <div key={i} style={{ fontSize: '0.83rem', color: 'var(--deep-blue)', padding: '0.12rem 0' }}>{m}</div>)}
-                  </div>
-                )}
-                {result.diagnoses.length > 0 && (
-                  <div style={{ background: 'var(--accent-amber-bg)', borderLeft: '3px solid var(--accent-amber)', padding: '0.75rem', borderRadius: 8 }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--accent-amber)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 700 }}>🏥 Diagnoses</div>
-                    {result.diagnoses.map((d, i) => <div key={i} style={{ fontSize: '0.83rem', color: 'var(--deep-blue)', padding: '0.12rem 0' }}>{d}</div>)}
-                  </div>
-                )}
-                {Object.keys(result.labValues).length > 0 && (
-                  <div style={{ background: 'var(--accent-purple-bg)', borderLeft: '3px solid var(--accent-purple)', padding: '0.75rem', borderRadius: 8 }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--accent-purple)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', fontWeight: 700 }}>🧪 Lab Values</div>
-                    {Object.entries(result.labValues).map(([k, v]) => <div key={k} style={{ fontSize: '0.83rem', color: 'var(--deep-blue)', padding: '0.12rem 0' }}>{k}: <strong>{v}</strong></div>)}
-                  </div>
-                )}
-              </div>
-              {result.structuredSummary && (
-                <div style={{ background: 'var(--surface-muted)', padding: '0.9rem', borderRadius: 8, marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--accent-purple)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem', fontWeight: 700 }}>🤖 AI Clinical Summary</div>
-                  <p style={{ fontSize: '0.87rem', color: 'var(--foreground)', lineHeight: 1.7, margin: 0 }}>{result.structuredSummary}</p>
-                </div>
-              )}
-              <button onClick={importToVault} disabled={imported || importing} className="glass-button"
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: imported ? 'var(--accent-green-bg)' : 'var(--primary-light)', borderColor: imported ? 'var(--accent-green)' : 'var(--primary)', color: imported ? 'var(--accent-green)' : 'var(--primary)', fontWeight: 700 }}>
-                {importing ? <><div style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid currentColor', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> Saving...</> : imported ? '✓ Added to Longitudinal Timeline' : '+ Import to Memory Vault'}
-              </button>
-            </section>
-          )}
         </div>
       )}
     </div>

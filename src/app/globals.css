@@ -2,17 +2,17 @@
   /* ─── nalam.ai Color System ─────────────────────────────────────────── */
 
   /* Primary Palette */
-  --deep-blue:          #1A2B4A;   /* Deep Blue – headings, primary text  */
-  --powder-blue:        #A5D8FF;   /* Powder Blue – accent, highlights     */
-  --powder-blue-dark:   #5BAFD6;   /* Darker Powder Blue for text on light */
-  --charcoal:           #4A5568;   /* Charcoal Grey – body / muted text    */
-  --charcoal-light:     #718096;   /* Lighter Charcoal – placeholder text  */
+  --deep-blue:          #1A2B4A;
+  --powder-blue:        #A5D8FF;
+  --powder-blue-dark:   #5BAFD6;
+  --charcoal:           #4A5568;
+  --charcoal-light:     #718096;
 
   /* Apollo-Inspired Action Colors */
-  --primary:            #0052A5;   /* Apollo Blue – CTAs, links            */
-  --primary-light:      #EBF3FF;   /* Light tint of primary                */
-  --primary-hover:      #003D7A;   /* Darker blue for hover states         */
-  --accent-orange:      #F4831F;   /* Apollo Orange – secondary accent     */
+  --primary:            #0052A5;
+  --primary-light:      #EBF3FF;
+  --primary-hover:      #003D7A;
+  --accent-orange:      #F4831F;
   --accent-orange-bg:   #FFF4EB;
 
   /* Semantic */
@@ -28,14 +28,14 @@
   --accent-purple-bg:   #F0EBFF;
 
   /* Surfaces */
-  --background:         #F2F5FB;   /* Warm off-white page background       */
-  --surface:            #FFFFFF;   /* Card/panel background                */
-  --surface-muted:      #F7F9FC;   /* Subtler inner surfaces               */
+  --background:         #F2F5FB;
+  --surface:            #FFFFFF;
+  --surface-muted:      #F7F9FC;
 
   /* Text */
-  --foreground:         var(--deep-blue);          /* #1A2B4A – main text  */
-  --foreground-muted:   var(--charcoal);           /* #4A5568 – muted text */
-  --foreground-subtle:  var(--charcoal-light);     /* #718096 – faint text */
+  --foreground:         var(--deep-blue);
+  --foreground-muted:   var(--charcoal);
+  --foreground-subtle:  var(--charcoal-light);
 
   /* Borders & Glass */
   --border:             #DDE3EE;
@@ -45,6 +45,53 @@
   --shadow-md:          0 4px 16px rgba(26,43,74,0.10);
   --shadow-lg:          0 8px 32px rgba(26,43,74,0.12);
 }
+
+/* ─── Dark Mode ───────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --deep-blue:          #E2EAF8;
+  --powder-blue:        #3B82F6;
+  --powder-blue-dark:   #93C5FD;
+  --charcoal:           #94A3B8;
+  --charcoal-light:     #64748B;
+
+  --primary:            #60A5FA;
+  --primary-light:      rgba(96,165,250,0.12);
+  --primary-hover:      #93C5FD;
+  --accent-orange:      #FB923C;
+  --accent-orange-bg:   rgba(251,146,60,0.12);
+
+  --accent-teal:        #2DD4BF;
+  --accent-teal-bg:     rgba(45,212,191,0.12);
+  --accent-amber:       #FCD34D;
+  --accent-amber-bg:    rgba(252,211,77,0.12);
+  --accent-red:         #F87171;
+  --accent-red-bg:      rgba(248,113,113,0.12);
+  --accent-green:       #4ADE80;
+  --accent-green-bg:    rgba(74,222,128,0.12);
+  --accent-purple:      #A78BFA;
+  --accent-purple-bg:   rgba(167,139,250,0.12);
+
+  --background:         #0D1117;
+  --surface:            #161B22;
+  --surface-muted:      #1C2433;
+
+  --foreground:         #E2EAF8;
+  --foreground-muted:   #94A3B8;
+  --foreground-subtle:  #64748B;
+
+  --border:             #30363D;
+  --glass-bg:           rgba(22,27,34,0.92);
+  --glass-border:       rgba(96,165,250,0.15);
+  --shadow-sm:          0 1px 4px rgba(0,0,0,0.3);
+  --shadow-md:          0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg:          0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* Smooth theme transition on every property */
+*, *::before, *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+
 
 /* ─── Reset ──────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }

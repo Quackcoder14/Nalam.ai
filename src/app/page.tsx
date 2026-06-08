@@ -1,10 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, User, Stethoscope, ChevronRight } from 'lucide-react';
+import { Heart, User, Stethoscope, ChevronRight, Monitor } from 'lucide-react';
 
 type Phase = 'splash' | 'login';
-type LoginType = 'patient' | 'clinician' | null;
+type LoginType = 'patient' | 'clinician' | 'hdesk' | null;
 
 export default function HomePage() {
   const [phase, setPhase] = useState<Phase>('splash');
@@ -20,22 +20,28 @@ export default function HomePage() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  const handleLogin = (role: 'patient' | 'clinician') => {
+  const handleLogin = (role: 'patient' | 'clinician' | 'hdesk') => {
     if (password !== '123') {
       alert('Invalid credentials');
       return;
     }
-    if (role === 'patient' && username.toLowerCase() !== 'dhanush@nalam.ai') {
+    if (role === 'patient' && username.toLowerCase() !== 'karthik@nalam.ai') {
       alert('Invalid patient credentials');
       return;
     }
-    if (role === 'clinician' && username.toLowerCase() !== 'monissha@nalam.ai') {
+    if (role === 'clinician' && username.toLowerCase() !== 'dhanush@nalam.ai' && username.toLowerCase() !== 'monissha@nalam.ai') {
       alert('Invalid clinician credentials');
+      return;
+    }
+    if (role === 'hdesk' && username.toLowerCase() !== 'hdesk@nalam.ai') {
+      alert('Invalid hospital desk credentials');
       return;
     }
     localStorage.setItem('nalamRole', role);
     localStorage.setItem('nalamPatientId', 'P001');
-    router.push(role === 'patient' ? '/dashboard' : '/clinician');
+    if (role === 'patient') router.push('/dashboard');
+    else if (role === 'clinician') router.push('/clinician');
+    else router.push('/hospital-desk');
   };
 
   /* ── SPLASH ── */
@@ -94,11 +100,12 @@ export default function HomePage() {
 
         {!loginType ? (
           /* ── Role picker ── */
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', animation: 'slideUp 0.6s ease' }}>
-            {[
-              { role: 'patient' as const, Icon: User, title: 'Patient Login', desc: 'View your health dashboard, longitudinal timeline, consent settings, and upload health documents.', accentColor: '#0052A5', bg: 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' },
-              { role: 'clinician' as const, Icon: Stethoscope, title: 'Clinician Login', desc: 'Access patient records, AI biographer synthesis, precision simulations, and contextual data retrieval.', accentColor: '#0097A7', bg: 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' },
-            ].map(({ role, Icon, title, desc, accentColor, bg }) => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', animation: 'slideUp 0.6s ease' }}>
+              {[
+                { role: 'patient' as const, Icon: User, title: 'Patient Login', desc: 'View your health dashboard, longitudinal timeline, and consent settings.', accentColor: '#0052A5', bg: 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' },
+                { role: 'clinician' as const, Icon: Stethoscope, title: 'Clinician Login', desc: 'Access patient records, AI biographer synthesis, and precision simulations.', accentColor: '#0097A7', bg: 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' },
+                { role: 'hdesk' as const, Icon: Monitor, title: 'Hospital Desk', desc: 'Manage patient triage, upload documents via AI scanner, and monitor alerts.', accentColor: '#5C35A1', bg: 'linear-gradient(135deg,#F3E8FF,#D8B4FE)' },
+              ].map(({ role, Icon, title, desc, accentColor, bg }) => (
               <button key={role} onClick={() => setLoginType(role)}
                 className="login-card"
                 style={{ background: 'white', border: '2px solid #e2e8f0', borderRadius: 22, padding: '2.5rem 2rem', cursor: 'pointer', textAlign: 'left', transition: 'all 0.25s ease', boxShadow: '0 4px 20px rgba(0,82,165,0.06)', display: 'block', width: '100%' }}
@@ -123,11 +130,11 @@ export default function HomePage() {
               ← Back
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-              <div style={{ width: 44, height: 44, background: loginType === 'patient' ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : 'linear-gradient(135deg,#E0F7FA,#B2EBF2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {loginType === 'patient' ? <User size={22} color="#0052A5" /> : <Stethoscope size={22} color="#0097A7" />}
+              <div style={{ width: 44, height: 44, background: loginType === 'patient' ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : loginType === 'clinician' ? 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' : 'linear-gradient(135deg,#F3E8FF,#D8B4FE)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {loginType === 'patient' ? <User size={22} color="#0052A5" /> : loginType === 'clinician' ? <Stethoscope size={22} color="#0097A7" /> : <Monitor size={22} color="#5C35A1" />}
               </div>
               <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#1A2B4A' }}>
-                {loginType === 'patient' ? 'Patient Login' : 'Clinician Login'}
+                {loginType === 'patient' ? 'Patient Login' : loginType === 'clinician' ? 'Clinician Login' : 'Hospital Desk Login'}
               </h2>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -138,17 +145,17 @@ export default function HomePage() {
                     type={label === 'Password' ? 'password' : 'text'}
                     value={label === 'Username' ? username : password}
                     onChange={e => label === 'Username' ? setUsername(e.target.value) : setPassword(e.target.value)}
-                    placeholder={label === 'Password' ? '••••••••' : loginType === 'patient' ? 'dhanush@nalam.ai' : 'monissha@nalam.ai'}
+                    placeholder={label === 'Password' ? '••••••••' : loginType === 'patient' ? 'karthik@nalam.ai' : loginType === 'clinician' ? 'dhanush@nalam.ai / monissha@nalam.ai' : 'hdesk@nalam.ai'}
                     onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
                     style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', transition: 'border-color 0.2s', background: '#FAFBFD' }}
-                    onFocus={e => e.target.style.borderColor = loginType === 'patient' ? '#0052A5' : '#0097A7'}
+                    onFocus={e => e.target.style.borderColor = loginType === 'patient' ? '#0052A5' : loginType === 'clinician' ? '#0097A7' : '#5C35A1'}
                     onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                   />
                 </div>
               ))}
               <button
                 onClick={() => handleLogin(loginType!)}
-                style={{ width: '100%', padding: '0.9rem', marginTop: '0.5rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : 'linear-gradient(135deg,#0097A7,#00BCD4)', color: 'white', border: 'none', borderRadius: 10, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s', fontFamily: 'inherit' }}
+                style={{ width: '100%', padding: '0.9rem', marginTop: '0.5rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : loginType === 'clinician' ? 'linear-gradient(135deg,#0097A7,#00BCD4)' : 'linear-gradient(135deg,#5C35A1,#8B5CF6)', color: 'white', border: 'none', borderRadius: 10, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s', fontFamily: 'inherit' }}
                 onMouseOver={e => e.currentTarget.style.opacity = '0.88'}
                 onMouseOut={e => e.currentTarget.style.opacity = '1'}
               >

@@ -123,11 +123,11 @@ Predicted BP Trajectory: {trajectory[0]['predicted_systolic']} → {trajectory[1
 Similar Patient Context:
 {context_text}
 
-Respond in this EXACT JSON format (no markdown). Provide detailed, comprehensive, and well-reasoned clinical explanations for each field (at least 3-4 sentences per field):
+Respond in this EXACT JSON format (no markdown code blocks, just raw JSON). Provide comprehensive, professional clinical analysis for each field (use detailed paragraphs or in-depth bullet points, providing deep insights suitable for a specialist physician's review):
 {{
-  "treatmentDecision": "<detailed evidence-based recommendation for or against this intervention>",
-  "riskPrediction": "<detailed cardiovascular risk projection over 3-5 years with this intervention>",
-  "personalizedCare": "<comprehensive monitoring plan, contraindications, and follow-up schedule>"
+  "treatmentDecision": "Detailed narrative or bullet points explaining the rationale...",
+  "riskPrediction": "Detailed narrative or bullet points on long-term risk...",
+  "personalizedCare": "Detailed narrative or bullet points on next steps..."
 }}"""
 
     try:
@@ -137,7 +137,7 @@ Respond in this EXACT JSON format (no markdown). Provide detailed, comprehensive
                 {"role": "system", "content": "You are a precision medicine AI. Always respond with valid JSON only."},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=1500,
+            max_tokens=2500,
             temperature=0.2,
         )
         narratives = json.loads(resp.choices[0].message.content.strip())

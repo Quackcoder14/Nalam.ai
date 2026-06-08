@@ -76,6 +76,8 @@ export async function POST(request: Request) {
       glassBox,
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message ?? 'Unknown error' }, { status: 500 });
+    const isNetwork = e.message?.includes('fetch') || e.cause?.code === 'ECONNREFUSED';
+    const status = isNetwork ? 502 : 500;
+    return NextResponse.json({ error: e.message ?? 'Unknown error' }, { status });
   }
 }
