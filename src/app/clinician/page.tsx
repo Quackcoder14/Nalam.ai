@@ -59,14 +59,16 @@ function buildBpHistory(records: any[]) {
 function buildPrediction(history: any[], intervention: string) {
   if (!history.length) return [];
   const last = history[history.length - 1];
-  const lastYear = parseInt(last.date.split('-')[0]);
   const lastSystolic = last.systolic!;
   const isPositive = /amlodipine|lisinopril|losartan|ramipril|beta|arb|ccb/i.test(intervention);
   const slope = isPositive ? -4 : -1;
   return [
-    { date: `${lastYear + 1}`, predicted: Math.round(lastSystolic + slope) },
-    { date: `${lastYear + 2}`, predicted: Math.round(lastSystolic + slope * 2) },
-    { date: `${lastYear + 3}`, predicted: Math.round(lastSystolic + slope * 3) },
+    { date: `Day 7`,    predicted: Math.round(lastSystolic + slope * 0.08) },
+    { date: `Day 30`,   predicted: Math.round(lastSystolic + slope * 0.33) },
+    { date: `Day 90`,   predicted: Math.round(lastSystolic + slope * 0.75) },
+    { date: `Day 365`,  predicted: Math.round(lastSystolic + slope) },
+    { date: `Day 730`,  predicted: Math.round(lastSystolic + slope * 2) },
+    { date: `Day 1095`, predicted: Math.round(lastSystolic + slope * 3) },
   ];
 }
 
@@ -261,11 +263,22 @@ export default function ClinicianView() {
   };
 
   const bpHistory = data ? buildBpHistory(data.records) : [];
+  const latestDate = bpHistory.length > 0 ? bpHistory[bpHistory.length - 1].date : '';
+
+  const getDaysAgo = (dateStr: string) => {
+    if (!latestDate || !dateStr) return 'Day 0';
+    const d1 = new Date(dateStr);
+    const d2 = new Date(latestDate);
+    const diffTime = d1.getTime() - d2.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays === 0 ? 'Day 0' : `Day ${diffDays}`;
+  };
+
   const bpPrediction = simulation ? buildPrediction(bpHistory, medicationInput) : [];
   const allChartData = [
-    ...bpHistory.map(d => ({ date: d.date.substring(0, 4), systolic: d.systolic, predicted: undefined })),
+    ...bpHistory.map(d => ({ date: getDaysAgo(d.date), systolic: d.systolic, predicted: undefined })),
     ...(bpPrediction.length > 0 && bpHistory.length > 0
-      ? [{ date: bpHistory[bpHistory.length - 1].date.substring(0, 4), systolic: bpHistory[bpHistory.length - 1].systolic, predicted: bpHistory[bpHistory.length - 1].systolic }]
+      ? [{ date: 'Day 0', systolic: bpHistory[bpHistory.length - 1].systolic, predicted: bpHistory[bpHistory.length - 1].systolic }]
       : []),
     ...bpPrediction.map(d => ({ date: d.date, systolic: undefined, predicted: d.predicted })),
   ];

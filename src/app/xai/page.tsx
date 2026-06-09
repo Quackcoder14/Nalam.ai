@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis,
@@ -142,8 +143,16 @@ function FeatureCard({ feat, rank }: { feat: XAIFeature; rank: number }) {
   );
 }
 
-export default function XAIDashboard() {
-  const [vitals, setVitals]         = useState({ heart_rate: 92, systolic_bp: 165, diastolic_bp: 98, spo2: 96, temperature: 37.8, glucose: 180 });
+function XAIDashboardInner() {
+  const searchParams = useSearchParams();
+  const [vitals, setVitals] = useState({
+    heart_rate: parseFloat(searchParams.get('heart_rate') || '92'),
+    systolic_bp: parseFloat(searchParams.get('systolic_bp') || '165'),
+    diastolic_bp: parseFloat(searchParams.get('diastolic_bp') || '98'),
+    spo2: parseFloat(searchParams.get('spo2') || '96'),
+    temperature: parseFloat(searchParams.get('temperature') || '37.8'),
+    glucose: parseFloat(searchParams.get('glucose') || '180')
+  });
   const [features, setFeatures]     = useState<XAIFeature[]>([]);
   const [topDriver, setTopDriver]   = useState('');
   const [loading, setLoading]       = useState(false);
@@ -366,5 +375,19 @@ export default function XAIDashboard() {
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
+  );
+}
+
+export default function XAIDashboard() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+        <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Loading XAI...</span>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    }>
+      <XAIDashboardInner />
+    </Suspense>
   );
 }

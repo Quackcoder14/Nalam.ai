@@ -9,11 +9,15 @@ interface OcrResult {
   confidence: number; durationMs: number;
 }
 
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+
 type ActiveModule = null | 'wearables';
 
-export default function FeedInputPage() {
+function FeedInputInner() {
   const router = useRouter();
-  const [active, setActive] = useState<ActiveModule>(null);
+  const searchParams = useSearchParams();
+  const [active, setActive] = useState<ActiveModule>(searchParams.get('module') === 'wearables' ? 'wearables' : null);
   const [heartRate, setHeartRate] = useState(72);
 
   // OCR state
@@ -150,5 +154,18 @@ export default function FeedInputPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function FeedInputPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    }>
+      <FeedInputInner />
+    </Suspense>
   );
 }

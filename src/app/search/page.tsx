@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, FileText, Microscope, User, Calendar, Tag, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 
@@ -36,7 +36,7 @@ function HighlightedText({ html }: { html: string }) {
   );
 }
 
-export default function SearchPage() {
+function SearchInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [query, setQuery]       = useState(searchParams.get('q') || '');
@@ -46,6 +46,7 @@ export default function SearchPage() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
   const [searched, setSearched] = useState(false);
+  const [searchedQuery, setSearchedQuery] = useState(searchParams.get('q') || '');
 
   const runSearch = useCallback(async (q: string, f: string) => {
     if (q.trim().length < 2) return;
@@ -61,6 +62,7 @@ export default function SearchPage() {
       const data = await res.json();
       setResults(data.records || []);
       setTotal(data.total || 0);
+      setSearchedQuery(q);
       setSearched(true);
     } catch (e: any) {
       setError(e.message || 'Search failed');
@@ -69,11 +71,27 @@ export default function SearchPage() {
     }
   }, []);
 
+  // Debounce search as user types
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setResults([]);
+      setTotal(0);
+      setSearched(false);
+      setSearchedQuery('');
+      return;
+    }
+    const handler = setTimeout(() => {
+      runSearch(query, field);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [query, field, runSearch]);
+
   // Auto-search on URL param
   useEffect(() => {
     const q = searchParams.get('q') || '';
     if (q) {
       setQuery(q);
+      setSearchedQuery(q);
       runSearch(q, field);
     }
   }, [searchParams, runSearch, field]);
@@ -183,9 +201,9 @@ export default function SearchPage() {
       {searched && !loading && (
         <div style={{ fontSize: '0.88rem', color: 'var(--foreground-muted)', marginBottom: '1rem' }}>
           {total > 0 ? (
-            <><strong style={{ color: 'var(--foreground)' }}>{total}</strong> result{total !== 1 ? 's' : ''} for "<strong style={{ color: 'var(--primary)' }}>{searchParams.get('q')}</strong>"</>
+            <><strong style={{ color: 'var(--foreground)' }}>{total}</strong> result{total !== 1 ? 's' : ''} for "<strong style={{ color: 'var(--primary)' }}>{searchedQuery}</strong>"</>
           ) : (
-            <>No results found for "<strong>{searchParams.get('q')}</strong>". Try different keywords.</>
+            <>No results found for "<strong>{searchedQuery}</strong>". Try different keywords.</>
           )}
         </div>
       )}
@@ -193,9 +211,9 @@ export default function SearchPage() {
       {/* Results list */}
       {results.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {results.map((rec) => (
+          {results.map((rec, index) => (
             <div
-              key={rec.id}
+              key={rec.id ?? index}
               className="glass-panel"
               style={{ cursor: 'default', padding: '1.25rem', borderRadius: 14 }}
             >
@@ -277,5 +295,19 @@ export default function SearchPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+        <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Loading search...</span>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    }>
+      <SearchInner />
+    </Suspense>
   );
 }

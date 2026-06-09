@@ -80,10 +80,15 @@ def _extract_features(patient: dict, records: list) -> dict:
 
 def _build_bp_trajectory(systolic: int, intervention: str, effective: bool) -> list:
     slope = -4 if effective else -1
+    # 30-day window: show month-by-month for first month, then yearly
     return [
-        {"year": "Year 1", "predicted_systolic": systolic + slope},
-        {"year": "Year 2", "predicted_systolic": systolic + slope * 2},
-        {"year": "Year 3", "predicted_systolic": systolic + slope * 3},
+        {"period": "Day 7",   "predicted_systolic": systolic + round(slope * 0.08)},
+        {"period": "Day 14",  "predicted_systolic": systolic + round(slope * 0.16)},
+        {"period": "Day 30",  "predicted_systolic": systolic + round(slope * 0.33)},
+        {"period": "Day 90",  "predicted_systolic": systolic + round(slope * 0.75)},
+        {"period": "Day 365", "predicted_systolic": systolic + slope},
+        {"period": "Day 730", "predicted_systolic": systolic + slope * 2},
+        {"period": "Day 1095","predicted_systolic": systolic + slope * 3},
     ]
 
 
@@ -113,21 +118,22 @@ def twin_node(state: NalamState) -> NalamState:
     trajectory = _build_bp_trajectory(feats["systolic"], intervention, effective)
     context_text = "\n".join([f"  • {c}" for c in context[:3]]) if context else "None."
 
-    prompt = f"""You are a precision medicine AI. A clinician is considering the following intervention:
+    prompt = f"""You are a board-certified precision medicine AI assisting a senior cardiologist. A clinician is evaluating the following therapeutic intervention and requires a detailed, specialist-level clinical analysis.
 
 Intervention: {intervention}
-Patient: Age {feats['age']}, BP {feats['systolic']}/{feats['diastolic']} mmHg, HbA1c {feats['hba1c']}%, eGFR {feats['egfr']}
-ML Effectiveness Score: {effectiveness_prob:.0%}
-Predicted BP Trajectory: {trajectory[0]['predicted_systolic']} → {trajectory[1]['predicted_systolic']} → {trajectory[2]['predicted_systolic']} mmHg
+Patient Profile: Age {feats['age']}, BP {feats['systolic']}/{feats['diastolic']} mmHg, HbA1c {feats['hba1c']}%, eGFR {feats['egfr']} mL/min/1.73m²
+ML Effectiveness Score: {effectiveness_prob:.0%} (RandomForest model, trained on {len(records)} patient records)
+30-Day BP Trajectory Forecast: {trajectory[0]['predicted_systolic']} → {trajectory[1]['predicted_systolic']} → {trajectory[2]['predicted_systolic']} mmHg
+Long-Term Projection (Day 365/730/1095): {trajectory[4]['predicted_systolic']} / {trajectory[5]['predicted_systolic']} / {trajectory[6]['predicted_systolic']} mmHg
 
-Similar Patient Context:
+Similar Patient Context (from ChromaDB vector store):
 {context_text}
 
-Respond in this EXACT JSON format (no markdown code blocks, just raw JSON). Provide comprehensive, professional clinical analysis for each field (use detailed paragraphs or in-depth bullet points, providing deep insights suitable for a specialist physician's review):
+Respond in this EXACT JSON format (no markdown, just raw JSON). Each field must be a concise clinical paragraph of 3-4 sentences, suitable for a specialist physician's review. Include key mechanisms of action, clinical evidence references where appropriate, monitoring parameters, and individualised considerations based on the patient profile above:
 {{
-  "treatmentDecision": "Detailed narrative or bullet points explaining the rationale...",
-  "riskPrediction": "Detailed narrative or bullet points on long-term risk...",
-  "personalizedCare": "Detailed narrative or bullet points on next steps..."
+  "treatmentDecision": "[3-4 sentence concise paragraph explaining the rationale, mechanism of action, expected clinical benefit, and dose considerations for this patient profile]",
+  "riskPrediction": "[3-4 sentence concise paragraph covering short-term risks, long-term cardiovascular outcomes, drug-drug interactions, contraindications, and monitoring recommendations]",
+  "personalizedCare": "[3-4 sentence concise paragraph on follow-up schedule, lifestyle modifications, target BP goals, and patient education points]"
 }}"""
 
     try:
@@ -137,7 +143,7 @@ Respond in this EXACT JSON format (no markdown code blocks, just raw JSON). Prov
                 {"role": "system", "content": "You are a precision medicine AI. Always respond with valid JSON only."},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=2500,
+            max_tokens=3500,
             temperature=0.2,
         )
         narratives = json.loads(resp.choices[0].message.content.strip())

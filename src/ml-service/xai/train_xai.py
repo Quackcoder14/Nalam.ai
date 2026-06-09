@@ -58,6 +58,11 @@ if __name__ == "__main__":
     print("Generating 15,000 synthetic patient records...")
     df = generate_synthetic_vitals(15000)
     
+    csv_path = os.path.join(XAI_DIR, '..', '..', '..', 'datasets', 'xai_training_data.csv')
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    df.to_csv(csv_path, index=False)
+    print(f"Saved 15,000 records to {csv_path}")
+    
     X = df.drop(columns=['Is_Anomaly'])
     y = df['Is_Anomaly']
     
