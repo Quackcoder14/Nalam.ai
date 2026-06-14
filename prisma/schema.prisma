@@ -18,6 +18,7 @@ model Patient {
   dob_enc             String          @db.Text
   gender_enc          String          @db.Text
   contact_enc         String          @db.Text
+  mobile_enc          String?         @db.Text
   blood_type_enc      String          @db.Text
   allergies_enc       String          @db.Text
   consent_emergency   Boolean         @default(false)

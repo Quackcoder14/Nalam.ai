@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   Heart, LogOut, LayoutDashboard, Rss, Stethoscope,
-  Search, Moon, Sun, Bell,
+  Search, Moon, Sun,
 } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n';
 
 export default function ClientNav() {
   const [role, setRole]     = useState<string | null>(null);
@@ -12,8 +13,8 @@ export default function ClientNav() {
   const [searchQ, setQ]     = useState('');
   const router   = useRouter();
   const pathname = usePathname();
+  const { t, lang, setLang } = useLanguage();
 
-  // Init theme from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('nalamTheme') || 'light';
     setDark(saved === 'dark');
@@ -44,7 +45,6 @@ export default function ClientNav() {
     }
   };
 
-  // Don't show nav on splash/login page
   if (pathname === '/') return null;
 
   return (
@@ -78,7 +78,7 @@ export default function ClientNav() {
                 type="search"
                 value={searchQ}
                 onChange={e => setQ(e.target.value)}
-                placeholder="Search records, diagnoses, notes…"
+                placeholder={t('nav.search')}
                 style={{
                   width: '100%',
                   padding: '0.45rem 0.75rem 0.45rem 2.2rem',
@@ -99,24 +99,42 @@ export default function ClientNav() {
           {role === 'patient' && (
             <>
               <a href="/dashboard" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <LayoutDashboard size={15} /> Dashboard
+                <LayoutDashboard size={15} /> {t('nav.dashboard')}
               </a>
               <a href="/feed" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Rss size={15} /> Feed Input
+                <Rss size={15} /> {t('nav.feedInput')}
               </a>
             </>
           )}
           {role === 'clinician' && (
             <a href="/clinician" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Stethoscope size={15} /> Clinician Portal
+              <Stethoscope size={15} /> {t('nav.clinicianPortal')}
             </a>
           )}
+
+          {/* Language toggle */}
+          <button
+            id="lang-toggle"
+            onClick={() => setLang(lang === 'en' ? 'ta' : 'en')}
+            title={lang === 'en' ? 'Switch to Tamil' : 'Switch to English'}
+            style={{
+              background: 'var(--surface-muted)',
+              border: '1px solid var(--border)',
+              borderRadius: 50,
+              width: 34, height: 34,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: 'var(--foreground-muted)',
+              fontSize: '0.8rem', fontWeight: 700
+            }}
+          >
+            {lang === 'en' ? 'TA' : 'EN'}
+          </button>
 
           {/* Theme toggle */}
           <button
             id="theme-toggle"
             onClick={toggleTheme}
-            title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={dark ? t('nav.lightMode') : t('nav.darkMode')}
             style={{
               background: 'var(--surface-muted)',
               border: '1px solid var(--border)',
@@ -130,7 +148,7 @@ export default function ClientNav() {
           </button>
 
           <button onClick={logout} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem' }}>
-            <LogOut size={15} /> Sign Out
+            <LogOut size={15} /> {t('nav.signOut')}
           </button>
         </nav>
       </div>

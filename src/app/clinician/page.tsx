@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Lock, Unlock, Database, Cpu, Stethoscope, AlertTriangle, FlaskConical, Eye, EyeOff, CheckCircle, XCircle, SkipForward, Clock, FileText, Activity, ChevronDown } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n';
 
 const MEDICATIONS = [
   { name: 'Amlodipine',          dosages: ['2.5mg', '5mg', '10mg'] },
@@ -20,6 +21,7 @@ const MEDICATIONS = [
   { name: 'Aspirin',             dosages: ['75mg', '100mg', '325mg'] },
   { name: 'Other (type below)',  dosages: [] },
 ];
+
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -56,19 +58,19 @@ function buildBpHistory(records: any[]) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function buildPrediction(history: any[], intervention: string) {
+function buildPrediction(history: any[], intervention: string, t: any) {
   if (!history.length) return [];
   const last = history[history.length - 1];
   const lastSystolic = last.systolic!;
   const isPositive = /amlodipine|lisinopril|losartan|ramipril|beta|arb|ccb/i.test(intervention);
   const slope = isPositive ? -4 : -1;
   return [
-    { date: `Day 7`,    predicted: Math.round(lastSystolic + slope * 0.08) },
-    { date: `Day 30`,   predicted: Math.round(lastSystolic + slope * 0.33) },
-    { date: `Day 90`,   predicted: Math.round(lastSystolic + slope * 0.75) },
-    { date: `Day 365`,  predicted: Math.round(lastSystolic + slope) },
-    { date: `Day 730`,  predicted: Math.round(lastSystolic + slope * 2) },
-    { date: `Day 1095`, predicted: Math.round(lastSystolic + slope * 3) },
+    { date: `${t('clinician.day')} 7`,    predicted: Math.round(lastSystolic + slope * 0.08) },
+    { date: `${t('clinician.day')} 30`,   predicted: Math.round(lastSystolic + slope * 0.33) },
+    { date: `${t('clinician.day')} 90`,   predicted: Math.round(lastSystolic + slope * 0.75) },
+    { date: `${t('clinician.day')} 365`,  predicted: Math.round(lastSystolic + slope) },
+    { date: `${t('clinician.day')} 730`,  predicted: Math.round(lastSystolic + slope * 2) },
+    { date: `${t('clinician.day')} 1095`, predicted: Math.round(lastSystolic + slope * 3) },
   ];
 }
 
@@ -86,11 +88,326 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     );
   }
   return null;
-};
+}
+
+// ─── Medication → Body-Part Effects ─────────────────────────────────────────
+function getMedEffects(medication: string): Record<string, { effect: 'good' | 'bad', short: string }> {
+  const m = medication.toLowerCase();
+  const fx: Record<string, { effect: 'good' | 'bad', short: string }> = {};
+  if (/lisinopril|ramipril|enalapril|perindopril/.test(m))            { fx.heart = { effect: 'good', short: 'Reduces cardiac strain' }; fx.kidneys = { effect: 'good', short: 'Protects against nephropathy' }; fx.vessels = { effect: 'good', short: 'Dilates blood vessels' }; fx.lungs = { effect: 'bad', short: 'May cause dry cough' }; }
+  if (/losartan|valsartan|telmisartan|olmesartan|irbesartan/.test(m)) { fx.heart = { effect: 'good', short: 'Improves heart function' }; fx.kidneys = { effect: 'good', short: 'Reduces kidney damage' }; fx.vessels = { effect: 'good', short: 'Lowers blood pressure' }; }
+  if (/amlodipine|nifedipine|diltiazem|verapamil/.test(m))           { fx.heart = { effect: 'good', short: 'Decreases oxygen demand' }; fx.vessels = { effect: 'good', short: 'Relaxes smooth muscle' }; }
+  if (/metoprolol|bisoprolol|carvedilol|atenolol|propranolol/.test(m)){ fx.heart = { effect: 'good', short: 'Lowers heart rate' }; fx.lungs = { effect: 'bad', short: 'Can cause bronchospasm' }; }
+  if (/atorvastatin|rosuvastatin|simvastatin|pravastatin/.test(m))   { fx.heart = { effect: 'good', short: 'Prevents plaque buildup' }; fx.liver = { effect: 'bad', short: 'May elevate enzymes' }; fx.muscles = { effect: 'bad', short: 'Risk of myopathy' }; }
+  if (/furosemide|bumetanide|torsemide/.test(m))                     { fx.heart = { effect: 'good', short: 'Reduces fluid overload' }; fx.kidneys = { effect: 'bad', short: 'Can cause dehydration' }; }
+  if (/hydrochlorothiazide|chlorthalidone|indapamide/.test(m))       { fx.heart = { effect: 'good', short: 'Lowers blood pressure' }; fx.kidneys = { effect: 'good', short: 'Increases sodium excretion' }; }
+  if (/spironolactone|eplerenone/.test(m))                           { fx.heart = { effect: 'good', short: 'Prevents fibrosis' }; fx.kidneys = { effect: 'good', short: 'Potassium sparing diuresis' }; }
+  if (/aspirin/.test(m))                                             { fx.heart = { effect: 'good', short: 'Prevents clotting' }; fx.brain = { effect: 'good', short: 'Reduces stroke risk' }; fx.stomach = { effect: 'bad', short: 'Risk of ulceration' }; }
+  return fx;
+}
+
+function getBodyPartInfo(part: string, t: any) {
+  const info: Record<string, { label: string; desc: string }> = {
+    brain:   { label: t('clinician.brain'),         desc: t('clinician.brainDesc') },
+    heart:   { label: t('clinician.heart'),         desc: t('clinician.heartDesc') },
+    lungs:   { label: t('clinician.lungs'),         desc: t('clinician.lungsDesc') },
+    liver:   { label: t('clinician.liver'),         desc: t('clinician.liverDesc') },
+    stomach: { label: t('clinician.stomach'),       desc: t('clinician.stomachDesc') },
+    kidneys: { label: t('clinician.kidneys'),       desc: t('clinician.kidneysDesc') },
+    bladder: { label: t('clinician.bladder'),       desc: t('clinician.bladderDesc') },
+    vessels: { label: t('clinician.vessels'),       desc: t('clinician.vesselsDesc') },
+    muscles: { label: t('clinician.muscles'),       desc: t('clinician.musclesDesc') },
+    nerves:  { label: t('clinician.nerves'),        desc: t('clinician.nervesDesc') },
+  };
+  return info[part];
+}
+
+// ─── 3-D Body Visualiser ─────────────────────────────────────────────────────
+function BodyVisualizer({ effects, medication, dosage }: { effects: Record<string, { effect: 'good' | 'bad', short: string }>; medication: string; dosage?: string }) {
+  const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
+  const [clickedRegion, setClickedRegion] = useState<string | null>(null);
+  const [organExplanation, setOrganExplanation] = useState<string | null>(null);
+  const [loadingOrgan, setLoadingOrgan] = useState(false);
+  const { t, lang } = useLanguage();
+
+  const getRegionEffect = (id: string) => effects[id]?.effect || null;
+  const getRegionShort = (id: string) => effects[id]?.short || null;
+
+  const fetchOrganDetail = async (organ: string) => {
+    if (!medication) return;
+    setClickedRegion(organ);
+    setOrganExplanation(null);
+    setLoadingOrgan(true);
+    try {
+      const res = await fetch('/api/agents/organ-detail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organ, medication, dosage, effect: getRegionEffect(organ), lang }),
+      });
+      const data = await res.json();
+      setOrganExplanation(data.explanation || '');
+    } catch {
+      setOrganExplanation('Unable to load explanation.');
+    } finally {
+      setLoadingOrgan(false);
+    }
+  };
+
+  const regionFill = (id: string) => {
+    const e = getRegionEffect(id);
+    const h = hoveredRegion === id;
+    if (!e) return h ? 'rgba(203,213,225,0.6)' : 'rgba(148,163,184,0.2)';
+    if (e === 'good') return h ? 'rgba(34,197,94,0.8)' : 'rgba(34,197,94,0.55)';
+    return h ? 'rgba(239,68,68,0.8)' : 'rgba(239,68,68,0.55)';
+  };
+
+  const regionStroke = (id: string) => {
+    const e = getRegionEffect(id);
+    const h = hoveredRegion === id;
+    if (!e) return h ? 'rgba(148,163,184,0.9)' : 'rgba(148,163,184,0.5)';
+    if (e === 'good') return h ? '#4ade80' : '#22c55e';
+    return h ? '#f87171' : '#ef4444';
+  };
+
+  const hp = (id: string) => {
+    const e = getRegionEffect(id);
+    const h = hoveredRegion === id;
+    const isAffected = !!e;
+    return {
+      onMouseEnter: () => setHoveredRegion(id),
+      onMouseLeave: () => setHoveredRegion(null),
+      onClick: () => fetchOrganDetail(id),
+      style: { 
+        cursor: 'pointer', 
+        transition: 'all 0.25s',
+        filter: isAffected 
+          ? `drop-shadow(0 0 10px ${e === 'good' ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)'})` 
+          : (h ? 'drop-shadow(0 0 6px rgba(255,255,255,0.4))' : 'none')
+      } as React.CSSProperties,
+      fill: regionFill(id),
+      stroke: regionStroke(id),
+      strokeWidth: h ? 3 : (isAffected ? 2.5 : 1.5),
+      strokeLinejoin: 'round' as const,
+      strokeLinecap: 'round' as const,
+    };
+  };
+
+  const noEffects = Object.keys(effects).length === 0;
+
+  return (
+    <div style={{ display: 'flex', gap: '4rem', alignItems: 'center', justifyContent: 'center', padding: '2rem', width: '100%' }}>
+
+      {/* ── Legend & Summary (Left Side) ── */}
+      <div style={{ width: 250, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.2rem' }}>{t('clinician.legend')}</div>
+          {[['#22c55e', t('clinician.beneficialEffect')], ['#ef4444', t('clinician.sideEffectRisk')], ['rgba(148,163,184,0.4)', t('clinician.unaffected')]].map(([c, lbl]) => (
+            <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.85rem', color: 'var(--foreground-muted)' }}>
+              <span style={{ width: 14, height: 14, borderRadius: '50%', background: c, flexShrink: 0, boxShadow: !c.startsWith('rgba') ? `0 0 8px ${c}88` : 'none' }} />
+              {lbl}
+            </div>
+          ))}
+        </div>
+
+        {/* Hover Detail Card */}
+        <div style={{
+          background: 'var(--surface-muted)', borderRadius: 10, padding: '1rem', minHeight: 96,
+          border: `1px solid ${clickedRegion
+            ? getRegionEffect(clickedRegion) === 'good' ? 'rgba(34,197,94,0.4)'
+            : getRegionEffect(clickedRegion) === 'bad'  ? 'rgba(239,68,68,0.4)'
+            : 'var(--border)'
+            : hoveredRegion
+            ? getRegionEffect(hoveredRegion) === 'good' ? 'rgba(34,197,94,0.4)'
+            : getRegionEffect(hoveredRegion) === 'bad'  ? 'rgba(239,68,68,0.4)'
+            : 'var(--border)'
+            : 'var(--border)'}`,
+          transition: 'border-color 0.25s',
+        }}>
+          {clickedRegion && getBodyPartInfo(clickedRegion, t) ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.4rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: getRegionEffect(clickedRegion) ? (getRegionEffect(clickedRegion) === 'good' ? '#22c55e' : '#ef4444') : 'var(--foreground)' }}>
+                  {getBodyPartInfo(clickedRegion, t).label} {getRegionEffect(clickedRegion) === 'good' ? '✓' : getRegionEffect(clickedRegion) === 'bad' ? '⚠' : ''}
+                </div>
+                <button onClick={() => { setClickedRegion(null); setOrganExplanation(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--charcoal)', fontSize: '1rem' }}>✕</button>
+              </div>
+              {loadingOrgan ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--charcoal)', fontSize: '0.85rem' }}>
+                  <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  AI is analysing...
+                </div>
+              ) : organExplanation ? (
+                <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.6 }}>
+                  {organExplanation.split('\n').map((line, i) => {
+                    if (!line.trim()) return <div key={i} style={{ height: 4 }} />;
+                    const parts = line.split(/(\*\*.*?\*\*)/g);
+                    return (
+                      <div key={i} style={{ marginBottom: '0.4rem', paddingLeft: line.startsWith('-') ? '0.5rem' : 0 }}>
+                        {parts.map((p, j) => p.startsWith('**') && p.endsWith('**') ? <strong key={j} style={{ color: 'var(--primary)' }}>{p.slice(2, -2)}</strong> : p)}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', lineHeight: 1.5 }}>{getBodyPartInfo(clickedRegion, t).desc}</div>
+              )}
+            </div>
+          ) : hoveredRegion && getBodyPartInfo(hoveredRegion, t) ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.4rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: getRegionEffect(hoveredRegion) ? (getRegionEffect(hoveredRegion) === 'good' ? '#22c55e' : '#ef4444') : 'var(--foreground)' }}>
+                  {getBodyPartInfo(hoveredRegion, t).label} {getRegionEffect(hoveredRegion) === 'good' ? '✓' : getRegionEffect(hoveredRegion) === 'bad' ? '⚠' : ''}
+                </div>
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', lineHeight: 1.5 }}>
+                {getRegionShort(hoveredRegion) || getBodyPartInfo(hoveredRegion, t).desc}
+              </div>
+              {getRegionEffect(hoveredRegion) && (
+                <div style={{
+                  marginTop: '0.7rem', display: 'inline-block', fontSize: '0.75rem', fontWeight: 700,
+                  padding: '0.25rem 0.75rem', borderRadius: 20,
+                  background: getRegionEffect(hoveredRegion) === 'good' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+                  color: getRegionEffect(hoveredRegion) === 'good' ? '#22c55e' : '#ef4444',
+                  border: `1px solid ${getRegionEffect(hoveredRegion) === 'good' ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.35)'}`,
+                }}>
+                  {getRegionEffect(hoveredRegion) === 'good' ? t('clinician.beneficialForOrgan') : t('clinician.monitorOrganClosely')}
+                </div>
+              )}
+              {!getRegionEffect(hoveredRegion) && (
+                <div style={{
+                  marginTop: '0.7rem', display: 'inline-block', fontSize: '0.75rem', fontWeight: 600,
+                  padding: '0.25rem 0.75rem', borderRadius: 20,
+                  background: 'rgba(148,163,184,0.1)',
+                  color: 'var(--foreground-muted)',
+                }}>
+                  {t('clinician.unaffectedBy')} {medication || t('clinician.currentRegimen')}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '0.35rem', color: 'var(--charcoal)', fontSize: '0.8rem', textAlign: 'center', minHeight: 72 }}>
+              <span style={{ fontSize: '1.5rem' }}>🫀</span>
+              {t('clinician.hoverOrgan')} {' '}
+              <strong style={{ color: 'var(--foreground)' }}>{medication || t('clinician.intervention')}</strong>
+            </div>
+          )}
+        </div>
+
+        {!noEffects && (
+          <div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.6rem' }}>{t('clinician.drugImpactMap')}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              {Object.entries(effects).map(([part, fx]) => (
+                <div key={part} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.4rem 0.8rem', borderRadius: 8, background: fx.effect === 'good' ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${fx.effect === 'good' ? 'rgba(34,197,94,0.22)' : 'rgba(239,68,68,0.22)'}` }}>
+                  <span style={{ fontSize: '0.9rem' }}>{fx.effect === 'good' ? '✓' : '⚠'}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: fx.effect === 'good' ? '#22c55e' : '#ef4444' }}>{getBodyPartInfo(part, t)?.label || part}</span>
+                    {fx.short && <span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>{fx.short}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Mannequin SVG (Center) ── */}
+      <div style={{ position: 'relative' }}>
+        <svg viewBox="0 0 200 500" width="220" height="550" style={{ filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.15))', overflow: 'visible' }}>
+          
+          {/* Continuous Body Outline Background */}
+          <path d="M 100 15
+                   C 115 15, 122 25, 122 40
+                   C 122 55, 115 65, 110 70
+                   C 125 72, 140 78, 145 90
+                   L 155 240
+                   C 156 250, 145 255, 140 245
+                   L 130 130
+                   C 132 180, 125 220, 130 260
+                   L 135 480
+                   C 136 490, 120 490, 115 480
+                   L 105 300
+                   L 100 290
+                   L 95 300
+                   L 85 480
+                   C 80 490, 64 490, 65 480
+                   L 70 260
+                   C 75 220, 68 180, 70 130
+                   L 60 245
+                   C 55 255, 44 250, 45 240
+                   L 55 90
+                   C 60 78, 75 72, 90 70
+                   C 85 65, 78 55, 78 40
+                   C 78 25, 85 15, 100 15 Z"
+                fill="rgba(148,163,184,0.04)" stroke="rgba(148,163,184,0.3)" strokeWidth="1.5" />
+
+          {/* Brain */}
+          <ellipse cx="100" cy="38" rx="14" ry="17" {...hp('brain')} />
+
+          {/* Nervous System (Spine & Nerves) */}
+          <g {...hp('nerves')}>
+            <path d="M 100 55 L 100 280" fill="none" strokeWidth="2" strokeDasharray="3 3" />
+            <path d="M 100 110 L 115 120 M 100 110 L 85 120 M 100 160 L 120 170 M 100 160 L 80 170" fill="none" strokeWidth="1.5" />
+          </g>
+
+          {/* Lungs */}
+          <g {...hp('lungs')}>
+            <path d="M 95 85 C 70 80, 65 110, 70 135 C 85 140, 95 125, 95 110 Z" />
+            <path d="M 105 85 C 130 80, 135 110, 130 135 C 115 140, 105 125, 105 110 Z" />
+          </g>
+
+          {/* Heart */}
+          <path d="M 100 105 C 110 95, 120 105, 110 115 L 100 125 L 90 115 C 80 105, 90 95, 100 105 Z" {...hp('heart')} />
+
+          {/* Liver */}
+          <path d="M 75 140 C 75 130, 105 130, 115 140 C 120 150, 105 160, 75 155 Z" {...hp('liver')} />
+
+          {/* Stomach */}
+          <path d="M 115 145 C 130 140, 135 150, 125 165 C 110 175, 105 160, 115 145 Z" {...hp('stomach')} />
+
+          {/* Kidneys */}
+          <g {...hp('kidneys')}>
+            <path d="M 85 170 C 85 155, 95 155, 95 170 C 95 185, 85 185, 85 170 Z" />
+            <path d="M 105 170 C 105 155, 115 155, 115 170 C 115 185, 105 185, 105 170 Z" />
+          </g>
+
+          {/* Bladder */}
+          <path d="M 100 230 C 115 230, 115 245, 100 250 C 85 245, 85 230, 100 230 Z" {...hp('bladder')} />
+
+          {/* Vessels */}
+          <g {...hp('vessels')}>
+            {/* Arms */}
+            <path d="M 115 105 L 125 150 L 140 220" fill="none" strokeWidth="2" strokeLinecap="round" />
+            <path d="M 85 105 L 75 150 L 60 220" fill="none" strokeWidth="2" strokeLinecap="round" />
+            {/* Legs */}
+            <path d="M 105 280 L 115 360 L 122 450" fill="none" strokeWidth="2" strokeLinecap="round" />
+            <path d="M 95 280 L 85 360 L 78 450" fill="none" strokeWidth="2" strokeLinecap="round" />
+          </g>
+
+          {/* Muscles (Thighs and Biceps representation) */}
+          <g {...hp('muscles')}>
+            <ellipse cx="120" cy="330" rx="8" ry="30" />
+            <ellipse cx="80" cy="330" rx="8" ry="30" />
+            <ellipse cx="132" cy="140" rx="5" ry="15" />
+            <ellipse cx="68" cy="140" rx="5" ry="15" />
+          </g>
+          
+        </svg>
+
+        {noEffects && (
+          <p style={{ position: 'absolute', bottom: -30, left: '50%', transform: 'translateX(-50%)', fontSize: '0.8rem', color: 'var(--charcoal)', whiteSpace: 'nowrap' }}>
+            {t('clinician.noRecognisedDrug')}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Glass Box Panel ──────────────────────────────────────────────────────────
 function GlassBoxPanel({ entries }: { entries: GlassBoxEntry[] }) {
   const [expanded, setExpanded] = useState<number | null>(null);
+  const { t } = useLanguage();
 
   const statusIcon = (s: string) => {
     if (s === 'success') return <CheckCircle size={14} color="#4ade80" />;
@@ -158,18 +475,18 @@ function GlassBoxPanel({ entries }: { entries: GlassBoxEntry[] }) {
               <div style={{ padding: '0.75rem 0.85rem', borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {/* Timestamp */}
                 <div style={{ fontSize: '0.7rem', color: '#475569' }}>
-                  Executed at: {new Date(entry.timestamp).toLocaleTimeString()}
+                  {t('clinician.executedAt')} {new Date(entry.timestamp).toLocaleTimeString()}
                 </div>
                 {/* Input */}
                 <div>
-                  <div style={{ color: '#a5d8ff', fontSize: '0.72rem', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>► Input Features</div>
+                  <div style={{ color: '#a5d8ff', fontSize: '0.72rem', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>► {t('clinician.inputFeatures')}</div>
                   <pre style={{ color: '#94a3b8', fontSize: '0.72rem', overflow: 'auto', maxHeight: 140, lineHeight: 1.6, margin: 0 }}>
                     {JSON.stringify(entry.inputSummary, null, 2)}
                   </pre>
                 </div>
                 {/* Output */}
                 <div>
-                  <div style={{ color: statusColor(entry.status), fontSize: '0.72rem', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>◄ Output</div>
+                  <div style={{ color: statusColor(entry.status), fontSize: '0.72rem', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>◄ {t('clinician.output')}</div>
                   <pre style={{ color: '#cbd5e1', fontSize: '0.72rem', overflow: 'auto', maxHeight: 140, lineHeight: 1.6, margin: 0 }}>
                     {typeof entry.output === 'string' ? entry.output : JSON.stringify(entry.output, null, 2)}
                   </pre>
@@ -182,8 +499,8 @@ function GlassBoxPanel({ entries }: { entries: GlassBoxEntry[] }) {
         {/* Footer timing summary */}
         {entries.length > 0 && (
           <div style={{ marginTop: '0.5rem', color: '#4ade80', fontSize: '0.75rem', padding: '0.25rem 0' }}>
-            ✓ Agent swarm completed · Total: {entries.reduce((s, e) => s + e.durationMs, 0).toFixed(0)}ms ·{' '}
-            {entries.filter(e => e.status === 'success').length}/{entries.length} agents succeeded
+            ✓ {t('clinician.agentSwarmCompleted')} · {t('clinician.total')}: {entries.reduce((s, e) => s + e.durationMs, 0).toFixed(0)}ms ·{' '}
+            {entries.filter(e => e.status === 'success').length}/{entries.length} {t('clinician.agentsSucceeded')}
           </div>
         )}
       </div>
@@ -192,7 +509,8 @@ function GlassBoxPanel({ entries }: { entries: GlassBoxEntry[] }) {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function ClinicianView() {
+export default function ClinicianPortal() {
+  const { t, lang } = useLanguage();
   const [patientId, setPatientId]         = useState('P001');
   const [role, setRole]                       = useState('specialist');
   const [allPatients, setAllPatients]         = useState<any[]>([]);
@@ -205,14 +523,24 @@ export default function ClinicianView() {
   const [loadingSimulation, setLoadingSimulation] = useState(false);
   const [showGlassBox, setShowGlassBox]       = useState(false);
   const [glassBoxLogs, setGlassBoxLogs]       = useState<GlassBoxEntry[]>([]);
+  const [dynamicEffects, setDynamicEffects]   = useState<Record<string, { effect: 'good' | 'bad', short: string }>>({});
   const [selectedMed, setSelectedMed]         = useState('');
   const [selectedDosage, setSelectedDosage]   = useState('');
   const [manualMed, setManualMed]             = useState('');
   const [expandedRecord, setExpandedRecord]   = useState<string | null>(null);
+  const [simTab, setSimTab]                   = useState<'data' | 'visual'>('data');
+
+  // Navigator State
+  const [navDisease, setNavDisease]           = useState('');
+  const [navManualDisease, setNavManualDisease] = useState('');
+  const [navTab, setNavTab]                   = useState<'symptoms' | 'protocol' | 'medicine'>('symptoms');
+  const [navResult, setNavResult]             = useState<any>(null);
+  const [loadingNav, setLoadingNav]           = useState(false);
 
   const selectedMedObj = MEDICATIONS.find(m => m.name === selectedMed);
   const medicationInput = selectedMed === 'Other (type below)' ? manualMed
-    : (selectedMed && selectedDosage) ? `${selectedMed} ${selectedDosage}` : manualMed;
+    : (selectedMed && selectedDosage) ? `${selectedMed} ${selectedDosage}` 
+    : selectedMed ? selectedMed : manualMed;
 
   useEffect(() => {
     fetch('/api/patient?id=ALL')
@@ -228,57 +556,119 @@ export default function ClinicianView() {
     if (role === 'emergency') clinicianName = 'Dr. Dhanush (ER Attending)';
     if (role === 'research')  clinicianName = 'BioPharm Research Lab';
     try {
-      const res = await fetch(`/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}`);
+      const res = await fetch(`/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`);
       const result = await res.json();
       if (!res.ok) { setError(result.error); }
       else {
         setData(result.data);
         setLoadingBio(true);
         try {
-          const br = await fetch('/api/agents/biographer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: result.data.patient, records: result.data.records, role }) });
+          const br = await fetch('/api/agents/biographer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: result.data.patient, records: result.data.records, role, lang }) });
           const bd = await br.json();
           setBiography(bd.summary || '');
           if (bd.glassBox) setGlassBoxLogs(prev => [...prev, ...bd.glassBox]);
-        } catch { setBiography('Unable to generate synthesis.'); }
+        } catch { setBiography(t('clinician.unableToGenerateSynth')); }
         finally { setLoadingBio(false); }
       }
-    } catch { setError('Failed to communicate with Patient Memory Layer.'); }
+    } catch { setError(t('clinician.failedToCommunicate')); }
     finally { setLoadingContext(false); }
   };
 
   const runSimulation = async () => {
     if (!data || !medicationInput.trim()) return;
-    setLoadingSimulation(true);
     try {
+      setLoadingSimulation(true);
       const res = await fetch('/api/agents/twin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient: data.patient, records: data.records, intervention: medicationInput, role }),
+        body: JSON.stringify({ patient: data.patient, records: data.records, intervention: medicationInput, role, lang }),
       });
+      if (!res.ok) throw new Error('Simulation failed');
       const result = await res.json();
       setSimulation(result);
+
       if (result.glassBox) setGlassBoxLogs(prev => [...prev, ...result.glassBox]);
     } catch { setSimulation(null); }
     finally { setLoadingSimulation(false); }
   };
 
-  const bpHistory = data ? buildBpHistory(data.records) : [];
+  const runNavigator = async () => {
+    const finalDisease = navDisease === 'others' ? navManualDisease : navDisease;
+    if (!finalDisease.trim()) return;
+
+    setLoadingNav(true);
+    setNavResult(null);
+    try {
+      const res = await fetch('/api/agents/disease-navigator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          disease: finalDisease,
+          patient: data?.patient || null,
+          records: data?.records || null,
+          lang
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setNavResult(result);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingNav(false);
+    }
+  };
+
+    const bpHistory = data ? buildBpHistory(data.records) : [];
   const latestDate = bpHistory.length > 0 ? bpHistory[bpHistory.length - 1].date : '';
 
+  useEffect(() => {
+    // If language changes and we already have data loaded, auto-refetch the text-heavy AI calls
+    if (data) {
+      // Refetch the records timeline
+      let clinicianName = role === 'emergency' ? 'Dr. Dhanush (ER Attending)' : role === 'research' ? 'BioPharm Research Lab' : 'Dr. Monissha (Cardiology)';
+      fetch(`/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`)
+        .then(r => r.json())
+        .then(result => { if (result.data) setData(result.data); })
+        .catch(() => {});
+
+      setLoadingBio(true);
+      fetch('/api/agents/biographer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: data.patient, records: data.records, role, lang }) })
+        .then(r => r.json())
+        .then(bd => setBiography(bd.summary || ''))
+        .catch(() => {})
+        .finally(() => setLoadingBio(false));
+    }
+    if (simulation) {
+      setLoadingSimulation(true);
+      fetch('/api/agents/twin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient: data.patient, records: data.records, intervention: medicationInput, role, lang }),
+      })
+      .then(r => r.json())
+      .then(res => setSimulation(res))
+      .catch(() => {})
+      .finally(() => setLoadingSimulation(false));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
+
   const getDaysAgo = (dateStr: string) => {
-    if (!latestDate || !dateStr) return 'Day 0';
+    if (!latestDate || !dateStr) return `${t('clinician.day')} 0`;
     const d1 = new Date(dateStr);
     const d2 = new Date(latestDate);
     const diffTime = d1.getTime() - d2.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays === 0 ? 'Day 0' : `Day ${diffDays}`;
+    return diffDays === 0 ? `${t('clinician.day')} 0` : `${t('clinician.day')} ${diffDays}`;
   };
 
-  const bpPrediction = simulation ? buildPrediction(bpHistory, medicationInput) : [];
+  const bpPrediction = simulation ? buildPrediction(bpHistory, medicationInput, t) : [];
   const allChartData = [
     ...bpHistory.map(d => ({ date: getDaysAgo(d.date), systolic: d.systolic, predicted: undefined })),
     ...(bpPrediction.length > 0 && bpHistory.length > 0
-      ? [{ date: 'Day 0', systolic: bpHistory[bpHistory.length - 1].systolic, predicted: bpHistory[bpHistory.length - 1].systolic }]
+      ? [{ date: `${t('clinician.day')} 0`, systolic: bpHistory[bpHistory.length - 1].systolic, predicted: bpHistory[bpHistory.length - 1].systolic }]
       : []),
     ...bpPrediction.map(d => ({ date: d.date, systolic: undefined, predicted: d.predicted })),
   ];
@@ -288,8 +678,8 @@ export default function ClinicianView() {
       {/* Page Header */}
       <div className="slide-up stagger-1 flex-between" style={{ marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>Clinician Portal</h2>
-          <p style={{ color: 'var(--accent-teal)' }}>Zero-Knowledge Context Retrieval & Precision Medicine Engine</p>
+          <h2 style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>{t('clinician.title')}</h2>
+          <p style={{ color: 'var(--accent-teal)' }}>{t('clinician.subtitle')}</p>
         </div>
         {glassBoxLogs.length > 0 && (
           <button
@@ -298,7 +688,7 @@ export default function ClinicianView() {
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: showGlassBox ? '#4ade80' : 'var(--primary)', color: showGlassBox ? '#4ade80' : 'var(--primary)' }}
           >
             {showGlassBox ? <EyeOff size={16} /> : <Eye size={16} />}
-            {showGlassBox ? 'Hide' : 'View'} Glass Box
+            {showGlassBox ? t('clinician.hideGlassBox') : t('clinician.viewGlassBox')}
             <span style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: 9999, padding: '0 6px', fontSize: '0.75rem' }}>
               {glassBoxLogs.length}
             </span>
@@ -314,11 +704,13 @@ export default function ClinicianView() {
       )}
 
       <div className="grid-2">
-        {/* Context Request */}
-        <section className="glass-panel slide-up stagger-2" style={{ height: 'fit-content' }}>
+        {/* Left Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Context Request */}
+          <section className="glass-panel slide-up stagger-2" style={{ height: 'fit-content', marginTop: 0 }}>
           <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Database size={20} color="var(--primary)" /> Context Request
+              <Database size={20} color="var(--primary)" /> {t('clinician.contextRequest')}
             </h3>
           </div>
 
@@ -338,15 +730,15 @@ export default function ClinicianView() {
               onChange={e => setRole(e.target.value)}
               style={{ padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '200px', fontFamily: 'inherit' }}
             >
-              <option value="specialist">Dr. Monissha (Specialist)</option>
-              <option value="emergency">Dr. Dhanush (Emergency)</option>
-              <option value="research">BioPharm (Research)</option>
+              <option value="specialist">{t('clinician.roleSpecialist')}</option>
+              <option value="emergency">{t('clinician.roleEmergency')}</option>
+              <option value="research">{t('clinician.roleResearch')}</option>
             </select>
             <button className="glass-button" onClick={requestContext} disabled={loadingContext}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
               {loadingContext
-                ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> Requesting...</>
-                : 'Request Access'}
+                ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> {t('clinician.requesting')}</>
+                : t('clinician.requestAccess')}
             </button>
           </div>
 
@@ -359,11 +751,11 @@ export default function ClinicianView() {
           {data && (
             <div className="slide-up" style={{ padding: '1rem', background: 'rgba(165,216,255,0.05)', borderLeft: '4px solid var(--accent-teal)', borderRadius: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: 'var(--accent-teal)' }}>
-                <Unlock size={16} /> Context Granted — Decrypted Locally
+                <Unlock size={16} /> {t('clinician.contextGranted')}
               </div>
               <h4 style={{ marginBottom: '0.25rem' }}>{data.patient.name}</h4>
-              <p style={{ fontSize: '0.88rem', color: 'var(--charcoal)', marginBottom: '1rem' }}>DOB: {data.patient.dob} &nbsp;|&nbsp; {data.patient.gender}</p>
-              <h5 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Recent Clinical Events</h5>
+              <p style={{ fontSize: '0.88rem', color: 'var(--charcoal)', marginBottom: '1rem' }}>{t('clinician.dob')}: {data.patient.dob} &nbsp;|&nbsp; {data.patient.gender}</p>
+              <h5 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>{t('clinician.recentClinicalEvents')}</h5>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {data.records.slice(0, 4).map((r: any) => (
                   <div key={r.record_id} style={{ padding: '0.5rem 0.75rem', background: 'var(--surface-muted)', borderRadius: 8, borderLeft: '2px solid var(--powder-blue)' }}>
@@ -380,35 +772,123 @@ export default function ClinicianView() {
           )}
         </section>
 
+        {/* Disease & Protocol Navigator */}
+        <section className="glass-panel slide-up" style={{ borderLeft: '4px solid var(--accent-amber)' }}>
+          <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+            <div>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)' }}>
+                <Activity size={20} color="var(--accent-amber)" /> {t('clinician.diseaseNavigatorTitle')}
+              </h3>
+              <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginTop: '0.2rem' }}>
+                {t('clinician.diseaseNavigatorDesc')}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+            <select
+              value={navDisease}
+              onChange={e => { setNavDisease(e.target.value); setNavResult(null); }}
+              style={{ width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            >
+              <option value="">-- {t('clinician.selectDisease')} --</option>
+              <option value="Dengue Fever">{t('disease.dengue')}</option>
+              <option value="Chikungunya">{t('disease.chikungunya')}</option>
+              <option value="Type-2 Diabetes">{t('disease.t2dm')}</option>
+              <option value="Hypertension">{t('disease.hypertension')}</option>
+              <option value="others">{t('clinician.others')}</option>
+            </select>
+
+            {navDisease === 'others' && (
+              <input type="text" value={navManualDisease} onChange={e => setNavManualDisease(e.target.value)}
+                placeholder={t('clinician.enterDisease')}
+                style={{ width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            )}
+
+            <button className="glass-button" onClick={runNavigator} disabled={loadingNav || (!navDisease || (navDisease === 'others' && !navManualDisease))}
+              style={{ borderColor: 'var(--accent-amber)', color: 'var(--accent-amber)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.6rem' }}>
+              {loadingNav
+                ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--accent-amber)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> {t('clinician.generatingProtocol')}</>
+                : `⚡ ${t('clinician.generateProtocol')}`}
+            </button>
+          </div>
+
+          {navResult && (
+            <div className="fade-in">
+              {/* Tab Switcher */}
+              <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.9rem', background: 'var(--surface-muted)', borderRadius: 10, padding: '0.28rem' }}>
+                {(['symptoms', 'protocol', 'medicine'] as const).map(tab => (
+                  <button key={tab} onClick={() => setNavTab(tab)}
+                    style={{ flex: 1, padding: '0.42rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.84rem', fontFamily: 'inherit', transition: 'all 0.2s',
+                      background: navTab === tab ? 'var(--accent-amber)' : 'transparent',
+                      color: navTab === tab ? 'white' : 'var(--foreground-muted)' }}>
+                    {tab === 'symptoms' && t('clinician.tabSymptoms')}
+                    {tab === 'protocol' && t('clinician.tabProtocol')}
+                    {tab === 'medicine' && t('clinician.tabMedicine')}
+                  </button>
+                ))}
+              </div>
+
+              {navTab === 'symptoms' && (
+                <div className="slide-up" style={{ background: 'var(--surface-muted)', padding: '0.9rem', borderRadius: 8 }}>
+                  <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                    {(Array.isArray(navResult.symptoms) ? navResult.symptoms.join('\n') : (navResult.symptoms || '')).split('**').map((p: string, i: number) => i % 2 === 1 ? <strong key={i} style={{ color: 'var(--primary)' }}>{p}</strong> : p)}
+                  </div>
+                </div>
+              )}
+
+              {navTab === 'protocol' && (
+                <div className="slide-up" style={{ background: 'var(--surface-muted)', padding: '0.9rem', borderRadius: 8 }}>
+                  <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                    {(Array.isArray(navResult.protocol) ? navResult.protocol.join('\n') : (navResult.protocol || '')).split('**').map((p: string, i: number) => i % 2 === 1 ? <strong key={i} style={{ color: 'var(--primary)' }}>{p}</strong> : p)}
+                  </div>
+                </div>
+              )}
+
+              {navTab === 'medicine' && (
+                <div className="slide-up" style={{ background: 'var(--surface-muted)', padding: '0.9rem', borderRadius: 8 }}>
+                  <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                    {(Array.isArray(navResult.medicine) ? navResult.medicine.join('\n') : (navResult.medicine || '')).split('**').map((p: string, i: number) => i % 2 === 1 ? <strong key={i} style={{ color: 'var(--primary)' }}>{p}</strong> : p)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+        </div>
+
+        {/* Right Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* Twin Simulation */}
         <section className="glass-panel slide-up stagger-3" style={{
+          marginTop: 0,
           opacity: data ? 1 : 0.45,
           pointerEvents: data ? 'auto' : 'none',
           transition: 'opacity 0.5s ease',
         }}>
           <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-purple)' }}>
-              <Cpu size={20} /> Twin Simulation
+              <Cpu size={20} /> {t('clinician.twinSimulation')}
             </h3>
-            <span className="badge purple pulse-glow">ML + Groq Pipeline</span>
+            <span className="badge purple pulse-glow">{t('clinician.mlGroqPipeline')}</span>
           </div>
 
           <p style={{ fontSize: '0.88rem', color: 'var(--charcoal)', marginBottom: '1rem' }}>
-            Proposes an intervention through the sklearn Medication Effectiveness model, then synthesizes precision narratives via Groq.
+            {t('clinician.simulationDesc')}
           </p>
 
           {/* Medicine Selector */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1.25rem' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Select Medicine</label>
+            <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('clinician.selectMedicine')}</label>
             <select value={selectedMed} onChange={e => { setSelectedMed(e.target.value); setSelectedDosage(''); }}
               style={{ width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', fontFamily: 'inherit' }}>
-              <option value="">— Choose a medicine —</option>
-              {MEDICATIONS.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+              <option value="">— {t('clinician.chooseMedicine')} —</option>
+              {MEDICATIONS.map(m => <option key={m.name} value={m.name}>{m.name === 'Other (type below)' ? t('clinician.otherTypeBelow') : m.name}</option>)}
             </select>
 
             {selectedMedObj && selectedMedObj.dosages.length > 0 && (
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.4rem' }}>Dosage</label>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.4rem' }}>{t('clinician.dosage')}</label>
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                   {selectedMedObj.dosages.map(d => (
                     <button key={d} onClick={() => setSelectedDosage(d)}
@@ -422,58 +902,82 @@ export default function ClinicianView() {
 
             {(!selectedMed || selectedMed === 'Other (type below)') && (
               <input type="text" value={manualMed} onChange={e => setManualMed(e.target.value)}
-                placeholder="Type intervention e.g. Add Amlodipine 10mg"
+                placeholder={t('clinician.typeInterventionPlaceholder')}
                 style={{ width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
             )}
 
             {medicationInput && (
               <div style={{ padding: '0.5rem 0.85rem', background: 'var(--primary-light)', borderRadius: 8, fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600, border: '1px solid var(--glass-border)' }}>
-                Simulating: <strong>{medicationInput}</strong>
+                {t('clinician.simulating')}: <strong>{medicationInput}</strong>
               </div>
             )}
 
             <button className="glass-button" onClick={runSimulation} disabled={loadingSimulation || !medicationInput.trim()}
               style={{ borderColor: 'var(--accent-purple)', color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
               {loadingSimulation
-                ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--accent-purple)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> Simulating...</>
-                : '⚗️ Run Twin Simulation'}
+                ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--accent-purple)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> {t('clinician.simulatingLoading')}</>
+                : `⚗️ ${t('clinician.runTwinSimulation')}`}
             </button>
           </div>
 
           {!simulation && !loadingSimulation && (
             <div className="flex-center" style={{ height: 120, background: 'var(--background)', borderRadius: 8, color: '#475569', fontSize: '0.88rem' }}>
-              Enter an intervention and click Simulate
+              {t('clinician.enterInterventionPrompt')}
             </div>
           )}
 
           {simulation && simulation.treatmentDecision && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <div className="slide-up stagger-1" style={{ background: 'rgba(165,216,255,0.05)', borderLeft: '4px solid var(--primary)', padding: '0.9rem', borderRadius: 8, transition: 'transform 0.2s' }}
-                onMouseOver={e => (e.currentTarget.style.transform = 'translateX(4px)')} onMouseOut={e => (e.currentTarget.style.transform = 'translateX(0)')}>
-                <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', marginBottom: '0.4rem', fontSize: '0.92rem' }}>
-                  <Stethoscope size={16} /> Better Treatment Decisions
-                </h4>
-                <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{simulation.treatmentDecision}</div>
+            <>
+              {/* Tab Switcher */}
+              <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.9rem', background: 'var(--surface-muted)', borderRadius: 10, padding: '0.28rem' }}>
+                {(['data', 'visual'] as const).map(tab => (
+                  <button key={tab} onClick={() => setSimTab(tab)}
+                    style={{ flex: 1, padding: '0.42rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.84rem', fontFamily: 'inherit', transition: 'all 0.2s',
+                      background: simTab === tab ? 'var(--primary)' : 'transparent',
+                      color: simTab === tab ? 'white' : 'var(--foreground-muted)' }}>
+                    {tab === 'data' ? `📊 ${t('clinician.tabData')}` : `🫀 ${t('clinician.tabVisual')}`}
+                  </button>
+                ))}
               </div>
 
-              <div className="slide-up stagger-2" style={{ background: 'var(--accent-amber-bg)', borderLeft: '4px solid var(--accent-amber)', padding: '0.9rem', borderRadius: 8, transition: 'transform 0.2s' }}
-                onMouseOver={e => (e.currentTarget.style.transform = 'translateX(4px)')} onMouseOut={e => (e.currentTarget.style.transform = 'translateX(0)')}>
-                <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-amber)', marginBottom: '0.4rem', fontSize: '0.92rem' }}>
-                  <AlertTriangle size={16} /> Risk Prediction
-                </h4>
-                <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{simulation.riskPrediction}</div>
-              </div>
+              {simTab === 'data' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div className="slide-up stagger-1" style={{ background: 'rgba(165,216,255,0.05)', borderLeft: '4px solid var(--primary)', padding: '0.9rem', borderRadius: 8, transition: 'transform 0.2s' }}
+                    onMouseOver={e => (e.currentTarget.style.transform = 'translateX(4px)')} onMouseOut={e => (e.currentTarget.style.transform = 'translateX(0)')}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', marginBottom: '0.4rem', fontSize: '0.92rem' }}>
+                      <Stethoscope size={16} /> {t('clinician.betterTreatmentDecisions')}
+                    </h4>
+                    <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{simulation.treatmentDecision}</div>
+                  </div>
 
-              <div className="slide-up stagger-3" style={{ background: 'var(--accent-teal-bg)', borderLeft: '4px solid var(--accent-teal)', padding: '0.9rem', borderRadius: 8, transition: 'transform 0.2s' }}
-                onMouseOver={e => (e.currentTarget.style.transform = 'translateX(4px)')} onMouseOut={e => (e.currentTarget.style.transform = 'translateX(0)')}>
-                <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-teal)', marginBottom: '0.4rem', fontSize: '0.92rem' }}>
-                  <FlaskConical size={16} /> Personalized Care
-                </h4>
-                <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{simulation.personalizedCare}</div>
-              </div>
-            </div>
+                  <div className="slide-up stagger-2" style={{ background: 'var(--accent-amber-bg)', borderLeft: '4px solid var(--accent-amber)', padding: '0.9rem', borderRadius: 8, transition: 'transform 0.2s' }}
+                    onMouseOver={e => (e.currentTarget.style.transform = 'translateX(4px)')} onMouseOut={e => (e.currentTarget.style.transform = 'translateX(0)')}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-amber)', marginBottom: '0.4rem', fontSize: '0.92rem' }}>
+                      <AlertTriangle size={16} /> {t('clinician.riskPrediction')}
+                    </h4>
+                    <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{simulation.riskPrediction}</div>
+                  </div>
+
+                  <div className="slide-up stagger-3" style={{ background: 'var(--accent-teal-bg)', borderLeft: '4px solid var(--accent-teal)', padding: '0.9rem', borderRadius: 8, transition: 'transform 0.2s' }}
+                    onMouseOver={e => (e.currentTarget.style.transform = 'translateX(4px)')} onMouseOut={e => (e.currentTarget.style.transform = 'translateX(0)')}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-teal)', marginBottom: '0.4rem', fontSize: '0.92rem' }}>
+                      <FlaskConical size={16} /> {t('clinician.personalizedCare')}
+                    </h4>
+                    <div style={{ fontSize: '0.86rem', color: 'var(--foreground)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{simulation.personalizedCare}</div>
+                  </div>
+                </div>
+              )}
+
+              {simTab === 'visual' && (
+                <div className="slide-up fade-in">
+                  <BodyVisualizer effects={dynamicEffects} medication={medicationInput} dosage={selectedDosage} />
+                </div>
+              )}
+            </>
           )}
         </section>
+
+        </div>
       </div>
 
       {/* BP Trajectory Chart */}
@@ -481,15 +985,15 @@ export default function ClinicianView() {
         <section className="glass-panel slide-up" style={{ marginTop: '1.5rem' }}>
           <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>
-              Blood Pressure Trajectory
+              {t('clinician.bpTrajectory')}
             </h3>
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', alignItems: 'center' }}>
               <span style={{ color: '#a5d8ff', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 16, height: 2, background: '#a5d8ff', display: 'inline-block', borderRadius: 2 }} /> Historical
+                <span style={{ width: 16, height: 2, background: '#a5d8ff', display: 'inline-block', borderRadius: 2 }} /> {t('clinician.historical')}
               </span>
               {bpPrediction.length > 0 && (
                 <span style={{ color: '#c7d2fe', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 16, height: 2, background: '#c7d2fe', display: 'inline-block', borderRadius: 2 }} /> Predicted
+                  <span style={{ width: 16, height: 2, background: '#c7d2fe', display: 'inline-block', borderRadius: 2 }} /> {t('clinician.predicted')}
                 </span>
               )}
             </div>
@@ -500,17 +1004,17 @@ export default function ClinicianView() {
               <XAxis dataKey="date" tick={{ fill: '#4A5568', fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis domain={['auto', 'auto']} tick={{ fill: '#4A5568', fontSize: 12 }} axisLine={false} tickLine={false} unit=" mmHg" width={80} />
               <Tooltip content={<CustomTooltip />} />
-              <ReferenceLine y={120} stroke="rgba(74,222,128,0.3)" strokeDasharray="4 4" label={{ value: 'Normal', fill: '#4ade80', fontSize: 11 }} />
-              <ReferenceLine y={140} stroke="rgba(252,165,165,0.3)" strokeDasharray="4 4" label={{ value: 'Stage 2 HTN', fill: '#fca5a5', fontSize: 11 }} />
-              <Line type="monotone" dataKey="systolic" name="Systolic BP" stroke="#a5d8ff" strokeWidth={2.5} dot={{ r: 5, fill: '#a5d8ff', strokeWidth: 0 }} connectNulls={false} activeDot={{ r: 7 }} />
+              <ReferenceLine y={120} stroke="rgba(74,222,128,0.3)" strokeDasharray="4 4" label={{ value: t('clinician.normal'), fill: '#4ade80', fontSize: 11 }} />
+              <ReferenceLine y={140} stroke="rgba(252,165,165,0.3)" strokeDasharray="4 4" label={{ value: t('clinician.stage2HTN'), fill: '#fca5a5', fontSize: 11 }} />
+              <Line type="monotone" dataKey="systolic" name={t('clinician.systolicBP')} stroke="#a5d8ff" strokeWidth={2.5} dot={{ r: 5, fill: '#a5d8ff', strokeWidth: 0 }} connectNulls={false} activeDot={{ r: 7 }} />
               {bpPrediction.length > 0 && (
-                <Line type="monotone" dataKey="predicted" name="Predicted BP" stroke="#c7d2fe" strokeWidth={2} strokeDasharray="6 3" dot={{ r: 5, fill: '#c7d2fe', strokeWidth: 0 }} connectNulls={false} activeDot={{ r: 7 }} />
+                <Line type="monotone" dataKey="predicted" name={t('clinician.predictedBP')} stroke="#c7d2fe" strokeWidth={2} strokeDasharray="6 3" dot={{ r: 5, fill: '#c7d2fe', strokeWidth: 0 }} connectNulls={false} activeDot={{ r: 7 }} />
               )}
             </LineChart>
           </ResponsiveContainer>
           {!bpPrediction.length && (
             <p style={{ textAlign: 'center', color: '#475569', fontSize: '0.82rem', marginTop: '0.5rem' }}>
-              Run a Twin Simulation above to see the predicted BP trajectory
+              {t('clinician.runSimulationToSeeTraj')}
             </p>
           )}
         </section>
@@ -521,15 +1025,15 @@ export default function ClinicianView() {
         <section className="glass-panel slide-up" style={{ marginTop: '1.5rem', borderLeft: '4px solid var(--accent-purple)' }}>
           <div className="flex-between" style={{ marginBottom: '1rem' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-purple)' }}>
-              <FileText size={20} /> Biographer Agent Synthesis
+              <FileText size={20} /> {t('clinician.biographerSynthesis')}
             </h3>
-            <span className="badge purple">AI Generated · Groq</span>
+            <span className="badge purple">{t('clinician.aiGenerated')}</span>
           </div>
           <div style={{ background: 'var(--surface-muted)', padding: '1.25rem', borderRadius: 10, minHeight: 100 }}>
             {loadingBio ? (
               <div className="flex-center" style={{ flexDirection: 'column', gap: '0.6rem', color: 'var(--accent-purple)', minHeight: 80 }}>
                 <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid var(--accent-purple)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
-                Synthesizing patient history...
+                {t('clinician.synthesizingHistory')}
               </div>
             ) : (
               <div className="fade-in" style={{ whiteSpace: 'pre-wrap', fontSize: '0.93rem', color: 'var(--foreground)', lineHeight: 1.8 }}>

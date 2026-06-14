@@ -11,6 +11,7 @@ export interface Patient {
   dob: string;
   gender: string;
   contact: string;
+  mobile: string;
   blood_type?: string;
   allergies?: string;
   consent_emergency: string;
@@ -52,6 +53,7 @@ function rowToPatient(row: any): Patient {
     dob:               decrypt(row.dob_enc),
     gender:            decrypt(row.gender_enc),
     contact:           decrypt(row.contact_enc),
+    mobile:            decrypt(row.mobile_enc ?? ''),
     blood_type:        decrypt(row.blood_type_enc),
     allergies:         decrypt(row.allergies_enc),
     consent_emergency: row.consent_emergency ? 'true' : 'false',

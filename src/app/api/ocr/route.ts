@@ -4,13 +4,17 @@ import Groq from 'groq-sdk';
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(request: Request) {
-  const { image, filename } = await request.json();
+  const { image, filename, lang = 'en' } = await request.json();
   if (!image) return NextResponse.json({ error: 'Image data required' }, { status: 400 });
 
   const t0 = Date.now();
 
+  const langInstruction = lang === 'ta'
+    ? 'IMPORTANT: Write your entire response content (structuredSummary field and all text) in Tamil (தமிழ்) language only. The JSON keys must remain in English, but ALL values must be in Tamil.'
+    : '';
+
   try {
-    // Use Groq Vision (llama-3.2-11b-vision-preview) — no system binary required
+    // Use Groq Vision (llama-4-scout) — no system binary required
     const completion = await groq.chat.completions.create({
       model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [
@@ -26,6 +30,7 @@ export async function POST(request: Request) {
             {
               type: 'text',
               text: `You are a medical document analysis AI. Carefully read all text visible in this medical document image (it could be a prescription, lab report, discharge summary, or handwritten note).
+${langInstruction}
 
 Extract and return a JSON object with EXACTLY this structure:
 {
@@ -35,7 +40,7 @@ Extract and return a JSON object with EXACTLY this structure:
   "labValues": {
     "<test name>": "<value with unit>"
   },
-  "structuredSummary": "<2-3 sentence clinical summary of what this document contains>"
+  "structuredSummary": "<2-3 sentence clinical summary of what this document contains${lang === 'ta' ? ' — write this IN TAMIL' : ''}>"
 }
 
 Rules:
@@ -43,7 +48,7 @@ Rules:
 - medications: include drug name, strength, and frequency if visible (e.g. "Lisinopril 10mg once daily")
 - diagnoses: include all medical conditions, ICD codes if present
 - labValues: BP, HbA1c, glucose, eGFR, SpO2, HR, temperature, weight, cholesterol, creatinine etc
-- structuredSummary: professional clinical tone, mention key findings
+- structuredSummary: professional clinical tone, mention key findings${lang === 'ta' ? ', WRITE IN TAMIL ONLY' : ''}
 
 Return ONLY valid JSON, no markdown, no code blocks, no explanation.`,
             },
@@ -69,7 +74,9 @@ Return ONLY valid JSON, no markdown, no code blocks, no explanation.`,
         medications: [],
         diagnoses: [],
         labValues: {},
-        structuredSummary: 'Could not parse structured data from this document.',
+        structuredSummary: lang === 'ta'
+          ? 'இந்த ஆவணத்திலிருந்து கட்டமைக்கப்பட்ட தரவை பாகுபடுத்த முடியவில்லை.'
+          : 'Could not parse structured data from this document.',
       };
     }
 

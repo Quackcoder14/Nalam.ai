@@ -1,15 +1,56 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import Groq from 'groq-sdk';
 
-export async function GET() {
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const translateCache = new Map<string, any[]>();
+
+export async function GET(request: Request) {
   try {
-    const alerts = await prisma.clinicalAlert.findMany({
+    const { searchParams } = new URL(request.url);
+    const lang = searchParams.get('lang') || 'en';
+
+    let alerts = await prisma.clinicalAlert.findMany({
       where: { is_read: false },
       orderBy: { created_at: 'desc' },
       take: 20
     });
+
+    if (lang === 'ta' && alerts.length > 0) {
+      // Use the IDs and updated_at to form a cache key
+      const cacheKey = alerts.map(a => `${a.id}`).join(',');
+      if (translateCache.has(cacheKey)) {
+        alerts = translateCache.get(cacheKey)!;
+      } else {
+        const prompt = `Translate the 'title' and 'message' fields of the following JSON array of medical alerts into Tamil (தமிழ்). 
+Keep the JSON structure exactly the same, including all keys. Only translate the VALUES of 'title' and 'message'.
+
+JSON:
+${JSON.stringify(alerts, null, 2)}`;
+
+        const completion = await groq.chat.completions.create({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: 'You are a medical translator. Always respond with raw valid JSON.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.1,
+        });
+
+        const raw = completion.choices[0]?.message?.content ?? '[]';
+        try {
+          const cleaned = raw.replace(/^```(?:json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+          alerts = JSON.parse(cleaned);
+          translateCache.set(cacheKey, alerts);
+        } catch (e) {
+          console.error("Translation JSON parse failed", e);
+        }
+      }
+    }
+
     return NextResponse.json({ alerts });
   } catch (error) {
+    console.error('Failed to fetch alerts:', error);
     return NextResponse.json({ error: 'Failed to fetch alerts' }, { status: 500 });
   }
 }

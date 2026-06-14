@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import ClientNav from './components/ClientNav';
+import { LanguageProvider } from '@/lib/i18n';
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -33,8 +34,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         />
       </head>
       <body className={jakarta.className} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-        <ClientNav />
-        <main>{children}</main>
+        <LanguageProvider>
+          <ClientNav />
+          <main>{children}</main>
+        </LanguageProvider>
         {/* Service Worker registration */}
         <script
           dangerouslySetInnerHTML={{

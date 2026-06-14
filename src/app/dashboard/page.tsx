@@ -1,11 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Activity, BellRing, Network, Database, Heart, Watch, Rss, Clock, Eye, ChevronDown, ChevronRight, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, Search, X } from 'lucide-react';
+import { Shield, Activity, BellRing, Network, Heart, Watch, Clock, Eye, ChevronDown, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, Search, X } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n';
+import VoiceTriage from '../components/VoiceTriage';
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
-async function subscribePush(patientId: string, role = 'patient') {
+async function subscribePush(patientId: string) {
   if (!('serviceWorker' in navigator) || !VAPID_PUBLIC) return false;
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -17,7 +19,7 @@ async function subscribePush(patientId: string, role = 'patient') {
     await fetch('/api/notify/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: sub.toJSON(), patientId, role }),
+      body: JSON.stringify({ subscription: sub.toJSON(), patientId, role: 'patient' }),
     });
     return true;
   } catch { return false; }
@@ -55,6 +57,7 @@ function ConsentToggle({ label, desc, active, onToggle }: { label: string; desc:
 }
 
 export default function PatientDashboard() {
+  const { t, lang } = useLanguage();
   const [patient, setPatient]         = useState<any>(null);
   const [records, setRecords]         = useState<any[]>([]);
   const [consent, setConsent]         = useState<ConsentState>({ emergency: false, specialist: false, research: false });
@@ -62,76 +65,60 @@ export default function PatientDashboard() {
   const [showAudit, setShowAudit]     = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [intervention, setIntervention]     = useState<any>(null);
-  
-  // Vitals State
+  const [fhirData, setFhirData]             = useState<any>(null);
+  const [fhirLoading, setFhirLoading]       = useState(false);
+
   const [baseVitals, setBaseVitals]   = useState({ hr: 72, sys: 120, dia: 80, spo2: 98, temp: 36.9 });
   const [vitals, setVitals]           = useState({ hr: 72, sys: 120, dia: 80, spo2: 98, temp: 36.9 });
   const vitalsRef = useRef(vitals);
 
-  // Anomaly state
   const [anomaly, setAnomaly]         = useState<any>(null);
   const [anomalyLoading, setAL]       = useState(false);
   const [showPopup, setShowPopup]     = useState(false);
-  
-  // Push
+
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [demoScenario, setDemoScenario] = useState<string | null>(null);
   const anomalyRef                    = useRef<any>(null);
   const router = useRouter();
 
-  // Sync ref
   useEffect(() => { vitalsRef.current = vitals; }, [vitals]);
 
-  // Live simulation drift
   useEffect(() => {
     const iv = setInterval(() => {
       setVitals({
-        hr: Math.max(40, Math.min(220, baseVitals.hr + Math.floor(Math.random() * 5) - 2)),
-        sys: Math.max(70, Math.min(250, baseVitals.sys + Math.floor(Math.random() * 5) - 2)),
-        dia: Math.max(40, Math.min(150, baseVitals.dia + Math.floor(Math.random() * 4) - 2)),
-        spo2: Math.max(70, Math.min(100, baseVitals.spo2 + Math.floor(Math.random() * 2) - 0)),
+        hr:   Math.max(40,  Math.min(220, baseVitals.hr   + Math.floor(Math.random() * 5) - 2)),
+        sys:  Math.max(70,  Math.min(250, baseVitals.sys  + Math.floor(Math.random() * 5) - 2)),
+        dia:  Math.max(40,  Math.min(150, baseVitals.dia  + Math.floor(Math.random() * 4) - 2)),
+        spo2: Math.max(70,  Math.min(100, baseVitals.spo2 + Math.floor(Math.random() * 2))),
         temp: parseFloat(Math.max(35, Math.min(41, baseVitals.temp + (Math.random() * 0.2 - 0.1))).toFixed(1)),
       });
     }, 2000);
     return () => clearInterval(iv);
   }, [baseVitals]);
 
-  // Anomaly polling (every 30s)
   const checkAnomaly = useCallback(async (currentVitals: typeof vitals) => {
     setAL(true);
     try {
-      const payload = { heart_rate: currentVitals.hr, systolic_bp: currentVitals.sys, diastolic_bp: currentVitals.dia, spo2: currentVitals.spo2, temperature: currentVitals.temp };
-      const res = await fetch('/api/anomaly', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const payload = { heart_rate: currentVitals.hr, systolic_bp: currentVitals.sys, diastolic_bp: currentVitals.dia, spo2: currentVitals.spo2, temperature: currentVitals.temp, lang };
+      const res = await fetch('/api/anomaly', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       setAnomaly(data);
       anomalyRef.current = data;
-
-      if (data.is_anomaly && data.severity === 'critical') {
-        setShowPopup(true);
-      }
-
-      // Fire push if anomaly
+      if (data.is_anomaly && data.severity === 'critical') setShowPopup(true);
       if (data.is_anomaly && pushEnabled) {
-        const severity = data.severity;
+        let alertTitle = data.severity === 'critical' ? '🚨 Critical Vital Anomaly' : '⚠️ Vital Anomaly Detected';
+        if (lang === 'ta') {
+           alertTitle = data.severity === 'critical' ? '🚨 முக்கியமான முக்கிய முரண்பாடு (Critical Vital Anomaly)' : '⚠️ முக்கிய முரண்பாடு கண்டறியப்பட்டது';
+        }
         await fetch('/api/notify/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patientId: 'P001',
-            title: severity === 'critical' ? '🚨 Critical Vital Anomaly' : '⚠️ Vital Anomaly Detected',
-            message: data.flags?.[0]?.message || 'An anomaly was detected in your vitals.',
-            severity,
-          }),
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: 'P001', title: alertTitle, message: data.flags?.[0]?.message || 'An anomaly was detected in your vitals.', severity: data.severity }),
         });
       }
-    } catch { /* ML offline */ }
+    } catch { }
     finally { setAL(false); }
-  }, [pushEnabled]);
+  }, [pushEnabled, lang]);
 
   useEffect(() => {
     if (!demoScenario) {
@@ -144,22 +131,14 @@ export default function PatientDashboard() {
   const runDemo = (scenario: string) => {
     setDemoScenario(scenario);
     let newBase = { hr: 72, sys: 120, dia: 80, spo2: 98, temp: 36.9 };
-    if (scenario === 'tachycardia') newBase = { hr: 135, sys: 125, dia: 82, spo2: 97, temp: 37.1 };
-    if (scenario === 'hypoxemia') newBase = { hr: 95, sys: 130, dia: 85, spo2: 91, temp: 37.2 };
-    if (scenario === 'hypertension') newBase = { hr: 88, sys: 185, dia: 115, spo2: 98, temp: 36.9 };
-    setBaseVitals(newBase);
-    setVitals(newBase);
-    checkAnomaly(newBase);
+    if (scenario === 'tachycardia')  newBase = { hr: 135, sys: 125, dia: 82,  spo2: 97, temp: 37.1 };
+    if (scenario === 'hypoxemia')    newBase = { hr: 95,  sys: 130, dia: 85,  spo2: 91, temp: 37.2 };
+    if (scenario === 'hypertension') newBase = { hr: 88,  sys: 185, dia: 115, spo2: 98, temp: 36.9 };
+    setBaseVitals(newBase); setVitals(newBase); checkAnomaly(newBase);
   };
 
   const explainAnomaly = () => {
-    const q = new URLSearchParams({
-      heart_rate: vitals.hr.toString(),
-      systolic_bp: vitals.sys.toString(),
-      diastolic_bp: vitals.dia.toString(),
-      spo2: vitals.spo2.toString(),
-      temperature: vitals.temp.toString(),
-    });
+    const q = new URLSearchParams({ heart_rate: vitals.hr.toString(), systolic_bp: vitals.sys.toString(), diastolic_bp: vitals.dia.toString(), spo2: vitals.spo2.toString(), temperature: vitals.temp.toString() });
     router.push(`/xai?${q.toString()}`);
   };
 
@@ -169,36 +148,29 @@ export default function PatientDashboard() {
       if (!r.ok) return;
       const d = await r.json();
       setAuditLog(d.entries || []);
-    } catch { /* silent */ }
+    } catch { }
   }, []);
 
   useEffect(() => {
     const role = localStorage.getItem('nalamRole');
     if (!role) { router.push('/'); return; }
     if (role === 'clinician') { router.push('/clinician'); return; }
-
     (async () => {
       try {
-        const res = await fetch('/api/patient?id=P001');
+        const res = await fetch(`/api/patient?id=P001&lang=${lang}`);
         if (!res.ok) throw new Error(`API Error: ${res.status}`);
         const data = await res.json();
         setPatient(data.patient);
         setRecords(data.records || []);
-        setConsent({
-          emergency: data.patient.consent_emergency === 'true',
-          specialist: data.patient.consent_specialist === 'true',
-          research: data.patient.consent_research === 'true',
-        });
-        const ir = await fetch('/api/agents/intervention', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: data.patient, records: data.records }) });
-        if (ir.ok) {
-          setIntervention(await ir.json());
-        }
+        setConsent({ emergency: data.patient.consent_emergency === 'true', specialist: data.patient.consent_specialist === 'true', research: data.patient.consent_research === 'true' });
+        const ir = await fetch('/api/agents/intervention', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: data.patient, records: data.records, lang }) });
+        if (ir.ok) setIntervention(await ir.json());
       } catch (e) { console.error(e); }
     })();
     fetchAudit();
     const iv = setInterval(fetchAudit, 12000);
     return () => clearInterval(iv);
-  }, [fetchAudit, router]);
+  }, [fetchAudit, router, lang]);
 
   const toggleConsent = async (type: keyof ConsentState) => {
     const next = { ...consent, [type]: !consent[type] };
@@ -206,11 +178,10 @@ export default function PatientDashboard() {
     await fetch('/api/patient/consent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'P001', ...next }) });
   };
 
-
   if (!patient) return (
     <div className="container flex-center" style={{ minHeight: '60vh', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
-      <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Loading your Health Vault...</span>
+      <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('dashboard.loading')}</span>
     </div>
   );
 
@@ -220,17 +191,16 @@ export default function PatientDashboard() {
     <div className="container fade-in">
       {/* Severe Anomaly Popup */}
       {showPopup && (
-        <div 
-          onClick={explainAnomaly}
+        <div onClick={explainAnomaly}
           style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, background: 'var(--accent-red-bg)', border: '2px solid var(--accent-red)', borderRadius: 12, padding: '1rem 1.5rem', boxShadow: '0 8px 32px rgba(239,68,68,0.3)', display: 'flex', alignItems: 'flex-start', gap: '1rem', minWidth: 320, maxWidth: '400px', animation: 'slideUpRight 0.4s cubic-bezier(0.16, 1, 0.3, 1)', cursor: 'pointer' }}
         >
           <AlertTriangle size={24} color="var(--accent-red)" style={{ flexShrink: 0, marginTop: 4 }} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, color: 'var(--accent-red)', fontSize: '1.05rem', marginBottom: '0.2rem' }}>Critical Anomaly Detected</div>
+            <div style={{ fontWeight: 800, color: 'var(--accent-red)', fontSize: '1.05rem', marginBottom: '0.2rem' }}>{t('dashboard.criticalAnomaly')}</div>
             <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.5, marginBottom: '0.5rem' }}>
-              {anomaly?.flags?.[0]?.message || 'A severe deviation in your vitals requires immediate attention.'}
+              {anomaly?.flags?.[0]?.message || t('dashboard.criticalDesc')}
             </div>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-red)' }}>Tap to view Explainable AI breakdown →</div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-red)' }}>{t('dashboard.tapXAI')}</div>
           </div>
           <button onClick={(e) => { e.stopPropagation(); setShowPopup(false); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-red)', padding: '0.2rem', marginLeft: '-0.5rem' }}>
             <X size={18} />
@@ -238,21 +208,71 @@ export default function PatientDashboard() {
         </div>
       )}
 
+      {/* FHIR Export Modal */}
+      {fhirData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(3px)' }}>
+          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: '700px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
+            <div className="flex-between" style={{ paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)' }}>
+                <Network size={20} color="var(--primary)" /> {t('dashboard.fhirReady')}
+              </h3>
+              <button onClick={() => setFhirData(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--foreground-muted)' }}><X size={20} /></button>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginTop: '1rem', marginBottom: '1rem' }}>{t('dashboard.fhirDesc')}</p>
+            
+            <div style={{ flex: 1, overflow: 'hidden', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)' }}>
+              <pre style={{ width: '100%', height: '100%', overflow: 'auto', padding: '1rem', fontSize: '0.8rem', color: 'var(--foreground)', margin: 0, fontFamily: 'monospace' }}>
+                {JSON.stringify(fhirData, null, 2)}
+              </pre>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', justifyContent: 'flex-end' }}>
+              <button onClick={() => setFhirData(null)} className="glass-button" style={{ color: 'var(--charcoal)' }}>{t('dashboard.cancelFHIR')}</button>
+              <button onClick={() => {
+                const blob = new Blob([JSON.stringify(fhirData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ABDM_FHIR_Bundle_${patient.id}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                setFhirData(null);
+              }} className="glass-button" style={{ background: 'var(--primary)', color: 'white', border: 'none' }}>
+                {t('dashboard.downloadFHIR')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="slide-up stagger-1 flex-between" style={{ marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '0.2rem' }}>Welcome, {patient.name} 👋</h2>
-          <p style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>Identity Verified · {patient.id}</p>
+          <h2 style={{ fontSize: '2rem', marginBottom: '0.2rem' }}>{t('dashboard.welcome')} {patient.name} 👋</h2>
+          <p style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>{t('dashboard.verified')} · {patient.id}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
           <button className="glass-button" onClick={() => router.push('/search')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Search size={15} /> Search Records
+            <Search size={15} /> {t('dashboard.searchRecords')}
+          </button>
+          <button className="glass-button" onClick={async () => {
+            if (fhirLoading) return;
+            setFhirLoading(true);
+            try {
+              const res = await fetch(`/api/patient/export?id=${patient.id}`);
+              const data = await res.json();
+              setFhirData(data);
+            } catch (e) { console.error(e); }
+            finally { setFhirLoading(false); }
+          }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+            {fhirLoading ? <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> : <Network size={15} />}
+            {fhirLoading ? t('dashboard.downloading') : t('dashboard.exportFHIR')}
           </button>
           <button className="glass-button" onClick={() => router.push('/xai')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Brain size={15} /> AI Insights
+            <Brain size={15} /> {t('dashboard.aiInsights')}
           </button>
           <button className="glass-button" onClick={() => { setShowAudit(p => !p); fetchAudit(); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Clock size={15} /> Audit Log
+            <Clock size={15} /> {t('dashboard.auditLog')}
           </button>
           <button
             id="push-toggle"
@@ -264,40 +284,32 @@ export default function PatientDashboard() {
               setPushEnabled(ok);
               setPushLoading(false);
             }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.45rem 0.9rem', borderRadius: 8,
-              border: `1px solid ${pushEnabled ? 'var(--accent-green)' : 'var(--border)'}`,
-              background: pushEnabled ? 'var(--accent-green-bg)' : 'var(--surface)',
-              color: pushEnabled ? 'var(--accent-green)' : 'var(--foreground-muted)',
-              fontWeight: 600, fontSize: '0.84rem', cursor: 'pointer',
-              opacity: pushLoading ? 0.6 : 1,
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: 8, border: `1px solid ${pushEnabled ? 'var(--accent-green)' : 'var(--border)'}`, background: pushEnabled ? 'var(--accent-green-bg)' : 'var(--surface)', color: pushEnabled ? 'var(--accent-green)' : 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.84rem', cursor: 'pointer', opacity: pushLoading ? 0.6 : 1 }}
           >
             {pushEnabled ? <Bell size={15} /> : <BellOff size={15} />}
-            {pushEnabled ? 'Alerts On' : 'Enable Alerts'}
+            {pushEnabled ? t('dashboard.alertsOn') : t('dashboard.enableAlerts')}
           </button>
         </div>
       </div>
 
-      {/* Full Width Live Vitals Preview */}
+      {/* Live Vitals */}
       <section className="glass-panel slide-up stagger-1" style={{ marginBottom: '1.5rem' }}>
         <div className="flex-between" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-teal)' }}><Watch size={19} /> Live Vitals Preview</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-teal)' }}><Watch size={19} /> {t('dashboard.liveVitals')}</h3>
           <span className="badge teal" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulseGlow 1.4s infinite' }} /> Syncing
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulseGlow 1.4s infinite' }} /> {t('dashboard.syncing')}
           </span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
           {[
-            { label: 'Heart Rate', value: `${vitals.hr} BPM`, color: '#FCA5A5', icon: Heart, pulse: true },
-            { label: 'SpO₂', value: `${vitals.spo2}%`, color: '#A5D8FF', icon: Activity, pulse: false },
-            { label: 'Resting BP', value: `${vitals.sys}/${vitals.dia}`, color: '#FCA5A5', icon: Activity, pulse: false },
-            { label: 'Temperature', value: `${vitals.temp} °C`, color: '#FDE68A', icon: Activity, pulse: false }
+            { label: t('dashboard.heartRate'), value: `${vitals.hr} BPM`, color: '#FCA5A5', icon: Heart, pulse: true },
+            { label: t('dashboard.spo2'), value: `${vitals.spo2}%`, color: '#A5D8FF', icon: Activity, pulse: false },
+            { label: t('dashboard.bp'), value: `${vitals.sys}/${vitals.dia}`, color: '#FCA5A5', icon: Activity, pulse: false },
+            { label: t('dashboard.temperature'), value: `${vitals.temp} °C`, color: '#FDE68A', icon: Activity, pulse: false },
           ].map(({ label, value, color, icon: Icon, pulse }) => (
             <div key={label} style={{ background: `${color}18`, border: `1px solid ${color}44`, borderRadius: 11, padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, animation: pulse ? 'pulseGlow 1.5s infinite' : 'none' }}>
-                <Icon size={20} color={color.replace('18', '')} />
+                <Icon size={20} color={color} />
               </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '1.2rem', color: 'var(--foreground)' }}>{value}</div>
@@ -307,18 +319,21 @@ export default function PatientDashboard() {
           ))}
         </div>
         <button className="glass-button" onClick={() => router.push('/feed?module=wearables')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.75rem', background: 'var(--surface-muted)' }}>
-          <Watch size={15} /> Open Live Wearables Feed
+          <Watch size={15} /> {t('dashboard.openWearables')}
         </button>
       </section>
+
+      {/* Voice First Input Triage */}
+      <VoiceTriage />
 
       {/* Audit Log */}
       {showAudit && (
         <section className="glass-panel slide-up" style={{ marginBottom: '1.5rem' }}>
           <div className="flex-between" style={{ marginBottom: '1rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-purple)' }}><Eye size={18} /> Zero-Trust Audit Log</h3>
-            <span className="badge purple">{auditLog.length} events</span>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-purple)' }}><Eye size={18} /> {t('dashboard.auditTitle')}</h3>
+            <span className="badge purple">{auditLog.length} {t('dashboard.auditEvents')}</span>
           </div>
-          {auditLog.length === 0 ? <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem' }}>No access events yet.</p> : (
+          {auditLog.length === 0 ? <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem' }}>{t('dashboard.noAudit')}</p> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {auditLog.map((e, i) => (
                 <div key={i} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', padding: '0.65rem 0.9rem', background: 'var(--surface-muted)', borderRadius: 9, borderLeft: '3px solid var(--accent-purple)' }}>
@@ -337,36 +352,22 @@ export default function PatientDashboard() {
       <div className="grid-2">
         {/* LEFT */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          {/* ── Anomaly Detection Panel ─────────────────────────────── */}
-          <section className="glass-panel slide-up stagger-2" style={{
-            borderColor: anomaly?.is_anomaly
-              ? (anomaly.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)')
-              : 'var(--glass-border)',
-          }}>
+
+          {/* Anomaly Monitor */}
+          <section className="glass-panel slide-up stagger-2" style={{ borderColor: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)') : 'var(--glass-border)' }}>
             <div className="flex-between" style={{ marginBottom: '0.85rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)') : 'var(--accent-green)' }}>
-                <Zap size={18} /> Real-Time Anomaly Monitor
+                <Zap size={18} /> {t('dashboard.anomalyMonitor')}
               </h3>
-              <span style={{
-                padding: '0.2rem 0.65rem', borderRadius: 50,
-                fontSize: '0.75rem', fontWeight: 700,
-                background: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red-bg)' : 'var(--accent-amber-bg)') : 'var(--accent-green-bg)',
-                color: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)') : 'var(--accent-green)',
-              }}>
-                {anomalyLoading ? '⟳ Checking…' : anomaly?.is_anomaly ? `⚠ ${anomaly.severity?.toUpperCase()}` : '✓ Normal'}
+              <span style={{ padding: '0.2rem 0.65rem', borderRadius: 50, fontSize: '0.75rem', fontWeight: 700, background: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red-bg)' : 'var(--accent-amber-bg)') : 'var(--accent-green-bg)', color: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)') : 'var(--accent-green)' }}>
+                {anomalyLoading ? t('dashboard.checking') : anomaly?.is_anomaly ? `⚠ ${anomaly.severity?.toUpperCase()}` : t('dashboard.normal')}
               </span>
             </div>
 
             {anomaly?.flags?.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.75rem' }}>
                 {anomaly.flags.map((f: any, i: number) => (
-                  <div key={i} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                    padding: '0.55rem 0.75rem', borderRadius: 8,
-                    background: f.severity === 'critical' ? 'var(--accent-red-bg)' : 'var(--accent-amber-bg)',
-                    borderLeft: `3px solid ${f.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)'}`,
-                  }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.55rem 0.75rem', borderRadius: 8, background: f.severity === 'critical' ? 'var(--accent-red-bg)' : 'var(--accent-amber-bg)', borderLeft: `3px solid ${f.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)'}` }}>
                     <AlertTriangle size={14} color={f.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)'} style={{ marginTop: 2, flexShrink: 0 }} />
                     <span style={{ fontSize: '0.83rem', color: 'var(--foreground)', lineHeight: 1.5 }}>{f.message}</span>
                   </div>
@@ -375,63 +376,44 @@ export default function PatientDashboard() {
             ) : anomaly && !anomaly.is_anomaly ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: 'var(--accent-green-bg)', marginBottom: '0.75rem' }}>
                 <CheckCircle size={15} color="var(--accent-green)" />
-                <span style={{ fontSize: '0.83rem', color: 'var(--accent-green)', fontWeight: 600 }}>All vitals within expected ranges</span>
+                <span style={{ fontSize: '0.83rem', color: 'var(--accent-green)', fontWeight: 600 }}>{t('dashboard.allVitalsNormal')}</span>
               </div>
             ) : null}
 
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button
-                id="anomaly-check"
-                onClick={() => checkAnomaly(vitals)}
-                disabled={anomalyLoading}
-                className="glass-button"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', opacity: anomalyLoading ? 0.6 : 1 }}
-              >
-                <Zap size={13} /> Check Now
+              <button id="anomaly-check" onClick={() => checkAnomaly(vitals)} disabled={anomalyLoading} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', opacity: anomalyLoading ? 0.6 : 1 }}>
+                <Zap size={13} /> {t('dashboard.checkNow')}
               </button>
               <div style={{ position: 'relative', display: 'inline-block' }}>
-                <select
-                  value={demoScenario || ''}
-                  onChange={(e) => runDemo(e.target.value)}
-                  style={{
-                    appearance: 'none', background: 'var(--surface)', border: '1px solid var(--border)',
-                    borderRadius: 8, padding: '0.4rem 2rem 0.4rem 0.8rem', fontSize: '0.8rem', color: 'var(--foreground)',
-                    cursor: 'pointer', outline: 'none', boxShadow: 'var(--shadow-sm)'
-                  }}
+                <select value={demoScenario || ''} onChange={(e) => runDemo(e.target.value)}
+                  style={{ appearance: 'none', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '0.4rem 2rem 0.4rem 0.8rem', fontSize: '0.8rem', color: 'var(--foreground)', cursor: 'pointer', outline: 'none', boxShadow: 'var(--shadow-sm)' }}
                 >
-                  <option value="" disabled>▶ Simulate Demo...</option>
-                  <option value="normal">Normal Vitals</option>
-                  <option value="tachycardia">Tachycardia (HR: 135)</option>
-                  <option value="hypoxemia">Hypoxemia (SpO2: 91%)</option>
-                  <option value="hypertension">Hypertensive Crisis (185/115)</option>
+                  <option value="" disabled>{t('dashboard.simulateDemo')}</option>
+                  <option value="normal">{t('dashboard.normalVitals')}</option>
+                  <option value="tachycardia">{t('dashboard.tachycardia')}</option>
+                  <option value="hypoxemia">{t('dashboard.hypoxemia')}</option>
+                  <option value="hypertension">{t('dashboard.hypertension')}</option>
                 </select>
                 <ChevronDown size={14} style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--foreground-muted)' }} />
               </div>
-              <button
-                className="glass-button"
-                onClick={explainAnomaly}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                <Brain size={13} /> Explain
+              <button className="glass-button" onClick={explainAnomaly} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Brain size={13} /> {t('dashboard.explain')}
               </button>
             </div>
           </section>
 
-
-
-          {/* Longitudinal Timeline */}
+          {/* Timeline */}
           <section className="glass-panel slide-up stagger-3">
             <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}><Activity size={19} /> Longitudinal Timeline</h3>
-              <span className="badge blue">{records.length} records</span>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}><Activity size={19} /> {t('dashboard.timeline')}</h3>
+              <span className="badge blue">{records.length} {t('dashboard.records')}</span>
             </div>
             <div style={{ position: 'relative', paddingLeft: '1.5rem' }}>
-              {/* Vertical line */}
               <div style={{ position: 'absolute', left: '5px', top: 0, bottom: 0, width: 2, background: 'linear-gradient(to bottom, var(--powder-blue), var(--border))' }} />
               {records.slice(0, parseInt(process.env.NEXT_PUBLIC_TIMELINE_LIMIT || '10', 10)).map((r, i) => (
                 <div key={r.record_id}
                   className={`timeline-entry${expandedRecord === r.record_id ? ' expanded' : ''}`}
-                  style={{ position: 'relative', marginBottom: '0.5rem', animationDelay: `${i * 0.05}s` }}
+                  style={{ position: 'relative', marginBottom: '0.5rem', animationDelay: `${i * 0.05}s`, cursor: 'pointer' }}
                   onClick={() => setExpandedRecord(expandedRecord === r.record_id ? null : r.record_id)}
                 >
                   <div className="timeline-dot" style={{ position: 'absolute', left: '-1.5rem', top: '0.2rem', width: 12, height: 12, borderRadius: '50%', background: expandedRecord === r.record_id ? 'var(--primary)' : 'var(--powder-blue-dark)', border: '2px solid var(--primary)', boxShadow: '0 0 0 3px rgba(165,216,255,0.25)' }} />
@@ -445,15 +427,14 @@ export default function PatientDashboard() {
                   <div style={{ fontSize: '0.79rem', color: 'var(--charcoal)', marginBottom: expandedRecord === r.record_id ? '0.4rem' : 0 }}>{r.provider}</div>
                   {expandedRecord === r.record_id && (
                     <div className="fade-in" style={{ background: 'white', borderRadius: 8, padding: '0.75rem', marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      {r.notes && <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', lineHeight: 1.6 }}><strong>Notes:</strong> {r.notes}</p>}
-                      {r.lab_results && <p style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 600 }}><strong style={{ color: 'var(--charcoal)' }}>Labs:</strong> {r.lab_results}</p>}
+                      {r.notes && <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', lineHeight: 1.6 }}><strong>{t('dashboard.notes')}</strong> {r.notes}</p>}
+                      {r.lab_results && <p style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 600 }}><strong style={{ color: 'var(--charcoal)' }}>{t('dashboard.labs')}</strong> {r.lab_results}</p>}
                     </div>
                   )}
                 </div>
               ))}
             </div>
           </section>
-
         </div>
 
         {/* RIGHT */}
@@ -462,49 +443,51 @@ export default function PatientDashboard() {
           {/* Consent */}
           <section className="glass-panel slide-up stagger-2">
             <div className="flex-between" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Shield size={19} color="var(--primary)" /> Smart Consent</h3>
-              <span className="badge teal">Master Key Active</span>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Shield size={19} color="var(--primary)" /> {t('dashboard.smartConsent')}</h3>
+              <span className="badge teal">{t('dashboard.masterKey')}</span>
             </div>
-            <p style={{ fontSize: '0.87rem', color: 'var(--charcoal)', marginBottom: '1.25rem' }}>Control who can access your longitudinal health data in real time.</p>
+            <p style={{ fontSize: '0.87rem', color: 'var(--charcoal)', marginBottom: '1.25rem' }}>{t('dashboard.consentDesc')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <ConsentToggle label="Emergency Room Access" desc="Auto-share full history during ER admissions." active={consent.emergency} onToggle={() => toggleConsent('emergency')} />
-              <ConsentToggle label="Specialist Access" desc="Share relevant history with your cardiologist." active={consent.specialist} onToggle={() => toggleConsent('specialist')} />
-              <ConsentToggle label="Research (Anonymized)" desc="Contribute to AI-driven longitudinal studies." active={consent.research} onToggle={() => toggleConsent('research')} />
+              <ConsentToggle label={t('dashboard.emergencyAccess')} desc={t('dashboard.emergencyDesc')} active={consent.emergency} onToggle={() => toggleConsent('emergency')} />
+              <ConsentToggle label={t('dashboard.specialistAccess')} desc={t('dashboard.specialistDesc')} active={consent.specialist} onToggle={() => toggleConsent('specialist')} />
+              <ConsentToggle label={t('dashboard.researchAccess')} desc={t('dashboard.researchDesc')} active={consent.research} onToggle={() => toggleConsent('research')} />
             </div>
           </section>
 
           {/* EHR Silos */}
           <section className="glass-panel slide-up stagger-2">
             <div className="flex-between" style={{ marginBottom: '1rem' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Network size={19} color="var(--accent-purple)" /> Connected EHR Silos</h3>
-              <span className="badge purple pulse-glow">Live</span>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Network size={19} color="var(--accent-purple)" /> {t('dashboard.connectedEHR')}</h3>
+              <span className="badge purple pulse-glow">{t('dashboard.live')}</span>
             </div>
-            {[{ name: 'Epic Systems', loc: 'Apollo Hospital Chennai', color: 'var(--primary)' }, { name: 'Cerner Health', loc: 'AIIMS Delhi', color: 'var(--accent-teal)' }, { name: 'Apple HealthKit', loc: 'Wearables · Live Stream', color: 'var(--accent-amber)' }].map(s => (
+            {[
+              { name: 'Epic Systems', loc: 'Apollo Hospital Chennai', color: 'var(--primary)' },
+              { name: 'Cerner Health', loc: 'AIIMS Delhi', color: 'var(--accent-teal)' },
+              { name: 'Apple HealthKit', loc: 'Wearables · Live Stream', color: 'var(--accent-amber)' },
+            ].map(s => (
               <div key={s.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.85rem', background: 'var(--surface-muted)', borderRadius: 9, borderLeft: `3px solid ${s.color}`, marginBottom: '0.6rem' }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.86rem', color: 'var(--deep-blue)' }}>{s.name}</div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--charcoal)' }}>{s.loc}</div>
                 </div>
-                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-green)', background: 'var(--accent-green-bg)', padding: '0.18rem 0.55rem', borderRadius: 6 }}>✓ Synced</span>
+                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-green)', background: 'var(--accent-green-bg)', padding: '0.18rem 0.55rem', borderRadius: 6 }}>{t('dashboard.synced')}</span>
               </div>
             ))}
           </section>
-
-
         </div>
       </div>
 
-      {/* Intervention Engine (Wide Bottom) */}
+      {/* Intervention Engine */}
       {intervention && (
         <section className="glass-panel slide-up stagger-3" style={{ borderColor: `${riskColor}44`, marginTop: '1.5rem' }}>
           <div className="flex-between" style={{ marginBottom: '0.85rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: riskColor }}><BellRing size={19} /> Intervention Engine</h3>
-            <span className="badge amber pulse-glow">{intervention.riskLevel} Risk</span>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: riskColor }}><BellRing size={19} /> {t('dashboard.interventionEngine')}</h3>
+            <span className="badge amber pulse-glow">{intervention.riskLevel} {t('dashboard.riskLevel')}</span>
           </div>
           <div style={{ background: `${riskColor}0D`, borderLeft: `4px solid ${riskColor}`, padding: '0.9rem', borderRadius: 8 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.87rem', color: 'var(--deep-blue)', marginBottom: '0.3rem' }}>Detected Pattern</div>
+            <div style={{ fontWeight: 700, fontSize: '0.87rem', color: 'var(--deep-blue)', marginBottom: '0.3rem' }}>{t('dashboard.detectedPattern')}</div>
             <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginBottom: '0.75rem', lineHeight: 1.6 }}>{intervention.detectedPattern}</p>
-            <div style={{ fontWeight: 700, fontSize: '0.87rem', color: 'var(--deep-blue)', marginBottom: '0.3rem' }}>Action Plan</div>
+            <div style={{ fontWeight: 700, fontSize: '0.87rem', color: 'var(--deep-blue)', marginBottom: '0.3rem' }}>{t('dashboard.actionPlan')}</div>
             <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', lineHeight: 1.6 }}>{intervention.actionPlan}</p>
           </div>
         </section>
@@ -513,6 +496,7 @@ export default function PatientDashboard() {
       <style>{`
         @keyframes slideDown { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
         @keyframes slideUpRight { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );

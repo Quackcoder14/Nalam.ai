@@ -7,47 +7,30 @@ import {
 } from 'recharts';
 import {
   Brain, TrendingUp, TrendingDown, Minus, AlertTriangle,
-  CheckCircle, Info, ChevronDown, ChevronUp, Loader2,
+  Info, ChevronDown, ChevronUp, Loader2, MessageCircle,
 } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n';
 
 interface XAIFeature {
-  feature: string;
-  label: string;
-  value: number;
-  unit: string;
-  importance: number;
-  direction: 'up' | 'down' | 'normal';
-  risk: 'harmful' | 'protective' | 'neutral';
-  description: string;
+  feature: string; label: string; value: number; unit: string;
+  importance: number; direction: 'up' | 'down' | 'normal';
+  risk: 'harmful' | 'protective' | 'neutral'; description: string;
   normal_range: { low: number; high: number };
   status: 'normal' | 'warning' | 'critical';
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  critical:   'var(--accent-red)',
-  warning:    'var(--accent-amber)',
-  normal:     'var(--accent-green)',
+  critical: 'var(--accent-red)', warning: 'var(--accent-amber)', normal: 'var(--accent-green)',
 };
-
 const RISK_COLORS: Record<string, string> = {
-  harmful:    '#ef4444',
-  protective: '#22c55e',
-  neutral:    '#94a3b8',
+  harmful: '#ef4444', protective: '#22c55e', neutral: '#94a3b8',
 };
 
-// Custom bar tooltip
 function CustomBarTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload as XAIFeature;
   return (
-    <div style={{
-      background: 'var(--surface)',
-      border: '1px solid var(--border)',
-      borderRadius: 10,
-      padding: '0.75rem 1rem',
-      boxShadow: 'var(--shadow-md)',
-      maxWidth: 260,
-    }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.75rem 1rem', boxShadow: 'var(--shadow-md)', maxWidth: 260 }}>
       <p style={{ fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.3rem' }}>{d.label}</p>
       <p style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)', marginBottom: '0.5rem' }}>{d.description}</p>
       <div style={{ display: 'flex', gap: '1rem', fontSize: '0.82rem' }}>
@@ -60,28 +43,15 @@ function CustomBarTooltip({ active, payload }: any) {
 
 function FeatureCard({ feat, rank }: { feat: XAIFeature; rank: number }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLanguage();
   const pct = Math.round(feat.importance * 100);
   const statusColor = STATUS_COLORS[feat.status];
-
   return (
-    <div
-      className="glass-panel"
-      style={{ padding: '1rem 1.25rem', cursor: 'pointer', userSelect: 'none' }}
-      onClick={() => setExpanded(e => !e)}
-    >
+    <div className="glass-panel" style={{ padding: '1rem 1.25rem', cursor: 'pointer', userSelect: 'none' }} onClick={() => setExpanded(e => !e)}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        {/* Rank badge */}
-        <div style={{
-          width: 28, height: 28, borderRadius: '50%',
-          background: rank <= 3 ? statusColor : 'var(--surface-muted)',
-          color: rank <= 3 ? 'white' : 'var(--foreground-muted)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '0.78rem', fontWeight: 800, flexShrink: 0,
-        }}>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', background: rank <= 3 ? statusColor : 'var(--surface-muted)', color: rank <= 3 ? 'white' : 'var(--foreground-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: 800, flexShrink: 0 }}>
           {rank}
         </div>
-
-        {/* Label & bar */}
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
             <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--foreground)' }}>{feat.label}</span>
@@ -89,50 +59,34 @@ function FeatureCard({ feat, rank }: { feat: XAIFeature; rank: number }) {
               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: statusColor }}>
                 {feat.value} <span style={{ fontWeight: 400, color: 'var(--foreground-subtle)' }}>{feat.unit}</span>
               </span>
-              {feat.direction === 'up'   && <TrendingUp  size={14} color="var(--accent-red)" />}
-              {feat.direction === 'down' && <TrendingDown size={14} color="var(--accent-amber)" />}
-              {feat.direction === 'normal' && <Minus size={14} color="var(--accent-green)" />}
+              {feat.direction === 'up'     && <TrendingUp   size={14} color="var(--accent-red)" />}
+              {feat.direction === 'down'   && <TrendingDown  size={14} color="var(--accent-amber)" />}
+              {feat.direction === 'normal' && <Minus         size={14} color="var(--accent-green)" />}
             </div>
           </div>
-          {/* Importance bar */}
           <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-muted)', overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              width: `${Math.max(pct * 4, 4)}%`, // scale so 25% fills bar
-              maxWidth: '100%',
-              borderRadius: 3,
-              background: `linear-gradient(90deg, ${RISK_COLORS[feat.risk]}, ${RISK_COLORS[feat.risk]}88)`,
-              transition: 'width 0.6s ease',
-            }} />
+            <div style={{ height: '100%', width: `${Math.min(Math.max(pct * 4, 4), 100)}%`, borderRadius: 3, background: `linear-gradient(90deg, ${RISK_COLORS[feat.risk]}, ${RISK_COLORS[feat.risk]}88)`, transition: 'width 0.6s ease' }} />
           </div>
         </div>
-
         <div style={{ color: 'var(--foreground-subtle)', flexShrink: 0 }}>
           {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </div>
-
-      {/* Expanded detail */}
       {expanded && (
-        <div style={{
-          marginTop: '0.75rem',
-          paddingTop: '0.75rem',
-          borderTop: '1px solid var(--border)',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gap: '0.75rem',
-        }}>
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
           <div>
-            <p style={{ fontSize: '0.72rem', color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Influence Score</p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>{t('xai.influenceScore')}</p>
             <p style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '1rem' }}>{pct}%</p>
           </div>
           <div>
-            <p style={{ fontSize: '0.72rem', color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Normal Range</p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>{t('xai.normalRange')}</p>
             <p style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--foreground)' }}>{feat.normal_range.low}–{feat.normal_range.high} {feat.unit}</p>
           </div>
           <div>
-            <p style={{ fontSize: '0.72rem', color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Risk Direction</p>
-            <p style={{ fontWeight: 600, fontSize: '0.88rem', color: RISK_COLORS[feat.risk], textTransform: 'capitalize' }}>{feat.risk}</p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>{t('xai.riskDirection')}</p>
+            <p style={{ fontWeight: 600, fontSize: '0.88rem', color: RISK_COLORS[feat.risk], textTransform: 'capitalize' }}>
+              {feat.risk === 'harmful' ? t('xai.harmful') : feat.risk === 'protective' ? t('xai.protective') : t('xai.neutral')}
+            </p>
           </div>
           <div style={{ gridColumn: '1/-1' }}>
             <p style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)', lineHeight: 1.5 }}>{feat.description}</p>
@@ -145,46 +99,70 @@ function FeatureCard({ feat, rank }: { feat: XAIFeature; rank: number }) {
 
 function XAIDashboardInner() {
   const searchParams = useSearchParams();
+  const { t, lang } = useLanguage();
   const [vitals, setVitals] = useState({
-    heart_rate: parseFloat(searchParams.get('heart_rate') || '92'),
-    systolic_bp: parseFloat(searchParams.get('systolic_bp') || '165'),
-    diastolic_bp: parseFloat(searchParams.get('diastolic_bp') || '98'),
-    spo2: parseFloat(searchParams.get('spo2') || '96'),
-    temperature: parseFloat(searchParams.get('temperature') || '37.8'),
-    glucose: parseFloat(searchParams.get('glucose') || '180')
+    heart_rate:    parseFloat(searchParams.get('heart_rate')    || '92'),
+    systolic_bp:   parseFloat(searchParams.get('systolic_bp')   || '165'),
+    diastolic_bp:  parseFloat(searchParams.get('diastolic_bp')  || '98'),
+    spo2:          parseFloat(searchParams.get('spo2')          || '96'),
+    temperature:   parseFloat(searchParams.get('temperature')   || '37.8'),
+    glucose:       parseFloat(searchParams.get('glucose')       || '180'),
   });
-  const [features, setFeatures]     = useState<XAIFeature[]>([]);
-  const [topDriver, setTopDriver]   = useState('');
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState('');
-  const [chartType, setChartType]   = useState<'bar' | 'radar'>('bar');
+  const [features, setFeatures]   = useState<XAIFeature[]>([]);
+  const [topDriver, setTopDriver] = useState('');
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState('');
+  const [chartType, setChartType] = useState<'bar' | 'radar'>('bar');
+  const [patient, setPatient]     = useState<any>(null);
+
+  const patientId = searchParams.get('patientId');
+
+  useEffect(() => {
+    if (patientId) {
+      fetch(`/api/patient?id=${patientId}&lang=${lang}`)
+        .then(res => res.json())
+        .then(data => { if (data.patient) setPatient(data.patient); })
+        .catch(() => {});
+    }
+  }, [patientId]);
 
   const fetchExplanation = useCallback(async (vals: typeof vitals) => {
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
-      const res = await fetch('/api/xai/explain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(vals),
-      });
+      const res = await fetch('/api/xai/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setFeatures(data.explanations || []);
+      setFeatures(data.explanations?.map((f: any) => ({
+        ...f,
+        label: (t as any)(`xai.${f.feature}`) || f.label,
+        description: (t as any)(`xai.desc.${f.feature}`) || f.description,
+      })) || []);
       setTopDriver(data.top_driver || '');
     } catch (e: any) {
       setError(e.message || 'XAI service unavailable');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchExplanation(vitals); }, []);
 
-  const chartData = features.slice(0, 8).map(f => ({
+  const vitalLabels: Record<string, string> = {
+    heart_rate:   t('xai.heartRate'),
+    systolic_bp:  t('xai.systolicBP'),
+    diastolic_bp: t('xai.diastolicBP'),
+    spo2:         t('xai.spo2'),
+    temperature:  t('xai.temperature'),
+    glucose:      t('xai.glucose'),
+  };
+
+  // Add the feature names directly to `t()` by extending them in the components memory
+  // Wait, I can just map the `vitalLabels` into `features` dynamically below.
+  const translatedFeatures = features.map(f => ({
     ...f,
-    pct: Math.round(f.importance * 100),
+    label: vitalLabels[f.feature] || f.label,
+    description: (t as any)(`xai.desc.${f.feature}`) || f.description,
   }));
+
+  const chartData = translatedFeatures.slice(0, 8).map(f => ({ ...f, pct: Math.round(f.importance * 100) }));
 
   return (
     <div style={{ maxWidth: 1100, margin: '2rem auto', padding: '0 1.5rem' }}>
@@ -192,101 +170,63 @@ function XAIDashboardInner() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Brain size={26} color="var(--accent-purple)" /> Explainable AI Dashboard
+            <Brain size={26} color="var(--accent-purple)" /> {t('xai.title')}
           </h1>
-          <p style={{ color: 'var(--foreground-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-            Understand <em>why</em> the AI flags your vitals — ranked by clinical importance.
-          </p>
+          <p style={{ color: 'var(--foreground-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>{t('xai.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {(['bar', 'radar'] as const).map(t => (
-            <button
-              key={t}
-              id={`chart-${t}`}
-              onClick={() => setChartType(t)}
-              style={{
-                padding: '0.45rem 1rem',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: chartType === t ? 'var(--primary)' : 'var(--surface)',
-                color: chartType === t ? 'white' : 'var(--foreground-muted)',
-                fontWeight: 600, fontSize: '0.84rem', cursor: 'pointer',
-              }}
-            >
-              {t === 'bar' ? '📊 Bar' : '🕸️ Radar'}
+          {(['bar', 'radar'] as const).map(tp => (
+            <button key={tp} id={`chart-${tp}`} onClick={() => setChartType(tp)}
+              style={{ padding: '0.45rem 1rem', borderRadius: 8, border: '1px solid var(--border)', background: chartType === tp ? 'var(--primary)' : 'var(--surface)', color: chartType === tp ? 'white' : 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.84rem', cursor: 'pointer' }}>
+              {tp === 'bar' ? t('xai.bar') : t('xai.radar')}
             </button>
           ))}
-          <button
-            id="xai-refresh"
-            onClick={() => fetchExplanation(vitals)}
-            disabled={loading}
-            style={{
-              padding: '0.45rem 1rem',
-              borderRadius: 8,
-              border: 'none',
-              background: 'var(--primary)',
-              color: 'white',
-              fontWeight: 700,
-              fontSize: '0.84rem',
-              cursor: 'pointer',
-              opacity: loading ? 0.6 : 1,
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-            }}
-          >
-            {loading ? <Loader2 size={14} className="spin" /> : '↻'} Analyse
+          <button id="xai-refresh" onClick={() => fetchExplanation(vitals)} disabled={loading}
+            style={{ padding: '0.45rem 1rem', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 700, fontSize: '0.84rem', cursor: 'pointer', opacity: loading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {loading ? <Loader2 size={14} className="spin" /> : '↻'} {t('xai.analyse')}
           </button>
         </div>
       </div>
 
+      {/* Patient WhatsApp Panel */}
+      {patient && (
+        <div className="glass-panel" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderLeft: '4px solid var(--accent-green)' }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--deep-blue)' }}>{patient.name} <span style={{ fontSize: '0.85rem', color: 'var(--charcoal)', fontWeight: 400 }}>(ID: {patient.id})</span></div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginTop: '0.2rem' }}>{t('xai.mobile')} <strong>{patient.mobile || t('xai.notAvailable')}</strong></div>
+          </div>
+          {patient.mobile && (
+            <a href={`https://wa.me/${patient.mobile.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(t('xai.whatsappMsg'))}`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: 8, background: '#25D366', color: 'white', textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem', transition: 'opacity 0.2s' }}
+              onMouseOver={e => e.currentTarget.style.opacity = '0.9'}
+              onMouseOut={e => e.currentTarget.style.opacity = '1'}>
+              <MessageCircle size={18} /> {t('xai.sendAlert')}
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Vital inputs */}
       <div className="glass-panel" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
-        <p className="section-title" style={{ marginBottom: '1rem' }}>
-          <Info size={16} color="var(--primary)" /> Adjust Vitals
+        <p className="section-title" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <Info size={16} color="var(--primary)" /> {t('xai.adjustVitals')}
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
-          {Object.entries(vitals).map(([key, val]) => {
-            const labels: Record<string, string> = {
-              heart_rate: 'Heart Rate (BPM)',
-              systolic_bp: 'Systolic BP (mmHg)',
-              diastolic_bp: 'Diastolic BP (mmHg)',
-              spo2: 'SpO₂ (%)',
-              temperature: 'Temperature (°C)',
-              glucose: 'Glucose (mg/dL)',
-            };
-            return (
-              <div key={key}>
-                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.3rem' }}>
-                  {labels[key] || key}
-                </label>
-                <input
-                  id={`vital-${key}`}
-                  type="number"
-                  value={val}
-                  step={key === 'temperature' ? 0.1 : 1}
-                  onChange={e => setVitals(v => ({ ...v, [key]: parseFloat(e.target.value) || 0 }))}
-                  style={{
-                    width: '100%', padding: '0.5rem 0.75rem',
-                    borderRadius: 8, border: '1px solid var(--border)',
-                    background: 'var(--surface-muted)', color: 'var(--foreground)',
-                    fontSize: '0.95rem',
-                  }}
-                />
-              </div>
-            );
-          })}
+          {Object.entries(vitals).map(([key, val]) => (
+            <div key={key}>
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.3rem' }}>
+                {vitalLabels[key] || key}
+              </label>
+              <input id={`vital-${key}`} type="number" value={val} step={key === 'temperature' ? 0.1 : 1}
+                onChange={e => setVitals(v => ({ ...v, [key]: parseFloat(e.target.value) || 0 }))}
+                style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', fontSize: '0.95rem' }} />
+            </div>
+          ))}
         </div>
-        <button
-          id="xai-run"
-          onClick={() => fetchExplanation(vitals)}
-          disabled={loading}
-          style={{
-            marginTop: '1rem', padding: '0.6rem 1.5rem', borderRadius: 8,
-            background: 'var(--primary)', color: 'white', border: 'none',
-            fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.6 : 1,
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-          }}
-        >
-          {loading ? <Loader2 size={15} className="spin" /> : <Brain size={15} />} Run Analysis
+        <button id="xai-run" onClick={() => fetchExplanation(vitals)} disabled={loading}
+          style={{ marginTop: '1rem', padding: '0.6rem 1.5rem', borderRadius: 8, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {loading ? <Loader2 size={15} className="spin" /> : <Brain size={15} />} {t('xai.runAnalysis')}
         </button>
       </div>
 
@@ -298,22 +238,14 @@ function XAIDashboardInner() {
 
       {features.length > 0 && (
         <>
-          {/* Top driver banner */}
           {topDriver && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '0.75rem',
-              padding: '1rem 1.25rem', borderRadius: 12,
-              background: 'var(--accent-red-bg)', border: '1px solid var(--accent-red)',
-              marginBottom: '1.5rem',
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem 1.25rem', borderRadius: 12, background: 'var(--accent-red-bg)', border: '1px solid var(--accent-red)', marginBottom: '1.5rem' }}>
               <AlertTriangle size={20} color="var(--accent-red)" />
               <div>
                 <p style={{ fontWeight: 800, color: 'var(--foreground)', fontSize: '0.95rem' }}>
-                  Top Risk Driver: <span style={{ color: 'var(--accent-red)' }}>{topDriver}</span>
+                  {t('xai.topDriver')} <span style={{ color: 'var(--accent-red)' }}>{topDriver}</span>
                 </p>
-                <p style={{ fontSize: '0.83rem', color: 'var(--foreground-muted)', marginTop: '0.1rem' }}>
-                  This vital has the highest deviation from the normal range and contributes most to risk scoring.
-                </p>
+                <p style={{ fontSize: '0.83rem', color: 'var(--foreground-muted)', marginTop: '0.1rem' }}>{t('xai.topDriverDesc')}</p>
               </div>
             </div>
           )}
@@ -321,18 +253,14 @@ function XAIDashboardInner() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: '1.5rem', alignItems: 'start' }}>
             {/* Feature cards */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.25rem' }}>
-                Feature Influence Rankings
-              </h2>
-              {features.map((f, i) => (
-                <FeatureCard key={f.feature} feat={f} rank={i + 1} />
-              ))}
+              <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.25rem' }}>{t('xai.featureRankings')}</h2>
+              {translatedFeatures.map((f, i) => <FeatureCard key={f.feature} feat={f} rank={i + 1} />)}
             </div>
 
             {/* Chart */}
             <div className="glass-panel" style={{ padding: '1.25rem', position: 'sticky', top: 80 }}>
               <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '1rem' }}>
-                {chartType === 'bar' ? 'Importance Bar Chart' : 'Radar Overview'}
+                {chartType === 'bar' ? t('xai.importanceBar') : t('xai.radarOverview')}
               </h2>
               {chartType === 'bar' ? (
                 <ResponsiveContainer width="100%" height={320}>
@@ -341,9 +269,7 @@ function XAIDashboardInner() {
                     <YAxis type="category" dataKey="label" width={130} tick={{ fontSize: 11, fill: 'var(--foreground-muted)' }} />
                     <Tooltip content={<CustomBarTooltip />} />
                     <Bar dataKey="pct" radius={[0, 6, 6, 0]}>
-                      {chartData.map((entry, i) => (
-                        <Cell key={i} fill={RISK_COLORS[entry.risk]} />
-                      ))}
+                      {chartData.map((entry, i) => <Cell key={i} fill={RISK_COLORS[entry.risk]} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -356,12 +282,11 @@ function XAIDashboardInner() {
                   </RadarChart>
                 </ResponsiveContainer>
               )}
-              {/* Legend */}
               <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem', justifyContent: 'center' }}>
-                {Object.entries(RISK_COLORS).map(([k, c]) => (
+                {[['harmful', t('xai.harmful')], ['protective', t('xai.protective')], ['neutral', t('xai.neutral')]].map(([k, label]) => (
                   <div key={k} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', color: 'var(--foreground-muted)' }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: c }} />
-                    {k.charAt(0).toUpperCase() + k.slice(1)}
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: RISK_COLORS[k] }} />
+                    {label}
                   </div>
                 ))}
               </div>
@@ -370,20 +295,18 @@ function XAIDashboardInner() {
         </>
       )}
 
-      <style>{`
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+      <style>{`.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
 export default function XAIDashboard() {
+  const { t } = useLanguage();
   return (
     <Suspense fallback={
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', flexDirection: 'column', gap: '1rem' }}>
         <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
-        <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Loading XAI...</span>
+        <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('xai.loading')}</span>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     }>

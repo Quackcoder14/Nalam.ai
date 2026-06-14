@@ -64,12 +64,14 @@ class ContextRequest(BaseModel):
     role: str = "specialist"
     patient: Dict[str, Any]
     records: List[Dict[str, Any]]
+    lang: str = "en"
 
 class InterventionRequest(BaseModel):
     patient_id: str
     role: str = "specialist"
     patient: Dict[str, Any]
     records: List[Dict[str, Any]]
+    lang: str = "en"
 
 class SimulationRequest(BaseModel):
     patient_id: str
@@ -77,6 +79,7 @@ class SimulationRequest(BaseModel):
     patient: Dict[str, Any]
     records: List[Dict[str, Any]]
     intervention: str
+    lang: str = "en"
 
 class VectorizeRequest(BaseModel):
     patient_id: str
@@ -202,6 +205,7 @@ def graph_context(req: ContextRequest):
     initial_state = {
         "patient_id": req.patient_id,
         "role": req.role,
+        "lang": req.lang,
         "patient_raw": req.patient,
         "records_raw": req.records,
         "guardrail_log": [],
@@ -225,6 +229,7 @@ def graph_intervention(req: InterventionRequest):
     initial_state = {
         "patient_id": req.patient_id,
         "role": req.role,
+        "lang": req.lang,
         "patient_raw": req.patient,
         "records_raw": req.records,
         "guardrail_log": [],
@@ -247,6 +252,7 @@ def graph_simulate(req: SimulationRequest):
     initial_state = {
         "patient_id":        req.patient_id,
         "role":              req.role,
+        "lang":              req.lang,
         "intervention_text": req.intervention,
         "patient_raw":       req.patient,
         "records_raw":       req.records,

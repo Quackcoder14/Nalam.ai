@@ -58,13 +58,16 @@ async function main() {
   for (const p of patients) {
     await prisma.patient.upsert({
       where: { id: p.id },
-      update: {},
+      update: {
+        mobile_enc:         encrypt(p.mobile       || ''),
+      },
       create: {
         id:                 p.id,
         name_enc:           encrypt(p.name),
         dob_enc:            encrypt(p.dob),
         gender_enc:         encrypt(p.gender),
         contact_enc:        encrypt(p.contact      || ''),
+        mobile_enc:         encrypt(p.mobile       || ''),
         blood_type_enc:     encrypt(p.blood_type   || ''),
         allergies_enc:      encrypt(p.allergies    || ''),
         consent_emergency:  p.consent_emergency  === 'true',

@@ -14,7 +14,7 @@ import numpy as np
 from groq import Groq
 from sklearn.ensemble import RandomForestClassifier
 
-from .state import NalamState
+from .state import NalamState, LANG_INSTRUCTION
 
 logger = logging.getLogger(__name__)
 _groq = None
@@ -104,6 +104,8 @@ def twin_node(state: NalamState) -> NalamState:
     records      = state.get("records_filtered", [])
     intervention = state.get("intervention_text", "")
     context      = state.get("retrieved_context", [])
+    lang         = state.get("lang", "en")
+    lang_instr   = LANG_INSTRUCTION.get(lang, "")
 
     feats = _extract_features(patient, records)
     is_positive = int(any(d in intervention.lower() for d in POSITIVE_DRUGS))
@@ -118,7 +120,23 @@ def twin_node(state: NalamState) -> NalamState:
     trajectory = _build_bp_trajectory(feats["systolic"], intervention, effective)
     context_text = "\n".join([f"  • {c}" for c in context[:3]]) if context else "None."
 
+    if lang == "ta":
+        json_format = """{
+  "treatmentDecision": "[3-4 வாக்கியங்கள் — சிகிச்சை நடவடிக்கை பின்னணி, செயல் வழிமுறை, எதிர்பார்க்கப்படும் மருத்துவ நன்மை]",
+  "riskPrediction": "[3-4 வாக்கியங்கள் — குறுகிய கால ஆபத்துகள், நீண்ட கால இதய நோய் விளைவுகள், மருந்து தொடர்புகள்]",
+  "personalizedCare": "[3-4 வாக்கியங்கள் — பின்தொடர்தல் அட்டவணை, வாழ்க்கை முறை மாற்றங்கள், BP இலக்குகள், சிகிச்சை பெறுபவர் கல்வி]"
+}"""
+        system_msg = "நீங்கள் ஒரு துல்லியமான மருத்துவ AI. எப்போதும் செல்லுபடியான JSON மட்டுமே திரும்பவும். உங்கள் முழு பதிலும் தமிழில் இருக்க வேண்டும்."
+    else:
+        json_format = """{
+  "treatmentDecision": "[3-4 sentence concise paragraph explaining the rationale, mechanism of action, expected clinical benefit, and dose considerations for this patient profile]",
+  "riskPrediction": "[3-4 sentence concise paragraph covering short-term risks, long-term cardiovascular outcomes, drug-drug interactions, contraindications, and monitoring recommendations]",
+  "personalizedCare": "[3-4 sentence concise paragraph on follow-up schedule, lifestyle modifications, target BP goals, and patient education points]"
+}"""
+        system_msg = "You are a precision medicine AI. Always respond with valid JSON only."
+
     prompt = f"""You are a board-certified precision medicine AI assisting a senior cardiologist. A clinician is evaluating the following therapeutic intervention and requires a detailed, specialist-level clinical analysis.
+{lang_instr}
 
 Intervention: {intervention}
 Patient Profile: Age {feats['age']}, BP {feats['systolic']}/{feats['diastolic']} mmHg, HbA1c {feats['hba1c']}%, eGFR {feats['egfr']} mL/min/1.73m²
@@ -129,31 +147,37 @@ Long-Term Projection (Day 365/730/1095): {trajectory[4]['predicted_systolic']} /
 Similar Patient Context (from ChromaDB vector store):
 {context_text}
 
-Respond in this EXACT JSON format (no markdown, just raw JSON). Each field must be a concise clinical paragraph of 3-4 sentences, suitable for a specialist physician's review. Include key mechanisms of action, clinical evidence references where appropriate, monitoring parameters, and individualised considerations based on the patient profile above:
-{{
-  "treatmentDecision": "[3-4 sentence concise paragraph explaining the rationale, mechanism of action, expected clinical benefit, and dose considerations for this patient profile]",
-  "riskPrediction": "[3-4 sentence concise paragraph covering short-term risks, long-term cardiovascular outcomes, drug-drug interactions, contraindications, and monitoring recommendations]",
-  "personalizedCare": "[3-4 sentence concise paragraph on follow-up schedule, lifestyle modifications, target BP goals, and patient education points]"
-}}"""
+Respond in this EXACT JSON format (no markdown, just raw JSON). Each field must be a concise clinical paragraph of 3-4 sentences:
+{json_format}"""
 
     try:
         resp = _get_groq().chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a precision medicine AI. Always respond with valid JSON only."},
+                {"role": "system", "content": system_msg},
                 {"role": "user", "content": prompt},
             ],
             max_tokens=3500,
             temperature=0.2,
         )
-        narratives = json.loads(resp.choices[0].message.content.strip())
+        raw_content = resp.choices[0].message.content.strip()
+        # Strip markdown code fences if present
+        cleaned = raw_content.replace("```json", "").replace("```", "").strip()
+        narratives = json.loads(cleaned)
     except Exception as e:
         logger.error(f"Twin node Groq failed: {e}")
-        narratives = {
-            "treatmentDecision": f"ML model rates {intervention} effectiveness at {effectiveness_prob:.0%}.",
-            "riskPrediction": "Cardiovascular risk projection pending full clinical evaluation.",
-            "personalizedCare": "Schedule follow-up in 4 weeks to assess response.",
-        }
+        if lang == "ta":
+            narratives = {
+                "treatmentDecision": f"ML மாதிரி {intervention} செயல்திறனை {effectiveness_prob:.0%} என்று மதிப்பிடுகிறது.",
+                "riskPrediction": "இதய நோய் ஆபத்து கணிப்பு முழு மருத்துவ மதிப்பீட்டுக்கு காத்திருக்கிறது.",
+                "personalizedCare": "4 வாரங்களில் பதிலை மதிப்பிட மருத்துவர் சந்திப்பை திட்டமிடவும்.",
+            }
+        else:
+            narratives = {
+                "treatmentDecision": f"ML model rates {intervention} effectiveness at {effectiveness_prob:.0%}.",
+                "riskPrediction": "Cardiovascular risk projection pending full clinical evaluation.",
+                "personalizedCare": "Schedule follow-up in 4 weeks to assess response.",
+            }
 
     result = {
         **narratives,

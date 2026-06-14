@@ -8,7 +8,7 @@ using filtered records + semantically retrieved context via Groq LLaMA-3.
 import os
 import logging
 from groq import Groq
-from .state import NalamState
+from .state import NalamState, LANG_INSTRUCTION
 
 logger = logging.getLogger(__name__)
 _groq = None
@@ -28,6 +28,8 @@ def biographer_node(state: NalamState) -> NalamState:
     patient  = state.get("patient_filtered", state.get("patient_raw", {}))
     records  = state.get("records_filtered", [])
     context  = state.get("retrieved_context", [])
+    lang     = state.get("lang", "en")
+    lang_instr = LANG_INSTRUCTION.get(lang, "")
 
     # ── Build records summary ─────────────────────────────────────────────────
     records_text = "\n".join([
@@ -39,19 +41,24 @@ def biographer_node(state: NalamState) -> NalamState:
 
     context_text = "\n".join([f"  • {c}" for c in context[:4]]) if context else "None."
 
-    prompt = f"""You are a clinical AI biographer synthesising a patient's longitudinal health history for a treating clinician.
+    if lang == "ta":
+        format_instruction = """
+**🏥 முக்கிய நோய்கள் & நோய் கண்டறிதல்**
+• [புள்ளி விவரம்]
 
-Patient: {patient.get('name', 'Anonymous')} | Gender: {patient.get('gender', '')} | DOB: {patient.get('dob', patient.get('age_group', ''))}
-Allergies: {patient.get('allergies', 'None')} | Blood Type: {patient.get('blood_type', 'Unknown')}
+**📈 நோய் முன்னேற்றம்**
+• [புள்ளி விவரம்]
 
-Medical Timeline ({len(records)} records):
-{records_text}
+**🔬 முக்கிய ஆய்வக கண்டுபிடிப்புகள்**
+• [புள்ளி விவரம்]
 
-Semantically Retrieved Context (top-5 similar records):
-{context_text}
+**⚠️ செயலில் உள்ள மருத்துவ ஆபத்துகள்**
+• [புள்ளி விவரம்]
 
-Write a structured clinical biography using the following exact format (use bold text for section headers instead of markdown hashes):
-
+**💡 மருத்துவ பரிந்துரைகள்**
+• [புள்ளி விவரம்]"""
+    else:
+        format_instruction = """
 **🏥 Chief Concerns & Diagnoses**
 • [Bullet point]
 
@@ -65,15 +72,34 @@ Write a structured clinical biography using the following exact format (use bold
 • [Bullet point]
 
 **💡 Clinical Recommendations**
-• [Bullet point]
+• [Bullet point]"""
+
+    prompt = f"""You are a clinical AI biographer synthesising a patient's longitudinal health history for a treating clinician.
+{lang_instr}
+
+Patient: {patient.get('name', 'Anonymous')} | Gender: {patient.get('gender', '')} | DOB: {patient.get('dob', patient.get('age_group', ''))}
+Allergies: {patient.get('allergies', 'None')} | Blood Type: {patient.get('blood_type', 'Unknown')}
+
+Medical Timeline ({len(records)} records):
+{records_text}
+
+Semantically Retrieved Context (top-5 similar records):
+{context_text}
+
+Write a structured clinical biography using the following exact format (use bold text for section headers instead of markdown hashes):
+{format_instruction}
 
 Be extremely concise, evidence-based, use short bullet points, and keep the total output under 200 words. Do NOT use any ### headers."""
+
+    system_msg = "You are a clinical AI that writes precise, structured patient biographies for healthcare providers."
+    if lang == "ta":
+        system_msg += " Always respond entirely in Tamil (தமிழ்) language."
 
     try:
         resp = _get_groq().chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a clinical AI that writes precise, structured patient biographies for healthcare providers."},
+                {"role": "system", "content": system_msg},
                 {"role": "user", "content": prompt},
             ],
             max_tokens=700,

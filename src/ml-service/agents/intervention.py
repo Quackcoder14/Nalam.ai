@@ -10,7 +10,7 @@ import os
 import logging
 import re
 from groq import Groq
-from .state import NalamState
+from .state import NalamState, LANG_INSTRUCTION
 
 logger = logging.getLogger(__name__)
 _groq = None
@@ -72,6 +72,8 @@ def intervention_node(state: NalamState) -> NalamState:
     patient  = state.get("patient_filtered", state.get("patient_raw", {}))
     records  = state.get("records_filtered", [])
     context  = state.get("retrieved_context", [])
+    lang     = state.get("lang", "en")
+    lang_instr = LANG_INSTRUCTION.get(lang, "")
 
     features = _extract_features(patient, records)
 
@@ -81,7 +83,16 @@ def intervention_node(state: NalamState) -> NalamState:
     ]) or "No records."
     context_text = "\n".join([f"  • {c}" for c in context[:3]]) if context else "None."
 
+    if lang == "ta":
+        risk_label = {"High": "அதிகம்", "Medium": "நடுத்தரம்", "Low": "குறைவு"}.get(features["risk_level"], features["risk_level"])
+        json_format = f"""{{"riskLevel": "{features['risk_level']}", "detectedPattern": "<ஒரு வாக்கியத்தில் முதன்மையான மருத்துவ வடிவத்தை விவரிக்கவும்>", "actionPlan": "<2-3 வாக்கியங்கள்: குறிப்பிட்ட சான்று அடிப்படையிலான தலையீடுகள்>"}}"""
+        system_msg = "நீங்கள் ஒரு மருத்துவ முடிவு ஆதரவு AI. எப்போதும் செல்லுபடியான JSON மட்டுமே திரும்பவும். உங்கள் முழு பதிலும் தமிழில் இருக்க வேண்டும்."
+    else:
+        json_format = f"""{{"riskLevel": "{features['risk_level']}", "detectedPattern": "<one sentence describing the dominant clinical pattern>", "actionPlan": "<2-3 sentences: specific evidence-based interventions>"}}"""
+        system_msg = "You are a clinical decision support AI. Always respond with valid JSON only."
+
     prompt = f"""You are a clinical AI specialising in preventive cardiology and chronic disease management.
+{lang_instr}
 
 Patient features:
   Age: {features['age']} | BP: {features['systolic']}/{features['diastolic']} mmHg
@@ -95,17 +106,13 @@ Retrieved Similar Context:
 {context_text}
 
 Respond in this EXACT JSON format (no markdown):
-{{
-  "riskLevel": "{features['risk_level']}",
-  "detectedPattern": "<one sentence describing the dominant clinical pattern>",
-  "actionPlan": "<2-3 sentences: specific evidence-based interventions>"
-}}"""
+{json_format}"""
 
     try:
         resp = _get_groq().chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a clinical decision support AI. Always respond with valid JSON only."},
+                {"role": "system", "content": system_msg},
                 {"role": "user", "content": prompt},
             ],
             max_tokens=300,
@@ -113,16 +120,26 @@ Respond in this EXACT JSON format (no markdown):
         )
         import json
         raw = resp.choices[0].message.content.strip()
-        result = json.loads(raw)
+        # Strip markdown code fences if present
+        cleaned = raw.replace("```json", "").replace("```", "").strip()
+        result = json.loads(cleaned)
         result["risk_score"] = features["risk_score"]
         logger.info(f"Intervention: risk={result.get('riskLevel')}")
     except Exception as e:
         logger.error(f"Intervention node failed: {e}")
-        result = {
-            "riskLevel": features["risk_level"],
-            "detectedPattern": f"Risk score {features['risk_score']}/10 based on vitals.",
-            "actionPlan": "Review medication regimen and schedule follow-up within 4 weeks.",
-            "risk_score": features["risk_score"],
-        }
+        if lang == "ta":
+            result = {
+                "riskLevel": features["risk_level"],
+                "detectedPattern": f"உயிர்ச்சக்தி அளவுகளின் அடிப்படையில் ஆபத்து மதிப்பெண் {features['risk_score']}/10.",
+                "actionPlan": "மருந்து முறையை மதிப்பாய்வு செய்து 4 வாரங்களுக்குள் தொடர்நடவடிக்கை திட்டமிடவும்.",
+                "risk_score": features["risk_score"],
+            }
+        else:
+            result = {
+                "riskLevel": features["risk_level"],
+                "detectedPattern": f"Risk score {features['risk_score']}/10 based on vitals.",
+                "actionPlan": "Review medication regimen and schedule follow-up within 4 weeks.",
+                "risk_score": features["risk_score"],
+            }
 
     return {**state, "intervention_result": result}
