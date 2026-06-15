@@ -1,6 +1,5 @@
 // src/lib/data.ts
-// Data access layer — reads/writes via Prisma (MySQL) with AES-256-GCM encryption.
-// Falls back gracefully to CSV if MySQL is not configured (DB_FALLBACK=csv).
+// Data access layer — reads/writes via Prisma (Supabase) with AES-256-GCM encryption.
 
 import { encrypt, decrypt } from './crypto';
 
@@ -28,16 +27,6 @@ export interface MedicalRecord {
   diagnosis: string;
   notes: string;
   lab_results: string;
-}
-
-/* ─── Helper: pick DB mode ──────────────────────────────────────────────── */
-function useDb(): boolean {
-  return !!(
-    process.env.DATABASE_URL &&
-    (process.env.DATABASE_URL.startsWith('mysql') ||
-      process.env.DATABASE_URL.startsWith('postgres') ||
-      process.env.DATABASE_URL.startsWith('postgresql'))
-  );
 }
 
 /* ─── MySQL helpers ─────────────────────────────────────────────────────── */
@@ -75,30 +64,9 @@ function rowToRecord(row: any): MedicalRecord {
   };
 }
 
-/* ─── CSV fallback helpers ──────────────────────────────────────────────── */
-async function csvGetPatients(): Promise<Patient[]> {
-  const fs   = await import('fs');
-  const path = await import('path');
-  const Papa = (await import('papaparse')).default;
-  const csvContent = fs.readFileSync(path.join(process.cwd(), 'datasets', 'patients.csv'), 'utf-8');
-  return new Promise(resolve => Papa.parse<Patient>(csvContent, { header: true, skipEmptyLines: true, complete: r => resolve(r.data) }));
-}
-
-async function csvGetRecords(patientId: string): Promise<MedicalRecord[]> {
-  const fs   = await import('fs');
-  const path = await import('path');
-  const Papa = (await import('papaparse')).default;
-  const csvContent = fs.readFileSync(path.join(process.cwd(), 'datasets', 'medical_records.csv'), 'utf-8');
-  return new Promise(resolve => Papa.parse<MedicalRecord>(csvContent, {
-    header: true, skipEmptyLines: true,
-    complete: r => resolve(r.data.filter((row: any) => row.patient_id === patientId)),
-  }));
-}
-
 /* ─── Public API ────────────────────────────────────────────────────────── */
 
 export async function getPatients(): Promise<Patient[]> {
-  if (!useDb()) return csvGetPatients();
   const db = await getPrisma();
   const rows = await db.patient.findMany();
   return rows.map(rowToPatient);
@@ -107,19 +75,13 @@ export async function getPatients(): Promise<Patient[]> {
 // Alias used by the clinician portal patient selector
 export const getAllPatients = getPatients;
 
-
 export async function getPatientById(id: string): Promise<Patient | null> {
-  if (!useDb()) {
-    const all = await csvGetPatients();
-    return all.find(p => p.id === id) || null;
-  }
   const db  = await getPrisma();
   const row = await db.patient.findUnique({ where: { id } });
   return row ? rowToPatient(row) : null;
 }
 
 export async function getMedicalRecords(patientId: string): Promise<MedicalRecord[]> {
-  if (!useDb()) return csvGetRecords(patientId);
   const db   = await getPrisma();
   const rows = await db.medicalRecord.findMany({
     where: { patient_id: patientId },
@@ -131,17 +93,6 @@ export async function getMedicalRecords(patientId: string): Promise<MedicalRecor
 export async function updatePatientConsent(
   id: string, emergency: string, specialist: string, research: string
 ): Promise<boolean> {
-  if (!useDb()) {
-    // CSV fallback
-    const fs   = await import('fs');
-    const path = await import('path');
-    const Papa = (await import('papaparse')).default;
-    const file = path.join(process.cwd(), 'data', 'patients.csv');
-    const patients = await csvGetPatients();
-    const updated  = patients.map(p => p.id === id ? { ...p, consent_emergency: emergency, consent_specialist: specialist, consent_research: research } : p);
-    fs.writeFileSync(file, Papa.unparse(updated), 'utf-8');
-    return true;
-  }
   const db = await getPrisma();
   await db.patient.update({
     where: { id },
@@ -158,7 +109,6 @@ export async function addMedicalRecord(record: {
   patient_id: string; type: string; provider: string;
   diagnosis: string; notes: string; lab_results: string;
 }): Promise<MedicalRecord> {
-  if (!useDb()) throw new Error('addMedicalRecord requires a database to be configured.');
   const db  = await getPrisma();
   const row = await db.medicalRecord.create({
     data: {
@@ -177,7 +127,6 @@ export async function addMedicalRecord(record: {
 export async function addAuditEntry(entry: {
   patient_id: string; clinician: string; reason: string; context_type: string;
 }): Promise<void> {
-  if (!useDb()) return; // CSV mode: audit is handled separately
   const db = await getPrisma();
   await db.auditLog.create({
     data: {
@@ -190,7 +139,6 @@ export async function addAuditEntry(entry: {
 }
 
 export async function getAuditEntries(patientId: string): Promise<Array<{ clinician: string; reason: string; timestamp: string; }>> {
-  if (!useDb()) return [];
   const db   = await getPrisma();
   const rows = await db.auditLog.findMany({
     where: { patient_id: patientId },

@@ -18,13 +18,25 @@ export default function HomePage() {
   const { lang, setLang, t } = useLanguage();
 
   useEffect(() => {
+    const splashShown = sessionStorage.getItem('splashShown');
+    const alreadyChoseLang = localStorage.getItem('nalamLangChosen');
+
+    if (splashShown) {
+      setPhase(alreadyChoseLang ? 'login' : 'language');
+      return;
+    }
+
     const t1 = setTimeout(() => setSplashFading(true), 2200);
-    const t2 = setTimeout(() => setPhase('language'), 2750);
+    const t2 = setTimeout(() => {
+      sessionStorage.setItem('splashShown', 'true');
+      setPhase(alreadyChoseLang ? 'login' : 'language');
+    }, 2750);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   const chooseLang = (l: Lang) => {
     setLang(l);
+    localStorage.setItem('nalamLangChosen', 'true');
     setLangFading(true);
     setTimeout(() => setPhase('login'), 450);
   };

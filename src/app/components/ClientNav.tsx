@@ -68,43 +68,19 @@ export default function ClientNav() {
           </div>
         </a>
 
-        {/* Search bar */}
+        {/* Search button replacing the bar */}
         {role && (
-          <form onSubmit={handleSearch} style={{ flex: 1, maxWidth: 420 }}>
-            <div style={{ position: 'relative' }}>
-              <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--foreground-subtle)', pointerEvents: 'none' }} />
-              <input
-                id="nav-search"
-                type="search"
-                value={searchQ}
-                onChange={e => setQ(e.target.value)}
-                placeholder={t('nav.search')}
-                style={{
-                  width: '100%',
-                  padding: '0.45rem 0.75rem 0.45rem 2.2rem',
-                  borderRadius: 50,
-                  border: '1px solid var(--border)',
-                  background: 'var(--surface-muted)',
-                  color: 'var(--foreground)',
-                  fontSize: '0.84rem',
-                  outline: 'none',
-                }}
-              />
-            </div>
-          </form>
+          <button onClick={() => router.push('/search')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: 'auto', marginRight: '1rem', fontSize: '0.85rem' }}>
+            <Search size={15} /> {t('nav.search')}
+          </button>
         )}
 
         {/* Nav links */}
         <nav style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexShrink: 0 }}>
           {role === 'patient' && (
-            <>
-              <a href="/dashboard" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <LayoutDashboard size={15} /> {t('nav.dashboard')}
-              </a>
-              <a href="/feed" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Rss size={15} /> {t('nav.feedInput')}
-              </a>
-            </>
+            <a href="/dashboard" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <LayoutDashboard size={15} /> {t('nav.dashboard')}
+            </a>
           )}
           {role === 'clinician' && (
             <a href="/clinician" className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -115,7 +91,10 @@ export default function ClientNav() {
           {/* Language toggle */}
           <button
             id="lang-toggle"
-            onClick={() => setLang(lang === 'en' ? 'ta' : 'en')}
+            onClick={() => {
+              setLang(lang === 'en' ? 'ta' : 'en');
+              localStorage.setItem('nalamLangChosen', 'true');
+            }}
             title={lang === 'en' ? 'Switch to Tamil' : 'Switch to English'}
             style={{
               background: 'var(--surface-muted)',

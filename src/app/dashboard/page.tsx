@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Activity, BellRing, Network, Heart, Watch, Clock, Eye, ChevronDown, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, Search, X } from 'lucide-react';
+import { Shield, Activity, BellRing, Network, Heart, Clock, Eye, ChevronDown, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, X, Link2, ShieldCheck, Calendar, ClipboardList } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import VoiceTriage from '../components/VoiceTriage';
 
@@ -68,8 +68,15 @@ export default function PatientDashboard() {
   const [fhirData, setFhirData]             = useState<any>(null);
   const [fhirLoading, setFhirLoading]       = useState(false);
 
-  const [baseVitals, setBaseVitals]   = useState({ hr: 72, sys: 120, dia: 80, spo2: 98, temp: 36.9 });
-  const [vitals, setVitals]           = useState({ hr: 72, sys: 120, dia: 80, spo2: 98, temp: 36.9 });
+  // ABHA ID state
+  const [abha, setAbha]                     = useState<{ verified: boolean; masked: string | null }>({ verified: false, masked: null });
+  const [showAbhaModal, setShowAbhaModal]   = useState(false);
+  const [abhaInput, setAbhaInput]           = useState('');
+  const [abhaSaving, setAbhaSaving]         = useState(false);
+  const [abhaError, setAbhaError]           = useState<string | null>(null);
+
+  const [baseVitals, setBaseVitals]   = useState({ hr: 72, spo2: 98, resp: 16, temp: 36.6, sys: 120, dia: 80 });
+  const [vitals, setVitals]           = useState({ hr: 72, spo2: 98, resp: 16, temp: 36.6, sys: 120, dia: 80 });
   const vitalsRef = useRef(vitals);
 
   const [anomaly, setAnomaly]         = useState<any>(null);
@@ -87,11 +94,12 @@ export default function PatientDashboard() {
   useEffect(() => {
     const iv = setInterval(() => {
       setVitals({
-        hr:   Math.max(40,  Math.min(220, baseVitals.hr   + Math.floor(Math.random() * 5) - 2)),
+        hr:   Math.max(45,  Math.min(200, baseVitals.hr   + Math.floor(Math.random() * 5) - 2)),
+        spo2: Math.max(88,  Math.min(100, baseVitals.spo2 + (Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0))),
+        resp: Math.max(10,  Math.min(40,  baseVitals.resp + Math.floor(Math.random() * 3) - 1)),
+        temp: parseFloat(Math.max(35, Math.min(41, baseVitals.temp + (Math.random() * 0.2 - 0.1))).toFixed(1)),
         sys:  Math.max(70,  Math.min(250, baseVitals.sys  + Math.floor(Math.random() * 5) - 2)),
         dia:  Math.max(40,  Math.min(150, baseVitals.dia  + Math.floor(Math.random() * 4) - 2)),
-        spo2: Math.max(70,  Math.min(100, baseVitals.spo2 + Math.floor(Math.random() * 2))),
-        temp: parseFloat(Math.max(35, Math.min(41, baseVitals.temp + (Math.random() * 0.2 - 0.1))).toFixed(1)),
       });
     }, 2000);
     return () => clearInterval(iv);
@@ -100,7 +108,7 @@ export default function PatientDashboard() {
   const checkAnomaly = useCallback(async (currentVitals: typeof vitals) => {
     setAL(true);
     try {
-      const payload = { heart_rate: currentVitals.hr, systolic_bp: currentVitals.sys, diastolic_bp: currentVitals.dia, spo2: currentVitals.spo2, temperature: currentVitals.temp, lang };
+      const payload = { heart_rate: currentVitals.hr, spo2: currentVitals.spo2, resp: currentVitals.resp, temp: currentVitals.temp, sys: currentVitals.sys, dia: currentVitals.dia, lang };
       const res = await fetch('/api/anomaly', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       setAnomaly(data);
@@ -111,9 +119,12 @@ export default function PatientDashboard() {
         if (lang === 'ta') {
            alertTitle = data.severity === 'critical' ? '🚨 முக்கியமான முக்கிய முரண்பாடு (Critical Vital Anomaly)' : '⚠️ முக்கிய முரண்பாடு கண்டறியப்பட்டது';
         }
+        // Embed vitals snapshot so hospital desk can display them
+        const vSnap = vitalsRef.current;
+        const vitalsTag = ` | hr=${vSnap.hr} spo2=${vSnap.spo2} resp=${vSnap.resp} temp=${vSnap.temp} sys=${vSnap.sys} dia=${vSnap.dia}`;
         await fetch('/api/notify/send', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId: 'P001', title: alertTitle, message: data.flags?.[0]?.message || 'An anomaly was detected in your vitals.', severity: data.severity }),
+          body: JSON.stringify({ patientId: 'P001', title: alertTitle, message: (data.flags?.[0]?.message || 'An anomaly was detected in your vitals.') + vitalsTag, severity: data.severity }),
         });
       }
     } catch { }
@@ -130,15 +141,15 @@ export default function PatientDashboard() {
 
   const runDemo = (scenario: string) => {
     setDemoScenario(scenario);
-    let newBase = { hr: 72, sys: 120, dia: 80, spo2: 98, temp: 36.9 };
-    if (scenario === 'tachycardia')  newBase = { hr: 135, sys: 125, dia: 82,  spo2: 97, temp: 37.1 };
-    if (scenario === 'hypoxemia')    newBase = { hr: 95,  sys: 130, dia: 85,  spo2: 91, temp: 37.2 };
-    if (scenario === 'hypertension') newBase = { hr: 88,  sys: 185, dia: 115, spo2: 98, temp: 36.9 };
+    let newBase = { hr: 72, spo2: 98, resp: 16, temp: 36.6, sys: 120, dia: 80 };
+    if (scenario === 'tachycardia')  newBase = { hr: 135, spo2: 97, resp: 22, temp: 37.1, sys: 125, dia: 82 };
+    if (scenario === 'hypoxemia')    newBase = { hr: 95,  spo2: 91, resp: 28, temp: 37.2, sys: 130, dia: 85 };
+    if (scenario === 'hypertension') newBase = { hr: 88,  spo2: 98, resp: 18, temp: 36.9, sys: 185, dia: 115 };
     setBaseVitals(newBase); setVitals(newBase); checkAnomaly(newBase);
   };
 
   const explainAnomaly = () => {
-    const q = new URLSearchParams({ heart_rate: vitals.hr.toString(), systolic_bp: vitals.sys.toString(), diastolic_bp: vitals.dia.toString(), spo2: vitals.spo2.toString(), temperature: vitals.temp.toString() });
+    const q = new URLSearchParams({ heart_rate: vitals.hr.toString(), spo2: vitals.spo2.toString(), resp: vitals.resp.toString(), temp: vitals.temp.toString(), sys: vitals.sys.toString(), dia: vitals.dia.toString() });
     router.push(`/xai?${q.toString()}`);
   };
 
@@ -165,6 +176,9 @@ export default function PatientDashboard() {
         setConsent({ emergency: data.patient.consent_emergency === 'true', specialist: data.patient.consent_specialist === 'true', research: data.patient.consent_research === 'true' });
         const ir = await fetch('/api/agents/intervention', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: data.patient, records: data.records, lang }) });
         if (ir.ok) setIntervention(await ir.json());
+        // Fetch ABHA ID status
+        const ar = await fetch('/api/abha?patientId=P001');
+        if (ar.ok) setAbha(await ar.json());
       } catch (e) { console.error(e); }
     })();
     fetchAudit();
@@ -205,6 +219,55 @@ export default function PatientDashboard() {
           <button onClick={(e) => { e.stopPropagation(); setShowPopup(false); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-red)', padding: '0.2rem', marginLeft: '-0.5rem' }}>
             <X size={18} />
           </button>
+        </div>
+      )}
+
+      {/* ABHA Link Modal */}
+      {showAbhaModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(4px)' }}>
+          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 460, background: 'var(--background)', padding: '2rem' }}>
+            <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)' }}>
+                <ShieldCheck size={20} color="var(--primary)" /> {t('abha.modalTitle')}
+              </h3>
+              <button onClick={() => { setShowAbhaModal(false); setAbhaError(null); setAbhaInput(''); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--foreground-muted)' }}><X size={20} /></button>
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginBottom: '1.25rem', lineHeight: 1.6 }}>{t('abha.modalDesc')}</p>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.4rem' }}>{t('abha.label')}</label>
+              <input
+                type="text"
+                placeholder="91-1234-5678-0000"
+                value={abhaInput}
+                onChange={e => { setAbhaInput(e.target.value); setAbhaError(null); }}
+                maxLength={19}
+                style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: 10, border: `1.5px solid ${abhaError ? 'var(--accent-red)' : 'var(--border)'}`, background: 'var(--surface)', color: 'var(--foreground)', fontSize: '1rem', fontFamily: 'monospace', boxSizing: 'border-box', outline: 'none' }}
+              />
+              {abhaError && <p style={{ fontSize: '0.8rem', color: 'var(--accent-red)', marginTop: '0.4rem' }}>{abhaError}</p>}
+            </div>
+            <p style={{ fontSize: '0.76rem', color: 'var(--foreground-muted)', marginBottom: '1.25rem' }}>{t('abha.formatHint')}</p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowAbhaModal(false); setAbhaError(null); setAbhaInput(''); }} className="glass-button">{t('abha.cancel')}</button>
+              <button
+                disabled={abhaSaving || abhaInput.replace(/[^0-9]/g,'').length !== 14}
+                onClick={async () => {
+                  setAbhaSaving(true); setAbhaError(null);
+                  try {
+                    const res = await fetch('/api/abha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: 'P001', abha_id: abhaInput }) });
+                    const data = await res.json();
+                    if (!res.ok) { setAbhaError(data.error || t('abha.error')); return; }
+                    setAbha({ verified: true, masked: data.masked });
+                    setShowAbhaModal(false); setAbhaInput('');
+                  } catch { setAbhaError(t('abha.error')); }
+                  finally { setAbhaSaving(false); }
+                }}
+                style={{ padding: '0.65rem 1.5rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.9rem', cursor: abhaInput.replace(/[^0-9]/g,'').length !== 14 ? 'not-allowed' : 'pointer', opacity: abhaInput.replace(/[^0-9]/g,'').length !== 14 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                {abhaSaving ? <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid white', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> : <ShieldCheck size={15} />}
+                {abhaSaving ? t('abha.saving') : t('abha.save')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -250,10 +313,20 @@ export default function PatientDashboard() {
         <div>
           <h2 style={{ fontSize: '2rem', marginBottom: '0.2rem' }}>{t('dashboard.welcome')} {patient.name} 👋</h2>
           <p style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>{t('dashboard.verified')} · {patient.id}</p>
+          {/* ABHA ID status chip */}
+          {abha.verified ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.4rem', padding: '0.25rem 0.75rem', borderRadius: 20, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', fontSize: '0.8rem', fontWeight: 700, color: '#16a34a' }}>
+              <ShieldCheck size={14} /> ABHA: {abha.masked}
+            </div>
+          ) : (
+            <button onClick={() => setShowAbhaModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', padding: '0.25rem 0.75rem', borderRadius: 20, background: 'rgba(0,82,165,0.08)', border: '1px dashed var(--primary)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}>
+              <Link2 size={13} /> {t('abha.link')}
+            </button>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-          <button className="glass-button" onClick={() => router.push('/search')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Search size={15} /> {t('dashboard.searchRecords')}
+          <button className="glass-button" onClick={() => router.push('/appointments/requests')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <ClipboardList size={15} /> View Requests
           </button>
           <button className="glass-button" onClick={async () => {
             if (fhirLoading) return;
@@ -295,36 +368,57 @@ export default function PatientDashboard() {
       {/* Live Vitals */}
       <section className="glass-panel slide-up stagger-1" style={{ marginBottom: '1.5rem' }}>
         <div className="flex-between" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-teal)' }}><Watch size={19} /> {t('dashboard.liveVitals')}</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-teal)' }}><Activity size={19} /> {t('dashboard.liveVitals')}</h3>
           <span className="badge teal" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulseGlow 1.4s infinite' }} /> {t('dashboard.syncing')}
           </span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
           {[
-            { label: t('dashboard.heartRate'), value: `${vitals.hr} BPM`, color: '#FCA5A5', icon: Heart, pulse: true },
-            { label: t('dashboard.spo2'), value: `${vitals.spo2}%`, color: '#A5D8FF', icon: Activity, pulse: false },
-            { label: t('dashboard.bp'), value: `${vitals.sys}/${vitals.dia}`, color: '#FCA5A5', icon: Activity, pulse: false },
-            { label: t('dashboard.temperature'), value: `${vitals.temp} °C`, color: '#FDE68A', icon: Activity, pulse: false },
-          ].map(({ label, value, color, icon: Icon, pulse }) => (
+            { label: t('dashboard.heartRate'), value: `${vitals.hr}`, unit: 'BPM', color: '#FCA5A5', icon: Heart, pulse: true },
+            { label: t('dashboard.spo2'),      value: `${vitals.spo2}`, unit: '%',  color: '#A5D8FF', icon: Activity, pulse: false },
+            { label: 'Resp Rate',              value: `${vitals.resp}`, unit: 'bpm',color: '#86EFAC', icon: Activity, pulse: false },
+            { label: 'Temperature',            value: `${vitals.temp}`, unit: '°C', color: '#FDE68A', icon: Activity, pulse: false },
+            { label: 'Blood Pressure',         value: `${vitals.sys}/${vitals.dia}`, unit: 'mmHg', color: '#C7D2FE', icon: Activity, pulse: false },
+          ].map(({ label, value, unit, color, icon: Icon, pulse }) => (
             <div key={label} style={{ background: `${color}18`, border: `1px solid ${color}44`, borderRadius: 11, padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, animation: pulse ? 'pulseGlow 1.5s infinite' : 'none' }}>
                 <Icon size={20} color={color} />
               </div>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '1.2rem', color: 'var(--foreground)' }}>{value}</div>
+                <div style={{ fontWeight: 700, fontSize: '1.2rem', color: 'var(--foreground)' }}>{value}<span style={{ fontSize: '0.78rem', fontWeight: 400, color: 'var(--foreground-muted)', marginLeft: 3 }}>{unit}</span></div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--foreground-muted)' }}>{label}</div>
               </div>
             </div>
           ))}
         </div>
-        <button className="glass-button" onClick={() => router.push('/feed?module=wearables')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.75rem', background: 'var(--surface-muted)' }}>
-          <Watch size={15} /> {t('dashboard.openWearables')}
-        </button>
       </section>
 
       {/* Voice First Input Triage */}
       <VoiceTriage />
+
+      {/* Book Appointment Module */}
+      <section className="glass-panel slide-up stagger-2" style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, rgba(0,82,165,0.06) 0%, rgba(92,53,161,0.06) 100%)', border: '1.5px solid rgba(0,82,165,0.18)' }}>
+        <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 16px rgba(0,82,165,0.3)' }}>
+              <Calendar size={26} color="white" />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.05rem', marginBottom: '0.15rem', color: 'var(--deep-blue)' }}>Book an Appointment</h3>
+              <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', lineHeight: 1.5 }}>Request a consultation with Dr. Dhanush or Dr. Monissha.<br />Your live vitals will be automatically attached to the request.</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.6rem', flexShrink: 0 }}>
+            <button onClick={() => router.push('/appointments/requests')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <ClipboardList size={15} /> My Requests
+            </button>
+            <button onClick={() => router.push('/appointments/book')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.4rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,82,165,0.28)', transition: 'all 0.2s ease' }}>
+              <Calendar size={16} /> Book Now
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Audit Log */}
       {showAudit && (

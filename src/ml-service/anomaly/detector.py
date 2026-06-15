@@ -27,36 +27,36 @@ _MODEL_PATH = Path(__file__).parent / "anomaly_model.pkl"
 # ── Clinical Threshold Rules ─────────────────────────────────────────────────
 # Each rule: (feature, operator, threshold, severity, label)
 _RULES: List[Dict[str, Any]] = [
-    {"feature": "systolic_bp",  "op": ">", "threshold": 180, "severity": "critical",  "label": "Hypertensive Crisis"},
-    {"feature": "systolic_bp",  "op": ">", "threshold": 140, "severity": "warning",   "label": "Elevated Systolic BP"},
-    {"feature": "diastolic_bp", "op": ">", "threshold": 110, "severity": "critical",  "label": "Hypertensive Crisis (Diastolic)"},
-    {"feature": "diastolic_bp", "op": ">", "threshold": 90,  "severity": "warning",   "label": "Elevated Diastolic BP"},
+    {"feature": "sys",          "op": ">", "threshold": 180, "severity": "critical",  "label": "Hypertensive Crisis"},
+    {"feature": "sys",          "op": ">", "threshold": 140, "severity": "warning",   "label": "Elevated Systolic BP"},
+    {"feature": "dia",          "op": ">", "threshold": 110, "severity": "critical",  "label": "Hypertensive Crisis (Diastolic)"},
+    {"feature": "dia",          "op": ">", "threshold": 90,  "severity": "warning",   "label": "Elevated Diastolic BP"},
     {"feature": "heart_rate",   "op": ">", "threshold": 120, "severity": "critical",  "label": "Tachycardia"},
     {"feature": "heart_rate",   "op": ">", "threshold": 100, "severity": "warning",   "label": "Elevated Heart Rate"},
     {"feature": "heart_rate",   "op": "<", "threshold": 45,  "severity": "critical",  "label": "Bradycardia"},
     {"feature": "heart_rate",   "op": "<", "threshold": 60,  "severity": "warning",   "label": "Low Heart Rate"},
     {"feature": "spo2",         "op": "<", "threshold": 92,  "severity": "critical",  "label": "Severe Hypoxemia"},
     {"feature": "spo2",         "op": "<", "threshold": 95,  "severity": "warning",   "label": "Low Oxygen Saturation"},
-    {"feature": "temperature",  "op": ">", "threshold": 39.0,"severity": "critical",  "label": "High Fever"},
-    {"feature": "temperature",  "op": ">", "threshold": 37.5,"severity": "warning",   "label": "Low-Grade Fever"},
-    {"feature": "temperature",  "op": "<", "threshold": 35.0,"severity": "critical",  "label": "Hypothermia"},
-    {"feature": "glucose",      "op": ">", "threshold": 400, "severity": "critical",  "label": "Severe Hyperglycemia"},
-    {"feature": "glucose",      "op": ">", "threshold": 200, "severity": "warning",   "label": "Elevated Blood Glucose"},
-    {"feature": "glucose",      "op": "<", "threshold": 54,  "severity": "critical",  "label": "Severe Hypoglycemia"},
-    {"feature": "glucose",      "op": "<", "threshold": 70,  "severity": "warning",   "label": "Low Blood Glucose"},
+    {"feature": "temp",         "op": ">", "threshold": 39.0,"severity": "critical",  "label": "High Fever"},
+    {"feature": "temp",         "op": ">", "threshold": 37.5,"severity": "warning",   "label": "Low-Grade Fever"},
+    {"feature": "temp",         "op": "<", "threshold": 35.0,"severity": "critical",  "label": "Hypothermia"},
+    {"feature": "resp",         "op": ">", "threshold": 30,  "severity": "critical",  "label": "Severe Tachypnea"},
+    {"feature": "resp",         "op": ">", "threshold": 25,  "severity": "warning",   "label": "Elevated Respiratory Rate"},
+    {"feature": "resp",         "op": "<", "threshold": 8,   "severity": "critical",  "label": "Severe Bradypnea"},
+    {"feature": "resp",         "op": "<", "threshold": 10,  "severity": "warning",   "label": "Low Respiratory Rate"},
 ]
 
 # ── Feature ordering for IsolationForest ─────────────────────────────────────
-_FEATURE_NAMES = ["heart_rate", "systolic_bp", "diastolic_bp", "spo2", "temperature", "glucose"]
+_FEATURE_NAMES = ["heart_rate", "sys", "dia", "spo2", "temp", "resp"]
 
 # ── Normal ranges for synthetic training data ─────────────────────────────────
 _NORMAL_RANGES = {
     "heart_rate":   (60, 100),
-    "systolic_bp":  (90, 130),
-    "diastolic_bp": (60, 85),
+    "sys":          (90, 130),
+    "dia":          (60, 85),
     "spo2":         (96, 100),
-    "temperature":  (36.0, 37.5),
-    "glucose":      (70, 140),
+    "temp":         (36.0, 37.5),
+    "resp":         (12, 20),
 }
 
 
@@ -97,11 +97,11 @@ class AnomalyDetector:
         n_samples = 2000
         data = np.column_stack([
             rng.normal(75, 10, n_samples).clip(*_NORMAL_RANGES["heart_rate"]),
-            rng.normal(115, 12, n_samples).clip(*_NORMAL_RANGES["systolic_bp"]),
-            rng.normal(75, 8, n_samples).clip(*_NORMAL_RANGES["diastolic_bp"]),
+            rng.normal(115, 12, n_samples).clip(*_NORMAL_RANGES["sys"]),
+            rng.normal(75, 8, n_samples).clip(*_NORMAL_RANGES["dia"]),
             rng.normal(98, 1, n_samples).clip(*_NORMAL_RANGES["spo2"]),
-            rng.normal(36.8, 0.4, n_samples).clip(*_NORMAL_RANGES["temperature"]),
-            rng.normal(100, 20, n_samples).clip(*_NORMAL_RANGES["glucose"]),
+            rng.normal(36.8, 0.4, n_samples).clip(*_NORMAL_RANGES["temp"]),
+            rng.normal(16, 2, n_samples).clip(*_NORMAL_RANGES["resp"]),
         ])
         self._model = IsolationForest(
             n_estimators=self._n_estimators,
@@ -167,11 +167,11 @@ class AnomalyDetector:
         if self._model is not None:
             row = np.array([[
                 float(vitals.get("heart_rate",   75)),
-                float(vitals.get("systolic_bp",  115)),
-                float(vitals.get("diastolic_bp", 75)),
+                float(vitals.get("sys",          115)),
+                float(vitals.get("dia",          75)),
                 float(vitals.get("spo2",         98)),
-                float(vitals.get("temperature",  36.8)),
-                float(vitals.get("glucose",      100)),
+                float(vitals.get("temp",         36.8)),
+                float(vitals.get("resp",         16)),
             ]])
             pred = self._model.predict(row)[0]         # 1=normal, -1=anomaly
             raw_score = -self._model.score_samples(row)[0]  # higher = more anomalous

@@ -1,5 +1,24 @@
 import { NextResponse } from 'next/server';
 import { getPatientById, getMedicalRecords } from '@/lib/data';
+import { decrypt } from '@/lib/crypto';
+import fs from 'fs';
+import path from 'path';
+
+function getAbhaDigits(patientId: string): string | null {
+  try {
+    const storePath = path.join(process.cwd(), 'data', 'abha_store.json');
+    if (!fs.existsSync(storePath)) return null;
+    const store = JSON.parse(fs.readFileSync(storePath, 'utf-8'));
+    const enc = store[patientId];
+    if (!enc) return null;
+    const plain = decrypt(enc);
+    return plain.length === 14 ? plain : null;
+  } catch { return null; }
+}
+
+function formatAbha(digits: string): string {
+  return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}-${digits.slice(10)}`;
+}
 
 // Generate UUID v4 for FHIR fullUrls
 function generateUUID() {
@@ -33,6 +52,9 @@ export async function GET(request: Request) {
 
     const entries = [];
 
+    // Look up ABHA ID (encrypted at rest)
+    const abhaDigits = getAbhaDigits(id);
+
     // 1. Composition
     entries.push({
       fullUrl: `urn:uuid:${compositionId}`,
@@ -51,12 +73,16 @@ export async function GET(request: Request) {
     });
 
     // 2. Patient
+    const identifiers: any[] = [{ system: 'https://ndhm.gov.in', value: patient.id }];
+    if (abhaDigits) {
+      identifiers.push({ system: 'https://healthid.ndhm.gov.in/', value: formatAbha(abhaDigits), use: 'official' });
+    }
     entries.push({
       fullUrl: `urn:uuid:${patientResourceId}`,
       resource: {
         resourceType: 'Patient',
         id: patientResourceId,
-        identifier: [{ system: 'https://ndhm.gov.in', value: patient.id }],
+        identifier: identifiers,
         name: [{ text: patient.name }],
         gender: patient.gender.toLowerCase() === 'female' ? 'female' : patient.gender.toLowerCase() === 'male' ? 'male' : 'other',
         birthDate: patient.dob,

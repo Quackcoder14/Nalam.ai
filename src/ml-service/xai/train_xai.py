@@ -16,36 +16,40 @@ def generate_synthetic_vitals(n_samples=15000):
     
     # Vitals with some correlation to age/bmi
     heart_rate = np.random.normal(72 + (age - 50)*0.1 + (bmi - 25)*0.5, 12, n_samples)
-    systolic_bp = np.random.normal(120 + (age - 50)*0.3 + (bmi - 25)*1.2, 15, n_samples)
-    diastolic_bp = np.random.normal(80 + (age - 50)*0.1 + (bmi - 25)*0.8, 10, n_samples)
+    sys = np.random.normal(120 + (age - 50)*0.3 + (bmi - 25)*1.2, 15, n_samples)
+    dia = np.random.normal(80 + (age - 50)*0.1 + (bmi - 25)*0.8, 10, n_samples)
     spo2 = np.random.normal(98 - (age - 50)*0.05, 1.5, n_samples)
-    temperature = np.random.normal(37.0, 0.4, n_samples)
+    temp = np.random.normal(37.0, 0.4, n_samples)
+    resp = np.random.normal(16 + (age - 50)*0.02 + (bmi - 25)*0.1, 2, n_samples)
     
     # Clip to realistic physiological bounds
     heart_rate = np.clip(heart_rate, 40, 200)
-    systolic_bp = np.clip(systolic_bp, 70, 220)
-    diastolic_bp = np.clip(diastolic_bp, 40, 130)
+    sys = np.clip(sys, 70, 220)
+    dia = np.clip(dia, 40, 130)
     spo2 = np.clip(spo2, 80, 100)
-    temperature = np.clip(temperature, 35.0, 41.0)
+    temp = np.clip(temp, 35.0, 41.0)
+    resp = np.clip(resp, 8, 40)
     
     df = pd.DataFrame({
         'Age': age,
         'BMI': bmi,
         'Heart_Rate': heart_rate,
-        'Systolic_BP': systolic_bp,
-        'Diastolic_BP': diastolic_bp,
+        'Sys': sys,
+        'Dia': dia,
         'SpO2': spo2,
-        'Temperature': temperature
+        'Temp': temp,
+        'Resp': resp
     })
     
     # Define Target: Is_Anomaly
     # Anomaly conditions based on clinical rules
     anomaly = (
         (df['Heart_Rate'] > 100) | (df['Heart_Rate'] < 50) |
-        (df['Systolic_BP'] > 140) | (df['Systolic_BP'] < 90) |
-        (df['Diastolic_BP'] > 90) | (df['Diastolic_BP'] < 60) |
+        (df['Sys'] > 140) | (df['Sys'] < 90) |
+        (df['Dia'] > 90) | (df['Dia'] < 60) |
         (df['SpO2'] < 95) |
-        (df['Temperature'] > 38.0) | (df['Temperature'] < 36.0)
+        (df['Temp'] > 38.0) | (df['Temp'] < 36.0) |
+        (df['Resp'] > 25) | (df['Resp'] < 10)
     ).astype(int)
     
     # Introduce some noise to make it a non-perfect ML problem

@@ -102,11 +102,11 @@ function XAIDashboardInner() {
   const { t, lang } = useLanguage();
   const [vitals, setVitals] = useState({
     heart_rate:    parseFloat(searchParams.get('heart_rate')    || '92'),
-    systolic_bp:   parseFloat(searchParams.get('systolic_bp')   || '165'),
-    diastolic_bp:  parseFloat(searchParams.get('diastolic_bp')  || '98'),
+    sys:           parseFloat(searchParams.get('sys')           || '165'),
+    dia:           parseFloat(searchParams.get('dia')           || '98'),
     spo2:          parseFloat(searchParams.get('spo2')          || '96'),
-    temperature:   parseFloat(searchParams.get('temperature')   || '37.8'),
-    glucose:       parseFloat(searchParams.get('glucose')       || '180'),
+    temp:          parseFloat(searchParams.get('temp')          || '37.8'),
+    resp:          parseFloat(searchParams.get('resp')          || '26'),
   });
   const [features, setFeatures]   = useState<XAIFeature[]>([]);
   const [topDriver, setTopDriver] = useState('');
@@ -147,11 +147,11 @@ function XAIDashboardInner() {
 
   const vitalLabels: Record<string, string> = {
     heart_rate:   t('xai.heartRate'),
-    systolic_bp:  t('xai.systolicBP'),
-    diastolic_bp: t('xai.diastolicBP'),
+    sys:          t('xai.systolicBP'),
+    dia:          t('xai.diastolicBP'),
     spo2:         t('xai.spo2'),
-    temperature:  t('xai.temperature'),
-    glucose:      t('xai.glucose'),
+    temp:         t('xai.temperature'),
+    resp:         'Respiratory Rate',
   };
 
   // Add the feature names directly to `t()` by extending them in the components memory
@@ -251,13 +251,11 @@ function XAIDashboardInner() {
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: '1.5rem', alignItems: 'start' }}>
-            {/* Feature cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.25rem' }}>{t('xai.featureRankings')}</h2>
               {translatedFeatures.map((f, i) => <FeatureCard key={f.feature} feat={f} rank={i + 1} />)}
             </div>
 
-            {/* Chart */}
             <div className="glass-panel" style={{ padding: '1.25rem', position: 'sticky', top: 80 }}>
               <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '1rem' }}>
                 {chartType === 'bar' ? t('xai.importanceBar') : t('xai.radarOverview')}

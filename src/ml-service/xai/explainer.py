@@ -40,14 +40,14 @@ def _load_model_and_bg():
 
 # ── Feature metadata ──────────────────────────────────────────────────────────
 FEATURE_META: Dict[str, Dict[str, Any]] = {
-    "systolic_bp": {
+    "sys": {
         "label": "Systolic Blood Pressure",
         "unit": "mmHg",
         "normal_range": (90, 120),
         "risk_direction": "high",   # higher = more risk
         "description": "The pressure in your arteries when your heart beats.",
     },
-    "diastolic_bp": {
+    "dia": {
         "label": "Diastolic Blood Pressure",
         "unit": "mmHg",
         "normal_range": (60, 80),
@@ -68,19 +68,19 @@ FEATURE_META: Dict[str, Dict[str, Any]] = {
         "risk_direction": "low",    # lower = more risk
         "description": "Percentage of haemoglobin carrying oxygen.",
     },
-    "temperature": {
+    "temp": {
         "label": "Body Temperature",
         "unit": "°C",
         "normal_range": (36.1, 37.2),
-        "risk_direction": "high",
+        "risk_direction": "both",
         "description": "Core body temperature.",
     },
-    "glucose": {
-        "label": "Blood Glucose",
-        "unit": "mg/dL",
-        "normal_range": (70, 140),
+    "resp": {
+        "label": "Respiratory Rate",
+        "unit": "bpm",
+        "normal_range": (12, 20),
         "risk_direction": "both",
-        "description": "Concentration of glucose in the blood.",
+        "description": "Breaths taken per minute.",
     },
     "age": {
         "label": "Patient Age",
@@ -165,16 +165,17 @@ def explain_vitals(vitals: Dict[str, Any]) -> List[Dict[str, Any]]:
     if _model is not None and _bg_data is not None:
         try:
             import shap
-            # Extract features in exact model order: ['Age', 'BMI', 'Heart_Rate', 'Systolic_BP', 'Diastolic_BP', 'SpO2', 'Temperature']
-            feature_names = ['Age', 'BMI', 'Heart_Rate', 'Systolic_BP', 'Diastolic_BP', 'SpO2', 'Temperature']
+            # Extract features in exact model order: ['Age', 'BMI', 'Heart_Rate', 'Sys', 'Dia', 'SpO2', 'Temp', 'Resp']
+            feature_names = ['Age', 'BMI', 'Heart_Rate', 'Sys', 'Dia', 'SpO2', 'Temp', 'Resp']
             mapping = {
                 'Age': vitals.get('age', 50),
                 'BMI': vitals.get('bmi', 24.5),
                 'Heart_Rate': vitals.get('heart_rate', 72),
-                'Systolic_BP': vitals.get('systolic_bp', 120),
-                'Diastolic_BP': vitals.get('diastolic_bp', 80),
+                'Sys': vitals.get('sys', 120),
+                'Dia': vitals.get('dia', 80),
                 'SpO2': vitals.get('spo2', 98),
-                'Temperature': vitals.get('temperature', 37.0)
+                'Temp': vitals.get('temp', 37.0),
+                'Resp': vitals.get('resp', 16)
             }
             
             # Convert to DataFrame
@@ -196,8 +197,8 @@ def explain_vitals(vitals: Dict[str, Any]) -> List[Dict[str, Any]]:
                 # map back to internal keys
                 key_map = {
                     'Age': 'age', 'BMI': 'bmi', 'Heart_Rate': 'heart_rate',
-                    'Systolic_BP': 'systolic_bp', 'Diastolic_BP': 'diastolic_bp',
-                    'SpO2': 'spo2', 'Temperature': 'temperature'
+                    'Sys': 'sys', 'Dia': 'dia',
+                    'SpO2': 'spo2', 'Temp': 'temp', 'Resp': 'resp'
                 }
                 k = key_map[fname]
                 importance = np.abs(sv[i]) / total_abs

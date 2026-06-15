@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Lock, Unlock, Database, Cpu, Stethoscope, AlertTriangle, FlaskConical, Eye, EyeOff, CheckCircle, XCircle, SkipForward, Clock, FileText, Activity, ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -529,6 +529,33 @@ export default function ClinicianPortal() {
   const [manualMed, setManualMed]             = useState('');
   const [expandedRecord, setExpandedRecord]   = useState<string | null>(null);
   const [simTab, setSimTab]                   = useState<'data' | 'visual'>('data');
+  
+  // Appointments State
+  const [showAppointments, setShowAppointments] = useState(false);
+  const [appointments, setAppointments]         = useState<any[]>([]);
+  const [aptLoading, setAptLoading]             = useState(false);
+  const [aptProcessing, setAptProcessing]       = useState<string | null>(null);
+
+  const fetchAppointments = useCallback(async () => {
+    setAptLoading(true);
+    try {
+      const docId = role === 'emergency' ? 'dr_dhanush' : 'dr_monissha';
+      const res = await fetch(`/api/appointments?doctorId=${docId}`);
+      if (res.ok) setAppointments(await res.json());
+    } catch {} finally { setAptLoading(false); }
+  }, [role]);
+
+  const handleAptAction = async (id: string, status: 'scheduled') => {
+    setAptProcessing(id);
+    try {
+      await fetch('/api/appointments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+      await fetchAppointments();
+    } finally { setAptProcessing(null); }
+  };
 
   // Navigator State
   const [navDisease, setNavDisease]           = useState('');
@@ -694,7 +721,73 @@ export default function ClinicianPortal() {
             </span>
           </button>
         )}
+        <button
+          className="glass-button"
+          onClick={() => { setShowAppointments(p => !p); if (!showAppointments) fetchAppointments(); }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: showAppointments ? 'var(--primary)' : 'var(--surface)', color: showAppointments ? 'white' : 'var(--primary)' }}
+        >
+          <Clock size={16} /> {showAppointments ? 'Hide Appointments' : 'View Appointments'}
+          {appointments.length > 0 && !showAppointments && (
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-orange)' }} />
+          )}
+        </button>
       </div>
+
+      {/* Appointments Panel */}
+      {showAppointments && (
+        <div className="glass-panel slide-up" style={{ marginBottom: '1.5rem', background: 'rgba(0,82,165,0.03)', border: '1.5px solid rgba(0,82,165,0.15)' }}>
+          <div className="flex-between" style={{ marginBottom: '1rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)' }}>📅 My Appointments (Approved & Scheduled)</h3>
+            <button onClick={fetchAppointments} className="glass-button" style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>↻ Refresh</button>
+          </div>
+          {aptLoading ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--charcoal)' }}>Loading appointments...</div>
+          ) : appointments.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--charcoal)' }}>No appointments routed to you currently.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {appointments.map(apt => (
+                <div key={apt.id} style={{ background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)', padding: '1.25rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                      <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--deep-blue)' }}>{apt.patientName}</span>
+                      <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: apt.urgency==='Emergency'?'#FFEBEE':apt.urgency==='Urgent'?'#FFF8E1':'#E0F7FA', color: apt.urgency==='Emergency'?'#C62828':apt.urgency==='Urgent'?'#C07A00':'#0097A7', fontWeight: 700 }}>{apt.urgency}</span>
+                      <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: apt.status==='scheduled'?'#E8F5E9':'#EBF3FF', color: apt.status==='scheduled'?'#2E7D32':'#0052A5', fontWeight: 700 }}>{apt.status.toUpperCase()}</span>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginBottom: '0.75rem' }}>
+                      <strong>Date:</strong> {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})} | <strong>Ref:</strong> {apt.id}
+                    </div>
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 2 }}>PATIENT REASON</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--foreground)' }}>{apt.reason}</div>
+                    </div>
+                    {apt.aiSummary && (
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: 2 }}>AI SUMMARY</div>
+                        <div style={{ fontSize: '0.85rem', padding: '0.5rem', background: 'var(--primary-light)', borderRadius: 6, color: 'var(--deep-blue)' }}>{apt.aiSummary}</div>
+                      </div>
+                    )}
+                    {apt.vitalsSnapshot && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        {[['❤️','HR',`${apt.vitalsSnapshot.hr}`,'#FCA5A5'],['🫁','SpO₂',`${apt.vitalsSnapshot.spo2}%`,'#A5D8FF'],['🩸','BP',`${apt.vitalsSnapshot.sys}/${apt.vitalsSnapshot.dia}`,'#C7D2FE']].map(([em,lb,vl,cl]) => (
+                          <span key={lb as string} style={{ padding: '0.2rem 0.5rem', borderRadius: 6, background: `${cl}22`, border: `1px solid ${cl}66`, fontSize: '0.75rem', fontWeight: 700 }}>{lb}: {vl}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {apt.status === 'approved' && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'scheduled')} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: 'var(--accent-green)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(34,197,94,0.3)' }}>
+                        {aptProcessing === apt.id ? 'Updating…' : '✓ Mark as Scheduled'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Glass Box Panel */}
       {showGlassBox && glassBoxLogs.length > 0 && (

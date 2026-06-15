@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Download, Activity, Clock, ChevronDown, X } from 'lucide-react';
+import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Download, Activity, Clock, ChevronDown, X, ShieldCheck, Link2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
 interface OcrResult {
@@ -21,16 +21,35 @@ function timeAgo(iso: string) {
 function parseVitalsFromMessage(message: string) {
   const params: Record<string, string> = {};
   const hrMatch   = message.match(/hr\s*=\s*([\d.]+)/i);
+  const spo2Match = message.match(/spo2\s*=\s*([\d.]+)/i);
+  const respMatch = message.match(/resp\s*=\s*([\d.]+)/i);
+  const tempMatch = message.match(/temp\s*=\s*([\d.]+)/i);
   const sysMatch  = message.match(/sys\s*=\s*([\d.]+)/i);
   const diaMatch  = message.match(/dia\s*=\s*([\d.]+)/i);
-  const spo2Match = message.match(/spo2\s*=\s*([\d.]+)/i);
-  const tempMatch = message.match(/temp\s*=\s*([\d.]+)/i);
-  if (hrMatch)   params.heart_rate    = hrMatch[1];
-  if (sysMatch)  params.systolic_bp   = sysMatch[1];
-  if (diaMatch)  params.diastolic_bp  = diaMatch[1];
-  if (spo2Match) params.spo2          = spo2Match[1];
-  if (tempMatch) params.temperature   = tempMatch[1];
+  if (hrMatch)   params.heart_rate = hrMatch[1];
+  if (spo2Match) params.spo2       = spo2Match[1];
+  if (respMatch) params.resp       = respMatch[1];
+  if (tempMatch) params.temp       = tempMatch[1];
+  if (sysMatch)  params.sys        = sysMatch[1];
+  if (diaMatch)  params.dia        = diaMatch[1];
   return params;
+}
+
+function extractVitalsDisplay(message: string): { hr?: string; spo2?: string; resp?: string; temp?: string; sys?: string; dia?: string } {
+  const hrMatch   = message.match(/hr=(\d+)/i);
+  const spo2Match = message.match(/spo2=(\d+)/i);
+  const respMatch = message.match(/resp=(\d+)/i);
+  const tempMatch = message.match(/temp=([\d.]+)/i);
+  const sysMatch  = message.match(/sys=(\d+)/i);
+  const diaMatch  = message.match(/dia=(\d+)/i);
+  return {
+    hr:   hrMatch?.[1],
+    spo2: spo2Match?.[1],
+    resp: respMatch?.[1],
+    temp: tempMatch?.[1],
+    sys:  sysMatch?.[1],
+    dia:  diaMatch?.[1],
+  };
 }
 
 export default function HospitalDeskPage() {
@@ -39,11 +58,36 @@ export default function HospitalDeskPage() {
   const [patientId, setPatientId] = useState('P001');
   const [patientData, setPatientData] = useState<any>(null);
   const [patientRecords, setPatientRecords] = useState<any[]>([]);
+  const [abhaStatus, setAbhaStatus] = useState<{ verified: boolean; masked: string | null }>({ verified: false, masked: null });
   const [alerts, setAlerts] = useState<any[]>([]);
   const [criticalPopupAlert, setCriticalPopupAlert] = useState<any>(null);
   const notifiedAlertsRef = useRef<Set<string>>(new Set());
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'scanner' | 'timeline'>('scanner');
+  const [appointments, setAptList] = useState<any[]>([]);
+  const [aptExpanded, setAptExpanded] = useState<string | null>(null);
+  const [aptNote, setAptNote] = useState<Record<string, string>>({});
+  const [aptProcessing, setAptProcessing] = useState<string | null>(null);
+
+  const fetchAllAppointments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/appointments?all=true');
+      if (res.ok) setAptList(await res.json());
+    } catch {}
+  }, []);
+
+  const handleAptAction = async (id: string, status: 'approved' | 'rejected') => {
+    setAptProcessing(id);
+    try {
+      await fetch('/api/appointments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status, hdeskNote: aptNote[id] || '' }),
+      });
+      await fetchAllAppointments();
+      setAptExpanded(null);
+    } finally { setAptProcessing(null); }
+  };
 
   const exportVault = () => {
     const blob = new Blob([JSON.stringify({ patient: patientData, records: patientRecords, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
@@ -86,6 +130,7 @@ export default function HospitalDeskPage() {
     if (role !== 'hdesk') router.push('/');
     fetchAlerts();
     const iv = setInterval(fetchAlerts, 10000);
+    fetchAllAppointments();
     return () => clearInterval(iv);
   }, [router, fetchAlerts]);
 
@@ -99,9 +144,14 @@ export default function HospitalDeskPage() {
         setPatientData(data.patient);
         setPatientRecords(data.records || []);
         setResult(null); setImported(false); setPreview(null); setFile(null); setOcrError(null);
+        // Fetch ABHA status for this patient
+        const ar = await fetch(`/api/abha?patientId=${patientId}`);
+        if (ar.ok) setAbhaStatus(await ar.json());
+        else setAbhaStatus({ verified: false, masked: null });
       } else {
         setPatientData(null);
         setPatientRecords([]);
+        setAbhaStatus({ verified: false, masked: null });
         alert(t('hdesk.patientNotFound'));
       }
     } catch {}
@@ -215,10 +265,20 @@ export default function HospitalDeskPage() {
         </form>
 
         {patientData && (
-          <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'var(--primary-light)', borderRadius: 10, borderLeft: '3px solid var(--primary)', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+          <div style={{ marginTop: '1.25rem', padding: '1rem', background: 'var(--primary-light)', borderRadius: 10, borderLeft: '3px solid var(--primary)', display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--deep-blue)' }}>{patientData.name}</div>
               <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginTop: 2 }}>ID: {patientData.id}</div>
+              {/* ABHA Badge */}
+              {abhaStatus.verified ? (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', fontSize: '0.75rem', fontWeight: 700, color: '#16a34a' }}>
+                  <ShieldCheck size={12} /> ABHA: {abhaStatus.masked}
+                </div>
+              ) : (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'rgba(251,191,36,0.12)', border: '1px dashed rgba(251,191,36,0.6)', fontSize: '0.75rem', fontWeight: 700, color: '#d97706' }}>
+                  <Link2 size={12} /> {t('abha.notLinked')}
+                </div>
+              )}
             </div>
             <div>
               <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)' }}>{t('hdesk.dob')} <strong>{patientData.dob}</strong></div>
@@ -253,7 +313,11 @@ export default function HospitalDeskPage() {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-            {alerts.map((a: any) => (
+            {alerts.map((a: any) => {
+              const snap = extractVitalsDisplay(a.message || '');
+              const cleanMsg = (a.message || '').replace(/\s*\|.*$/, ''); // strip vitals tag
+              const hasSnap = snap.hr || snap.spo2 || snap.resp || snap.temp || snap.sys;
+              return (
               <div key={a.id} className="fade-in"
                 onClick={() => {
                   const parsed = parseVitalsFromMessage(a.message);
@@ -272,12 +336,97 @@ export default function HospitalDeskPage() {
                   <span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>{timeAgo(a.created_at)}</span>
                 </div>
                 <div style={{ fontSize: '0.9rem', color: 'var(--foreground)', fontWeight: 600, marginBottom: '0.2rem' }}>{a.title}</div>
-                <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginBottom: '0.75rem', lineHeight: 1.5 }}>{a.message}</p>
+                <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginBottom: hasSnap ? '0.5rem' : '0.75rem', lineHeight: 1.5 }}>{cleanMsg}</p>
+                {hasSnap && (
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                    {snap.hr   && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(252,165,165,0.25)', border: '1px solid rgba(252,165,165,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>❤️ {snap.hr} BPM</span>}
+                    {snap.spo2 && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(165,216,255,0.25)', border: '1px solid rgba(165,216,255,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>🫁 {snap.spo2}% SpO₂</span>}
+                    {snap.resp && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(134,239,172,0.25)', border: '1px solid rgba(134,239,172,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>💨 {snap.resp} bpm</span>}
+                    {snap.temp && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(253,230,138,0.25)', border: '1px solid rgba(253,230,138,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>🌡️ {snap.temp}°C</span>}
+                    {snap.sys  && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(199,210,254,0.25)', border: '1px solid rgba(199,210,254,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>🩸 {snap.sys}/{snap.dia} mmHg</span>}
+                  </div>
+                )}
                 <button onClick={(e) => { e.stopPropagation(); markAlertRead(a.id); }} className="glass-button" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>
                   {t('hdesk.markRead')}
                 </button>
               </div>
-            ))}
+            );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* General Appointments Module */}
+      <section className="glass-panel slide-up stagger-2" style={{ marginBottom: '1.5rem' }}>
+        <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>📅 Appointment Requests</h3>
+          <button onClick={fetchAllAppointments} className="glass-button" style={{ fontSize: '0.78rem', padding: '0.3rem 0.7rem' }}>↻ Refresh</button>
+        </div>
+        {appointments.length === 0 ? (
+          <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>No appointment requests yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {appointments.map(apt => {
+              const urgColors: Record<string, {color:string;bg:string}> = { Routine:{color:'#0097A7',bg:'#E0F7FA'}, Urgent:{color:'#C07A00',bg:'#FFF8E1'}, Emergency:{color:'#C62828',bg:'#FFEBEE'} };
+              const uc = urgColors[apt.urgency] || urgColors.Routine;
+              const stColor = apt.status === 'approved' ? '#0052A5' : apt.status === 'scheduled' ? '#2E7D32' : apt.status === 'rejected' ? '#C62828' : apt.status === 'cancelled' ? '#71717A' : '#C07A00';
+              const stBg    = apt.status === 'approved' ? '#EBF3FF' : apt.status === 'scheduled' ? '#E8F5E9' : apt.status === 'rejected' ? '#FFEBEE' : apt.status === 'cancelled' ? '#F4F4F5' : '#FFF8E1';
+              const isEx = aptExpanded === apt.id;
+              return (
+                <div key={apt.id} style={{ borderRadius: 12, border: `1.5px solid ${isEx ? 'var(--primary)' : 'var(--border)'}`, overflow: 'hidden', transition: 'border-color 0.2s' }}>
+                  <div onClick={() => setAptExpanded(isEx ? null : apt.id)} style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', background: isEx ? 'var(--primary-light)' : 'var(--surface)', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 180 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--deep-blue)' }}>{apt.patientName}</span>
+                        <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.55rem', borderRadius: 20, background: uc.bg, color: uc.color, fontWeight: 700, border: `1px solid ${uc.color}44` }}>{apt.urgency}</span>
+                        <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.55rem', borderRadius: 20, background: stBg, color: stColor, fontWeight: 700 }}>{apt.status.charAt(0).toUpperCase()+apt.status.slice(1)}</span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)' }}>→ {apt.doctorName} · {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--foreground-muted)' }}>{new Date(apt.createdAt).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+                  </div>
+                  {isEx && (
+                    <div style={{ padding: '1.25rem', borderTop: '1px solid var(--border)', background: 'var(--surface)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>PATIENT</div><div style={{ fontWeight: 700 }}>{apt.patientName} · <span style={{ fontFamily: 'monospace', color: 'var(--primary)', fontSize: '0.85rem' }}>{apt.patientId}</span></div></div>
+                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>DOCTOR</div><div style={{ fontWeight: 700 }}>{apt.doctorName}</div><div style={{ fontSize: '0.78rem', color: 'var(--charcoal)' }}>{apt.doctorSpecialty}</div></div>
+                      </div>
+                      <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>PATIENT REASON</div><div style={{ fontSize: '0.88rem', lineHeight: 1.6, padding: '0.6rem 0.85rem', background: 'var(--surface-muted)', borderRadius: 8 }}>{apt.reason}</div></div>
+                      <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>AI CLINICAL SUMMARY</div><div style={{ fontSize: '0.85rem', lineHeight: 1.6, padding: '0.6rem 0.85rem', background: 'rgba(0,82,165,0.05)', border: '1px solid rgba(0,82,165,0.15)', borderRadius: 8 }}>{apt.aiSummary || '—'}</div></div>
+                      {apt.vitalsSnapshot && (
+                        <div style={{ marginBottom: '0.75rem' }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>⚡ VITALS AT SUBMISSION</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                            {[['❤️','HR',`${apt.vitalsSnapshot.hr} BPM`,'#FCA5A5'],['🫁','SpO₂',`${apt.vitalsSnapshot.spo2}%`,'#A5D8FF'],['💨','Resp',`${apt.vitalsSnapshot.resp} bpm`,'#86EFAC'],['🌡️','Temp',`${apt.vitalsSnapshot.temp}°C`,'#FDE68A'],['🩸','BP',`${apt.vitalsSnapshot.sys}/${apt.vitalsSnapshot.dia}`,'#C7D2FE']].map(([em,lb,vl,cl]) => (
+                              <span key={lb as string} style={{ padding: '0.25rem 0.6rem', borderRadius: 8, background: `${cl}22`, border: `1px solid ${cl}66`, fontSize: '0.77rem', fontWeight: 700 }}>{em} {lb}: {vl}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {apt.attachments?.length > 0 && (
+                        <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>ATTACHMENTS</div><div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>{apt.attachments.map((a:any, i:number) => <span key={i} style={{ padding: '0.2rem 0.6rem', borderRadius: 8, background: 'var(--surface-muted)', border: '1px solid var(--border)', fontSize: '0.78rem' }}>{a.type === 'image' ? '🖼' : '📄'} {a.name}</span>)}</div></div>
+                      )}
+                      {apt.status === 'pending' && (
+                        <>
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: 4 }}>Note to Patient (optional)</label>
+                            <textarea value={aptNote[apt.id] || ''} onChange={e => setAptNote(p => ({...p, [apt.id]: e.target.value}))} rows={2} placeholder="Add a note or instructions for the patient…" style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+                            <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'rejected')} style={{ padding: '0.5rem 1.1rem', borderRadius: 8, background: '#FFEBEE', border: '1px solid rgba(198,40,40,0.3)', color: '#C62828', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+                              {aptProcessing === apt.id ? '…' : '✕ Reject'}
+                            </button>
+                            <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'approved')} style={{ padding: '0.5rem 1.25rem', borderRadius: 8, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(0,82,165,0.25)' }}>
+                              {aptProcessing === apt.id ? '…' : '✓ Approve & Route to Doctor'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
@@ -287,11 +436,19 @@ export default function HospitalDeskPage() {
           {patientData && (
             <>
               {/* Tab switcher */}
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 {(['scanner', 'timeline'] as const).map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)}
-                    style={{ padding: '0.45rem 1rem', borderRadius: 8, border: `1.5px solid ${activeTab === tab ? 'var(--primary)' : 'var(--border)'}`, background: activeTab === tab ? 'var(--primary-light)' : 'var(--surface)', color: activeTab === tab ? 'var(--primary)' : 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s' }}>
-                    {tab === 'scanner' ? t('hdesk.scanner') : t('hdesk.timeline')}
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      padding: '0.45rem 1rem', borderRadius: 8, border: `1.5px solid ${activeTab === tab ? 'var(--primary)' : 'var(--border)'}`,
+                      background: activeTab === tab ? 'var(--primary)' : 'var(--surface)',
+                      color: activeTab === tab ? 'white' : 'var(--charcoal)',
+                      fontWeight: 600, fontSize: '0.83rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem',
+                    }}
+                  >
+                    {tab === 'scanner' ? '📷 Scanner' : '📋 Timeline'}
                   </button>
                 ))}
               </div>

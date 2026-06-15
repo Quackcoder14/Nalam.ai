@@ -24,11 +24,13 @@ model Patient {
   consent_emergency   Boolean         @default(false)
   consent_specialist  Boolean         @default(false)
   consent_research    Boolean         @default(false)
+  abha_id_enc         String?         @db.Text
   created_at          DateTime        @default(now())
   updated_at          DateTime        @updatedAt
 
   records             MedicalRecord[]
   auditLogs           AuditLog[]
+  appointments        Appointment[]
 
   @@map("patients")
 }
@@ -91,4 +93,30 @@ model ClinicalAlert {
 
   @@index([patient_id, is_read])
   @@map("clinical_alerts")
+}
+
+// ─── Appointments ────────────────────────────────────────────────────────────
+model Appointment {
+  id                String    @id @default(cuid())
+  patient_id        String
+  doctor_id         String
+  doctor_name       String
+  doctor_specialty  String
+  hospital          String
+  date              String
+  reason_enc        String    @db.Text
+  urgency           String
+  vitals_json       String?   @db.Text
+  attachments_json  String?   @db.Text
+  status            String    @default("pending")
+  ai_summary_enc    String?   @db.Text
+  hdesk_note_enc    String?   @db.Text
+  created_at        DateTime  @default(now())
+  approved_at       DateTime?
+  scheduled_at      DateTime?
+
+  patient           Patient   @relation(fields: [patient_id], references: [id])
+
+  @@index([patient_id, status])
+  @@map("appointments")
 }

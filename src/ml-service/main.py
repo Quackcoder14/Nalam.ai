@@ -88,21 +88,21 @@ class VectorizeRequest(BaseModel):
 class VitalsPayload(BaseModel):
     """Real-time vital signs for anomaly detection."""
     heart_rate:   Optional[float] = None
-    systolic_bp:  Optional[float] = None
-    diastolic_bp: Optional[float] = None
+    sys:          Optional[float] = None
+    dia:          Optional[float] = None
     spo2:         Optional[float] = None
-    temperature:  Optional[float] = None
-    glucose:      Optional[float] = None
+    temp:         Optional[float] = None
+    resp:         Optional[float] = None
     patient_id:   Optional[str]   = None  # for audit purposes
 
 class XAIRequest(BaseModel):
     """Vital signs + optional extra features for XAI explanation."""
     heart_rate:       Optional[float] = None
-    systolic_bp:      Optional[float] = None
-    diastolic_bp:     Optional[float] = None
+    sys:              Optional[float] = None
+    dia:              Optional[float] = None
     spo2:             Optional[float] = None
-    temperature:      Optional[float] = None
-    glucose:          Optional[float] = None
+    temp:             Optional[float] = None
+    resp:             Optional[float] = None
     age:              Optional[float] = None
     bmi:              Optional[float] = None
     cholesterol:      Optional[float] = None
