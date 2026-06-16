@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: nalam-ml-service
+    runtime: python
+    rootDir: src/ml-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false          # Set manually in Render dashboard
+      - key: ALLOWED_ORIGINS
+        sync: false          # Set to your Vercel URL, e.g. https://your-app.vercel.app
+      - key: ENCRYPTION_KEY
+        sync: false          # Must match your Vercel / .env value
+      - key: DATABASE_URL
+        sync: false          # Same Supabase URL from .env

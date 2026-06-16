@@ -44,10 +44,15 @@ from xai.explainer import explain_vitals
 
 app = FastAPI(title="nalam.ai ML Service", version="2.1.0")
 
-# Allow Next.js dev server to call the ML service
+# Allow Next.js dev server and Vercel deployment to call the ML service
+# Set ALLOWED_ORIGINS env var on Render to your Vercel domain, e.g.:
+#   ALLOWED_ORIGINS=https://your-app.vercel.app,http://localhost:3000
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
