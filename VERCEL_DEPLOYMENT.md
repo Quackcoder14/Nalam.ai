@@ -35,20 +35,20 @@ git push -u origin main
 
 This is the most critical step. Vercel needs to know your database credentials and API keys just like your local `.env` file.
 
-Expand the **Environment Variables** dropdown and copy all the keys from your local `.env` file. 
-
 You must include the following keys:
 
 | Variable Name | Description / Where to find it |
 |---|---|
 | `DATABASE_URL` | Your Supabase connection string (must use the connection pooling URL, usually port `6543`). |
 | `DIRECT_URL` | Your Supabase direct connection string (usually port `5432`). Needed by Prisma. |
-| `ENCRYPTION_KEY` | Your 32-character encryption key (e.g., `0123456789abcdef0123456789abcdef`). **Must be the same as local** so you can decrypt existing data. |
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your Supabase Anon Key. |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Your Gemini API key for AI summaries and features. |
+| `ENCRYPTION_KEY` | Your 32-character encryption key. **Must be the same as local** so you can decrypt existing data. |
+| `GROQ_API_KEY` | Your Groq API key (used for all LLM/AI features). |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | (Optional) Your public key for web push notifications. |
+| `VAPID_PRIVATE_KEY` | (Optional) Your private key for web push notifications. |
+| `VAPID_EMAIL` | (Optional) Your email for web push notifications. |
+| `ML_SERVICE_URL` | (Optional) The URL of your ML backend. |
 
-*(Note: Never check your `.env` file into GitHub. Only provide them securely via the Vercel dashboard!)*
+*(Note: Never check your `.env` or `.env.local` files into GitHub. Only provide them securely via the Vercel dashboard!)*
 
 ## Step 4: Build Settings (Prisma)
 
