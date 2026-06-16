@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Download, Activity, Clock, ChevronDown, X, ShieldCheck, Link2 } from 'lucide-react';
+import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Download, Activity, Clock, ChevronDown, X, ShieldCheck, Link2, MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
 interface OcrResult {
@@ -245,6 +245,9 @@ export default function HospitalDeskPage() {
           <button className="glass-button" onClick={() => router.push('/search')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Search size={15} /> {t('hdesk.searchRecords')}
           </button>
+          <button onClick={() => router.push('/hospital-desk/chat')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary-light)', color: 'var(--primary)', borderColor: 'var(--primary)' }}>
+            <MessageSquare size={15} /> Patient Chat
+          </button>
           {patientData && (
             <button className="glass-button" onClick={exportVault} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderColor: 'var(--powder-blue-dark)' }}>
               <Download size={15} /> {t('hdesk.exportFHIR')}
@@ -436,21 +439,14 @@ export default function HospitalDeskPage() {
           {patientData && (
             <>
               {/* Tab switcher */}
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                {(['scanner', 'timeline'] as const).map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    style={{
-                      padding: '0.45rem 1rem', borderRadius: 8, border: `1.5px solid ${activeTab === tab ? 'var(--primary)' : 'var(--border)'}`,
-                      background: activeTab === tab ? 'var(--primary)' : 'var(--surface)',
-                      color: activeTab === tab ? 'white' : 'var(--charcoal)',
-                      fontWeight: 600, fontSize: '0.83rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem',
-                    }}
-                  >
-                    {tab === 'scanner' ? '📷 Scanner' : '📋 Timeline'}
-                  </button>
-                ))}
+              {/* Header Tabs */}
+              <div className="slide-up" style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                <button onClick={() => setActiveTab('scanner')} className="glass-button" style={{ background: activeTab === 'scanner' ? 'var(--primary)' : 'transparent', color: activeTab === 'scanner' ? 'white' : 'var(--charcoal)', border: activeTab === 'scanner' ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                  <ScanLine size={16} /> {t('hdesk.recordScanner')}
+                </button>
+                <button onClick={() => setActiveTab('timeline')} className="glass-button" style={{ background: activeTab === 'timeline' ? 'var(--primary)' : 'transparent', color: activeTab === 'timeline' ? 'white' : 'var(--charcoal)', border: activeTab === 'timeline' ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                  <Activity size={16} /> Patient Timeline
+                </button>
               </div>
 
               {/* Document Scanner */}

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Activity, BellRing, Network, Heart, Clock, Eye, ChevronDown, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, X, Link2, ShieldCheck, Calendar, ClipboardList } from 'lucide-react';
+import { Shield, Activity, BellRing, Network, Heart, Clock, Eye, ChevronDown, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, X, Link2, ShieldCheck, Calendar, ClipboardList, MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import VoiceTriage from '../components/VoiceTriage';
 
@@ -58,35 +58,36 @@ function ConsentToggle({ label, desc, active, onToggle }: { label: string; desc:
 
 export default function PatientDashboard() {
   const { t, lang } = useLanguage();
-  const [patient, setPatient]         = useState<any>(null);
-  const [records, setRecords]         = useState<any[]>([]);
-  const [consent, setConsent]         = useState<ConsentState>({ emergency: false, specialist: false, research: false });
-  const [auditLog, setAuditLog]       = useState<AuditEntry[]>([]);
-  const [showAudit, setShowAudit]     = useState(false);
+  const [patient, setPatient] = useState<any>(null);
+  const [records, setRecords] = useState<any[]>([]);
+  const [consent, setConsent] = useState<ConsentState>({ emergency: false, specialist: false, research: false });
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [showAudit, setShowAudit] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
-  const [intervention, setIntervention]     = useState<any>(null);
-  const [fhirData, setFhirData]             = useState<any>(null);
-  const [fhirLoading, setFhirLoading]       = useState(false);
+  const [intervention, setIntervention] = useState<any>(null);
+  const [fhirData, setFhirData] = useState<any>(null);
+  const [fhirLoading, setFhirLoading] = useState(false);
 
   // ABHA ID state
-  const [abha, setAbha]                     = useState<{ verified: boolean; masked: string | null }>({ verified: false, masked: null });
-  const [showAbhaModal, setShowAbhaModal]   = useState(false);
-  const [abhaInput, setAbhaInput]           = useState('');
-  const [abhaSaving, setAbhaSaving]         = useState(false);
-  const [abhaError, setAbhaError]           = useState<string | null>(null);
+  const [abha, setAbha] = useState<{ verified: boolean; masked: string | null }>({ verified: false, masked: null });
+  const [showAbhaModal, setShowAbhaModal] = useState(false);
+  const [abhaInput, setAbhaInput] = useState('');
+  const [abhaSaving, setAbhaSaving] = useState(false);
+  const [abhaError, setAbhaError] = useState<string | null>(null);
 
-  const [baseVitals, setBaseVitals]   = useState({ hr: 72, spo2: 98, resp: 16, temp: 36.6, sys: 120, dia: 80 });
-  const [vitals, setVitals]           = useState({ hr: 72, spo2: 98, resp: 16, temp: 36.6, sys: 120, dia: 80 });
+  const [baseVitals, setBaseVitals] = useState({ hr: 72, spo2: 98, resp: 16, temp: 36.6, sys: 120, dia: 80 });
+  const [vitals, setVitals] = useState({ hr: 72, spo2: 98, resp: 16, temp: 36.6, sys: 120, dia: 80 });
   const vitalsRef = useRef(vitals);
 
-  const [anomaly, setAnomaly]         = useState<any>(null);
-  const [anomalyLoading, setAL]       = useState(false);
-  const [showPopup, setShowPopup]     = useState(false);
+  const [anomaly, setAnomaly] = useState<any>(null);
+  const [anomalyLoading, setAL] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
 
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [demoScenario, setDemoScenario] = useState<string | null>(null);
-  const anomalyRef                    = useRef<any>(null);
+  const [chatUnread, setChatUnread] = useState(0);
+  const anomalyRef = useRef<any>(null);
   const router = useRouter();
 
   useEffect(() => { vitalsRef.current = vitals; }, [vitals]);
@@ -94,12 +95,12 @@ export default function PatientDashboard() {
   useEffect(() => {
     const iv = setInterval(() => {
       setVitals({
-        hr:   Math.max(45,  Math.min(200, baseVitals.hr   + Math.floor(Math.random() * 5) - 2)),
-        spo2: Math.max(88,  Math.min(100, baseVitals.spo2 + (Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0))),
-        resp: Math.max(10,  Math.min(40,  baseVitals.resp + Math.floor(Math.random() * 3) - 1)),
+        hr: Math.max(45, Math.min(200, baseVitals.hr + Math.floor(Math.random() * 5) - 2)),
+        spo2: Math.max(88, Math.min(100, baseVitals.spo2 + (Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0))),
+        resp: Math.max(10, Math.min(40, baseVitals.resp + Math.floor(Math.random() * 3) - 1)),
         temp: parseFloat(Math.max(35, Math.min(41, baseVitals.temp + (Math.random() * 0.2 - 0.1))).toFixed(1)),
-        sys:  Math.max(70,  Math.min(250, baseVitals.sys  + Math.floor(Math.random() * 5) - 2)),
-        dia:  Math.max(40,  Math.min(150, baseVitals.dia  + Math.floor(Math.random() * 4) - 2)),
+        sys: Math.max(70, Math.min(250, baseVitals.sys + Math.floor(Math.random() * 5) - 2)),
+        dia: Math.max(40, Math.min(150, baseVitals.dia + Math.floor(Math.random() * 4) - 2)),
       });
     }, 2000);
     return () => clearInterval(iv);
@@ -117,7 +118,7 @@ export default function PatientDashboard() {
       if (data.is_anomaly && pushEnabled) {
         let alertTitle = data.severity === 'critical' ? '🚨 Critical Vital Anomaly' : '⚠️ Vital Anomaly Detected';
         if (lang === 'ta') {
-           alertTitle = data.severity === 'critical' ? '🚨 முக்கியமான முக்கிய முரண்பாடு (Critical Vital Anomaly)' : '⚠️ முக்கிய முரண்பாடு கண்டறியப்பட்டது';
+          alertTitle = data.severity === 'critical' ? '🚨 முக்கியமான முக்கிய முரண்பாடு (Critical Vital Anomaly)' : '⚠️ முக்கிய முரண்பாடு கண்டறியப்பட்டது';
         }
         // Embed vitals snapshot so hospital desk can display them
         const vSnap = vitalsRef.current;
@@ -142,9 +143,9 @@ export default function PatientDashboard() {
   const runDemo = (scenario: string) => {
     setDemoScenario(scenario);
     let newBase = { hr: 72, spo2: 98, resp: 16, temp: 36.6, sys: 120, dia: 80 };
-    if (scenario === 'tachycardia')  newBase = { hr: 135, spo2: 97, resp: 22, temp: 37.1, sys: 125, dia: 82 };
-    if (scenario === 'hypoxemia')    newBase = { hr: 95,  spo2: 91, resp: 28, temp: 37.2, sys: 130, dia: 85 };
-    if (scenario === 'hypertension') newBase = { hr: 88,  spo2: 98, resp: 18, temp: 36.9, sys: 185, dia: 115 };
+    if (scenario === 'tachycardia') newBase = { hr: 135, spo2: 97, resp: 22, temp: 37.1, sys: 125, dia: 82 };
+    if (scenario === 'hypoxemia') newBase = { hr: 95, spo2: 91, resp: 28, temp: 37.2, sys: 130, dia: 85 };
+    if (scenario === 'hypertension') newBase = { hr: 88, spo2: 98, resp: 18, temp: 36.9, sys: 185, dia: 115 };
     setBaseVitals(newBase); setVitals(newBase); checkAnomaly(newBase);
   };
 
@@ -159,6 +160,12 @@ export default function PatientDashboard() {
       if (!r.ok) return;
       const d = await r.json();
       setAuditLog(d.entries || []);
+
+      const unRes = await fetch('/api/chat/unread?patientId=P001&role=patient');
+      if (unRes.ok) {
+        const unData = await unRes.json();
+        setChatUnread(unData.unreadCount || 0);
+      }
     } catch { }
   }, []);
 
@@ -249,7 +256,7 @@ export default function PatientDashboard() {
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
               <button onClick={() => { setShowAbhaModal(false); setAbhaError(null); setAbhaInput(''); }} className="glass-button">{t('abha.cancel')}</button>
               <button
-                disabled={abhaSaving || abhaInput.replace(/[^0-9]/g,'').length !== 14}
+                disabled={abhaSaving || abhaInput.replace(/[^0-9]/g, '').length !== 14}
                 onClick={async () => {
                   setAbhaSaving(true); setAbhaError(null);
                   try {
@@ -261,7 +268,7 @@ export default function PatientDashboard() {
                   } catch { setAbhaError(t('abha.error')); }
                   finally { setAbhaSaving(false); }
                 }}
-                style={{ padding: '0.65rem 1.5rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.9rem', cursor: abhaInput.replace(/[^0-9]/g,'').length !== 14 ? 'not-allowed' : 'pointer', opacity: abhaInput.replace(/[^0-9]/g,'').length !== 14 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                style={{ padding: '0.65rem 1.5rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.9rem', cursor: abhaInput.replace(/[^0-9]/g, '').length !== 14 ? 'not-allowed' : 'pointer', opacity: abhaInput.replace(/[^0-9]/g, '').length !== 14 ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
               >
                 {abhaSaving ? <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid white', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> : <ShieldCheck size={15} />}
                 {abhaSaving ? t('abha.saving') : t('abha.save')}
@@ -282,13 +289,13 @@ export default function PatientDashboard() {
               <button onClick={() => setFhirData(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--foreground-muted)' }}><X size={20} /></button>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginTop: '1rem', marginBottom: '1rem' }}>{t('dashboard.fhirDesc')}</p>
-            
+
             <div style={{ flex: 1, overflow: 'hidden', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)' }}>
               <pre style={{ width: '100%', height: '100%', overflow: 'auto', padding: '1rem', fontSize: '0.8rem', color: 'var(--foreground)', margin: 0, fontFamily: 'monospace' }}>
                 {JSON.stringify(fhirData, null, 2)}
               </pre>
             </div>
-            
+
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', justifyContent: 'flex-end' }}>
               <button onClick={() => setFhirData(null)} className="glass-button" style={{ color: 'var(--charcoal)' }}>{t('dashboard.cancelFHIR')}</button>
               <button onClick={() => {
@@ -347,6 +354,14 @@ export default function PatientDashboard() {
           <button className="glass-button" onClick={() => { setShowAudit(p => !p); fetchAudit(); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Clock size={15} /> {t('dashboard.auditLog')}
           </button>
+          <button className="glass-button" onClick={() => router.push('/dashboard/chat')} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.4rem', borderColor: 'var(--primary)', color: 'var(--primary)', background: 'var(--primary-light)' }}>
+            <MessageSquare size={15} /> Chat with us
+            {chatUnread > 0 && (
+              <span style={{ position: 'absolute', top: -6, right: -6, background: 'var(--accent-red)', color: 'white', fontSize: '0.65rem', fontWeight: 800, padding: '0.1rem 0.4rem', borderRadius: 10, border: '2px solid white', animation: 'pulseGlow 2s infinite' }}>
+                {chatUnread}
+              </span>
+            )}
+          </button>
           <button
             id="push-toggle"
             disabled={pushLoading}
@@ -376,10 +391,10 @@ export default function PatientDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
           {[
             { label: t('dashboard.heartRate'), value: `${vitals.hr}`, unit: 'BPM', color: '#FCA5A5', icon: Heart, pulse: true },
-            { label: t('dashboard.spo2'),      value: `${vitals.spo2}`, unit: '%',  color: '#A5D8FF', icon: Activity, pulse: false },
-            { label: 'Resp Rate',              value: `${vitals.resp}`, unit: 'bpm',color: '#86EFAC', icon: Activity, pulse: false },
-            { label: 'Temperature',            value: `${vitals.temp}`, unit: '°C', color: '#FDE68A', icon: Activity, pulse: false },
-            { label: 'Blood Pressure',         value: `${vitals.sys}/${vitals.dia}`, unit: 'mmHg', color: '#C7D2FE', icon: Activity, pulse: false },
+            { label: t('dashboard.spo2'), value: `${vitals.spo2}`, unit: '%', color: '#A5D8FF', icon: Activity, pulse: false },
+            { label: 'Resp Rate', value: `${vitals.resp}`, unit: 'bpm', color: '#86EFAC', icon: Activity, pulse: false },
+            { label: 'Temperature', value: `${vitals.temp}`, unit: '°C', color: '#FDE68A', icon: Activity, pulse: false },
+            { label: 'Blood Pressure', value: `${vitals.sys}/${vitals.dia}`, unit: 'mmHg', color: '#C7D2FE', icon: Activity, pulse: false },
           ].map(({ label, value, unit, color, icon: Icon, pulse }) => (
             <div key={label} style={{ background: `${color}18`, border: `1px solid ${color}44`, borderRadius: 11, padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, animation: pulse ? 'pulseGlow 1.5s infinite' : 'none' }}>

@@ -31,6 +31,7 @@ model Patient {
   records             MedicalRecord[]
   auditLogs           AuditLog[]
   appointments        Appointment[]
+  messages            ChatMessage[]
 
   @@map("patients")
 }
@@ -119,4 +120,21 @@ model Appointment {
 
   @@index([patient_id, status])
   @@map("appointments")
+}
+
+// ─── Chat Messages ───────────────────────────────────────────────────────────
+model ChatMessage {
+  id           String   @id @default(cuid())
+  patient_id   String
+  hospital     String
+  sender       String   // "patient" | "desk"
+  type         String   @default("text") // "text", "voice", "image", "file"
+  content_enc  String   @db.Text
+  is_read      Boolean  @default(false)
+  created_at   DateTime @default(now())
+
+  patient      Patient  @relation(fields: [patient_id], references: [id])
+
+  @@index([patient_id, hospital])
+  @@map("chat_messages")
 }
