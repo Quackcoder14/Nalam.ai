@@ -2,7 +2,8 @@
 vectorstore/chroma_store.py
 ---------------------------
 ChromaDB wrapper for nalam.ai patient record embeddings.
-Uses sentence-transformers/all-MiniLM-L6-v2 for local, offline embeddings.
+Uses ChromaDB's built-in ONNX MiniLM embedding (no PyTorch required) for
+low-memory deployment on Render free tier (~70MB vs ~700MB with sentence-transformers).
 Connects to a Chroma HTTP server (Docker) with a PersistentClient fallback.
 """
 
@@ -11,8 +12,7 @@ import logging
 from typing import List, Dict, Any
 
 import chromadb
-from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +23,11 @@ _collection = None
 _embedder = None
 
 
-def _get_embedder() -> SentenceTransformer:
+def _get_embedder() -> ONNXMiniLM_L6_V2:
     global _embedder
     if _embedder is None:
-        logger.info("Loading sentence-transformer model all-MiniLM-L6-v2 ...")
-        _embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        logger.info("Loading ONNX MiniLM-L6-v2 embedder (no PyTorch) ...")
+        _embedder = ONNXMiniLM_L6_V2()
         logger.info("Embedder ready.")
     return _embedder
 
@@ -61,7 +61,7 @@ def get_collection():
 def upsert_records(patient_id: str, records: List[Dict[str, Any]]) -> int:
     """
     Vectorise and upsert patient medical records into Chroma.
-    Each record becomes one document; embeddings are generated locally.
+    Each record becomes one document; embeddings are generated via ONNX MiniLM.
     Returns the number of records upserted.
     """
     if not records:
@@ -89,7 +89,7 @@ def upsert_records(patient_id: str, records: List[Dict[str, Any]]) -> int:
             "diagnosis": r.get("diagnosis", ""),
         })
 
-    embeddings = embedder.encode(documents, show_progress_bar=False).tolist()
+    embeddings = embedder(documents)
     collection.upsert(ids=ids, documents=documents, embeddings=embeddings, metadatas=metadatas)
     logger.info(f"Upserted {len(documents)} records for patient {patient_id}.")
     return len(documents)
@@ -107,7 +107,7 @@ def semantic_search(
     collection = get_collection()
     embedder = _get_embedder()
 
-    query_embedding = embedder.encode([query], show_progress_bar=False).tolist()
+    query_embedding = embedder([query])
 
     results = collection.query(
         query_embeddings=query_embedding,
