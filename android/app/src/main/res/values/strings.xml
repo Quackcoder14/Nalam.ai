@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nalam.ai</string>
+    <string name="title_activity_main">Nalam.ai</string>
+    <string name="package_name">ai.nalam.app</string>
+    <string name="custom_url_scheme">ai.nalam.app</string>
+</resources>

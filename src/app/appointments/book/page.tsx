@@ -276,7 +276,7 @@ export default function BookAppointment() {
         </button>
         <div style={{ flex: 1 }}>
           <h2 style={{ fontSize: '1.6rem', marginBottom: 0 }}>📅 Book Appointment</h2>
-          <p style={{ color: 'var(--charcoal)', fontSize: '0.88rem' }}>Request an appointment with a Sentinel-connected doctor</p>
+          <p style={{ color: 'var(--charcoal)', fontSize: '0.88rem' }}>Request an appointment with a Nalam.ai-connected doctor</p>
         </div>
       </div>
 

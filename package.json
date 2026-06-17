@@ -1,5 +1,5 @@
 {
-  "name": "sentinel",
+  "name": "nalam",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,13 +10,15 @@
     "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
     "@google/genai": "^1.50.1",
     "@prisma/client": "^5.22.0",
     "@types/web-push": "^3.6.4",
     "framer-motion": "^12.38.0",
     "groq-sdk": "^1.1.2",
     "lucide-react": "^1.13.0",
-    "next": "16.2.4",
+    "next": "^16.2.9",
     "papaparse": "^5.5.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -25,6 +27,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.39",
     "@types/papaparse": "^5.5.2",

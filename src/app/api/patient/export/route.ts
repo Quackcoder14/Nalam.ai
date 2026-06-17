@@ -96,7 +96,7 @@ export async function GET(request: Request) {
       resource: {
         resourceType: 'Practitioner',
         id: practitionerId,
-        name: [{ text: 'Sentinel Automated System' }]
+        name: [{ text: 'Nalam.ai Automated System' }]
       }
     });
 

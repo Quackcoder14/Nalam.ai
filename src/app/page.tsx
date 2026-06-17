@@ -94,11 +94,10 @@ export default function HomePage() {
 
   /* ── LANGUAGE SELECTION ── */
   if (phase === 'language') return (
-    <div style={{
+    <div className="mobile-pad" style={{
       minHeight: '100vh',
       background: 'linear-gradient(150deg, #001d5c 0%, #0052A5 55%, #0097A7 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '2rem',
       opacity: langFading ? 0 : 1,
       transition: 'opacity 0.4s ease',
     }}>
@@ -168,11 +167,11 @@ export default function HomePage() {
 
   /* ── LOGIN ── */
   return (
-    <div style={{
+    <div className="mobile-pad" style={{
       minHeight: '100vh',
       background: 'linear-gradient(150deg, #EBF4FF 0%, #F0FBFF 60%, #FFF8F2 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '2rem', animation: 'fadeIn 0.7s ease',
+      animation: 'fadeIn 0.7s ease',
     }}>
       <div style={{ width: '100%', maxWidth: 860 }}>
         {/* Brand header */}
@@ -231,7 +230,7 @@ export default function HomePage() {
           </div>
         ) : (
           /* ── Credentials form ── */
-          <div style={{ maxWidth: 430, margin: '0 auto', background: 'white', borderRadius: 22, padding: '2.5rem', boxShadow: '0 8px 40px rgba(0,82,165,0.1)', animation: 'slideUp 0.4s ease' }}>
+          <div className="mobile-pad" style={{ maxWidth: 430, margin: '0 auto', background: 'white', borderRadius: 22, boxShadow: '0 8px 40px rgba(0,82,165,0.1)', animation: 'slideUp 0.4s ease' }}>
             <button onClick={() => setLoginType(null)} style={{ background: 'none', border: 'none', color: '#4A5568', cursor: 'pointer', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.88rem', padding: 0, fontFamily: 'inherit' }}>
               {t('login.back')}
             </button>

@@ -30,7 +30,7 @@
 ## Repository Structure
 
 ```
-sentinel/
+nalam-ai/
 ├── src/                        # Next.js application (App Router)
 │   ├── app/                    # Pages and API routes
 │   │   ├── page.tsx            # Splash + Login page
@@ -134,7 +134,7 @@ docker-compose down
 ```bash
 # 1. Clone the repo
 git clone https://github.com/your-team/nalam-ai.git
-cd nalam-ai/sentinel
+cd nalam-ai/web
 
 # 2. Install dependencies
 npm install

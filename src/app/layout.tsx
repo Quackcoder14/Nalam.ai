@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import ClientNav from './components/ClientNav';
@@ -13,6 +13,15 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'nalam.ai — Your Longitudinal Health Memory',
   description: 'An AI-powered, privacy-preserving patient memory layer that follows you across every provider.',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#0052A5',
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

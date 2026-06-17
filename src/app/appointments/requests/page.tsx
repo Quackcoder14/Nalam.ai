@@ -159,7 +159,7 @@ export default function ViewRequests() {
         <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', color: 'var(--charcoal)' }}>
           <Calendar size={40} style={{ marginBottom: '1rem', opacity: 0.4 }} />
           <h3 style={{ marginBottom: '0.5rem' }}>No requests yet</h3>
-          <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>Book your first appointment with a Sentinel-connected doctor.</p>
+          <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>Book your first appointment with a Nalam.ai-connected doctor.</p>
           <button onClick={() => router.push('/appointments/book')} style={{ padding: '0.65rem 1.5rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
             Book Appointment
           </button>

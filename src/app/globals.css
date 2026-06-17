@@ -94,7 +94,14 @@
 
 
 /* ─── Reset ──────────────────────────────────────────────────────────── */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+  /* Native App Resets */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
 
 body {
   background-color: var(--background);
@@ -103,6 +110,9 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  /* Native App Resets */
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -231,7 +241,25 @@ a:hover { color: var(--primary-hover); }
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.2rem;
+  padding-top: calc(1.2rem + env(safe-area-inset-top));
+  padding-bottom: calc(1.2rem + env(safe-area-inset-bottom));
+  padding-left: calc(1.2rem + env(safe-area-inset-left));
+  padding-right: calc(1.2rem + env(safe-area-inset-right));
+}
+
+@media (min-width: 768px) {
+  .container { padding: 2rem; }
+}
+
+/* Responsive padding wrapper for components */
+.mobile-pad {
+  padding: 1.2rem;
+  padding-top: calc(1.2rem + env(safe-area-inset-top));
+  padding-bottom: calc(1.2rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  .mobile-pad { padding: 2.5rem; }
 }
 .grid-2 {
   display: grid;

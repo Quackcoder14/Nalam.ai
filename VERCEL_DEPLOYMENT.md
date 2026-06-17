@@ -1,12 +1,12 @@
-# Deploying Sentinel to Vercel
+# Deploying Nalam.ai to Vercel
 
-Sentinel is built on Next.js and uses Supabase (PostgreSQL) via Prisma, making it perfectly optimized for hosting on [Vercel](https://vercel.com/).
+Nalam.ai is built on Next.js and uses Supabase (PostgreSQL) via Prisma, making it perfectly optimized for hosting on [Vercel](https://vercel.com/).
 
 Follow these steps to take your application from `localhost` to the live web.
 
 ## Prerequisites
 
-1. **GitHub Account**: Your Sentinel codebase needs to be pushed to a GitHub repository.
+1. **GitHub Account**: Your Nalam.ai codebase needs to be pushed to a GitHub repository.
 2. **Vercel Account**: Sign up at [vercel.com](https://vercel.com/signup) using your GitHub account.
 3. **Supabase Database**: Since you have already migrated to Supabase, you'll need your remote database credentials ready.
 
@@ -20,7 +20,7 @@ First, make sure your latest code is committed and pushed to a repository on Git
 git add .
 git commit -m "Prepare for Vercel deployment"
 git branch -M main
-git remote add origin https://github.com/your-username/sentinel.git
+git remote add origin https://github.com/your-username/nalam-ai.git
 git push -u origin main
 ```
 
@@ -28,7 +28,7 @@ git push -u origin main
 
 1. Log in to your Vercel Dashboard.
 2. Click **Add New...** -> **Project**.
-3. Locate your `sentinel` repository in the list and click **Import**.
+3. Locate your `nalam-ai` repository in the list and click **Import**.
 4. The framework preset should automatically be detected as **Next.js**. Leave the Root Directory as `./`.
 
 ## Step 3: Configure Environment Variables
@@ -68,7 +68,7 @@ npx prisma generate && next build
 ## Step 6: Verify
 
 Once the deployment finishes:
-1. Click the **Visit** button to open your live URL (e.g., `https://sentinel-your-app.vercel.app`).
+1. Click the **Visit** button to open your live URL (e.g., `https://nalam-ai-your-app.vercel.app`).
 2. Log in as a Patient and Hospital Desk.
 3. Verify that the **Chat feature** works and the database is securely communicating!
 

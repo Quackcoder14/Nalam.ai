@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo  Sentinel-Health ML Engine Launcher
+echo  Nalam.ai ML Engine Launcher
 echo ========================================
 
 :: Detect Python command
@@ -46,7 +46,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo.
-echo Starting Sentinel-Health ML Engine on http://localhost:8005 ...
+echo Starting Nalam.ai ML Engine on http://localhost:8005 ...
 echo Press Ctrl+C to stop.
 echo.
 %VENV_PYTHON% -m uvicorn main:app --host 0.0.0.0 --port 8005 --reload
