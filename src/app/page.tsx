@@ -224,7 +224,7 @@ export default function HomePage() {
             ].map(({ role, Icon, title, desc, accentColor, bg }) => (
               <button key={role} onClick={() => setLoginType(role)}
                 className="login-card"
-                style={{ background: 'white', border: '2px solid #e2e8f0', borderRadius: 22, padding: '2.5rem 2rem', cursor: 'pointer', textAlign: 'left', transition: 'all 0.25s ease', boxShadow: '0 4px 20px rgba(0,82,165,0.06)', display: 'block', width: '100%' }}
+                style={{ background: 'var(--surface)', border: '2px solid #e2e8f0', borderRadius: 22, padding: '2.5rem 2rem', cursor: 'pointer', textAlign: 'left', transition: 'all 0.25s ease', boxShadow: '0 4px 20px rgba(0,82,165,0.06)', display: 'block', width: '100%' }}
                 onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.boxShadow = `0 14px 40px ${accentColor}22`; }}
                 onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,82,165,0.06)'; }}
               >
@@ -241,7 +241,7 @@ export default function HomePage() {
           </div>
         ) : (
           /* ── Credentials form ── */
-          <div className="mobile-pad" style={{ maxWidth: 430, margin: '0 auto', background: 'white', borderRadius: 22, boxShadow: '0 8px 40px rgba(0,82,165,0.1)', animation: 'slideUp 0.4s ease' }}>
+          <div className="mobile-pad" style={{ maxWidth: 430, margin: '0 auto', background: 'var(--surface)', borderRadius: 22, boxShadow: '0 8px 40px rgba(0,82,165,0.1)', animation: 'slideUp 0.4s ease' }}>
             <button onClick={() => setLoginType(null)} style={{ background: 'none', border: 'none', color: '#4A5568', cursor: 'pointer', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.88rem', padding: 0, fontFamily: 'inherit' }}>
               {t('login.back')}
             </button>
