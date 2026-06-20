@@ -180,7 +180,7 @@ export default function HomePage() {
   return (
     <div className="mobile-pad" style={{
       minHeight: '100vh',
-      background: 'linear-gradient(150deg, #EBF4FF 0%, #F0FBFF 60%, #FFF8F2 100%)',
+      background: 'var(--background)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       animation: 'fadeIn 0.7s ease',
     }}>

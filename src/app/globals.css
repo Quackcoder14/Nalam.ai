@@ -28,7 +28,7 @@
   --accent-purple-bg:   #F0EBFF;
 
   /* Surfaces */
-  --background:         #F4F9FF; /* Lightest of the lightest blue */
+  --background:         #BEE3FF; /* Sky petal blue */
   --surface:            #FCFDFF;
   --surface-muted:      #F0F6FC;
 
@@ -105,8 +105,6 @@
 
 body {
   background-color: var(--background);
-  background-image: linear-gradient(135deg, #F0F7FF 0%, #E4EFFF 50%, #F4F0FF 100%);
-  background-attachment: fixed;
   color: var(--foreground);
   font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.6;
