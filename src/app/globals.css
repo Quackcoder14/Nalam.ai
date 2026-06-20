@@ -28,9 +28,9 @@
   --accent-purple-bg:   #F0EBFF;
 
   /* Surfaces */
-  --background:         #F2F5FB;
-  --surface:            #FFFFFF;
-  --surface-muted:      #F7F9FC;
+  --background:         #F4F9FF; /* Lightest of the lightest blue */
+  --surface:            #FCFDFF;
+  --surface-muted:      #F0F6FC;
 
   /* Text */
   --foreground:         var(--deep-blue);
@@ -138,7 +138,7 @@ a:hover { color: var(--primary-hover); }
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .glass-panel:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   box-shadow: var(--shadow-md);
 }
 

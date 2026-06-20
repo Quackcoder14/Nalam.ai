@@ -322,8 +322,20 @@ export default function PatientDashboard() {
           <p style={{ color: 'var(--accent-teal)', fontWeight: 600 }}>{t('dashboard.verified')} · {patient.id}</p>
           {/* ABHA ID status chip */}
           {abha.verified ? (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.4rem', padding: '0.25rem 0.75rem', borderRadius: 20, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', fontSize: '0.8rem', fontWeight: 700, color: '#16a34a' }}>
-              <ShieldCheck size={14} /> ABHA: {abha.masked}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.4rem' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.25rem 0.75rem', borderRadius: 20, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', fontSize: '0.8rem', fontWeight: 700, color: '#16a34a' }}>
+                <ShieldCheck size={14} /> ABHA: {abha.masked}
+              </div>
+              <button 
+                onClick={() => {
+                  if(confirm('Are you sure you want to unlink your ABHA ID?')) {
+                    setAbha({ verified: false, masked: null });
+                  }
+                }} 
+                style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Unlink
+              </button>
             </div>
           ) : (
             <button onClick={() => setShowAbhaModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', padding: '0.25rem 0.75rem', borderRadius: 20, background: 'rgba(0,82,165,0.08)', border: '1px dashed var(--primary)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', cursor: 'pointer' }}>

@@ -808,16 +808,14 @@ export default function ClinicianPortal() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            <select
+            <input
+              type="text"
               value={patientId}
               onChange={e => setPatientId(e.target.value)}
+              placeholder="Enter Patient ID (e.g. P001)"
               style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '180px', fontFamily: 'inherit' }}
-            >
-              {allPatients.length > 0
-                ? allPatients.map((p: any) => <option key={p.id} value={p.id}>{p.id} — {p.name}</option>)
-                : ['P001','P002','P003','P004','P005','P006','P007','P008','P009','P010','P011','P012'].map(id => <option key={id} value={id}>{id}</option>)
-              }
-            </select>
+              onKeyDown={e => { if(e.key === 'Enter') requestContext(); }}
+            />
             <select
               value={role}
               onChange={e => setRole(e.target.value)}

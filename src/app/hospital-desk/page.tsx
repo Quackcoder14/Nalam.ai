@@ -68,6 +68,7 @@ export default function HospitalDeskPage() {
   const [aptExpanded, setAptExpanded] = useState<string | null>(null);
   const [aptNote, setAptNote] = useState<Record<string, string>>({});
   const [aptProcessing, setAptProcessing] = useState<string | null>(null);
+  const [chatUnread, setChatUnread] = useState(0);
 
   const fetchAllAppointments = useCallback(async () => {
     try {
@@ -127,9 +128,25 @@ export default function HospitalDeskPage() {
 
   useEffect(() => {
     const role = localStorage.getItem('nalamRole');
+    const branch = localStorage.getItem('nalamHdeskBranch') || 'Apollo Hospitals';
     if (role !== 'hdesk') router.push('/');
     fetchAlerts();
-    const iv = setInterval(fetchAlerts, 10000);
+    
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`/api/chat/unread?role=desk&hospital=${encodeURIComponent(branch)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setChatUnread(data.unreadCount || 0);
+        }
+      } catch {}
+    };
+    fetchUnread();
+    
+    const iv = setInterval(() => {
+      fetchAlerts();
+      fetchUnread();
+    }, 10000);
     fetchAllAppointments();
     return () => clearInterval(iv);
   }, [router, fetchAlerts]);
@@ -245,8 +262,13 @@ export default function HospitalDeskPage() {
           <button className="glass-button" onClick={() => router.push('/search')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Search size={15} /> {t('hdesk.searchRecords')}
           </button>
-          <button onClick={() => router.push('/hospital-desk/chat')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary-light)', color: 'var(--primary)', borderColor: 'var(--primary)' }}>
+          <button onClick={() => router.push('/hospital-desk/chat')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary-light)', color: 'var(--primary)', borderColor: 'var(--primary)', position: 'relative' }}>
             <MessageSquare size={15} /> Patient Chat
+            {chatUnread > 0 && (
+              <span style={{ position: 'absolute', top: -6, right: -6, background: 'var(--accent-red)', color: 'white', fontSize: '0.65rem', fontWeight: 800, padding: '0.1rem 0.4rem', borderRadius: 10, border: '2px solid white', animation: 'pulseGlow 2s infinite' }}>
+                {chatUnread}
+              </span>
+            )}
           </button>
           {patientData && (
             <button className="glass-button" onClick={exportVault} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderColor: 'var(--powder-blue-dark)' }}>

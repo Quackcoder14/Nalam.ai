@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, User, Stethoscope, ChevronRight, Monitor, Globe } from 'lucide-react';
+import { Heart, User, Stethoscope, ChevronRight, Monitor, Globe, PhoneCall, AlertTriangle } from 'lucide-react';
 import { useLanguage, type Lang } from '@/lib/i18n';
 
 type Phase = 'splash' | 'language' | 'login';
@@ -14,6 +14,8 @@ export default function HomePage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [langFading, setLangFading] = useState(false);
+  const [showAmbulanceModal, setShowAmbulanceModal] = useState(false);
+  const [callingAmbulance, setCallingAmbulance] = useState(false);
   const router = useRouter();
   const { lang, setLang, t } = useLanguage();
 
@@ -41,8 +43,8 @@ export default function HomePage() {
     setTimeout(() => setPhase('login'), 450);
   };
 
-  const handleLogin = (role: 'patient' | 'clinician' | 'hdesk') => {
-    if (password !== '123') {
+  const handleLogin = (role: 'patient' | 'clinician' | 'hdesk', subRole?: string) => {
+    if (password !== '123' && role === 'patient') {
       alert(t('login.invalidCreds'));
       return;
     }
@@ -50,16 +52,11 @@ export default function HomePage() {
       alert(t('login.invalidPatient'));
       return;
     }
-    if (role === 'clinician' && username.toLowerCase() !== 'dhanush@nalam.ai' && username.toLowerCase() !== 'monissha@nalam.ai') {
-      alert(t('login.invalidClinician'));
-      return;
-    }
-    if (role === 'hdesk' && username.toLowerCase() !== 'hdesk@nalam.ai') {
-      alert(t('login.invalidHdesk'));
-      return;
-    }
     localStorage.setItem('nalamRole', role);
     localStorage.setItem('nalamPatientId', 'P001');
+    if (role === 'clinician' && subRole) localStorage.setItem('nalamClinicianRole', subRole);
+    if (role === 'hdesk' && subRole) localStorage.setItem('nalamHdeskBranch', subRole);
+    
     if (role === 'patient') router.push('/dashboard');
     else if (role === 'clinician') router.push('/clinician');
     else router.push('/hospital-desk');
@@ -242,34 +239,122 @@ export default function HomePage() {
                 {loginType === 'patient' ? t('role.patient.loginTitle') : loginType === 'clinician' ? t('role.clinician.loginTitle') : t('role.hdesk.loginTitle')}
               </h2>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {[t('login.username'), t('login.password')].map((label, idx) => (
-                <div key={idx}>
-                  <label style={{ display: 'block', fontSize: '0.83rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.4rem' }}>{label}</label>
-                  <input
-                    type={idx === 1 ? 'password' : 'text'}
-                    value={idx === 0 ? username : password}
-                    onChange={e => idx === 0 ? setUsername(e.target.value) : setPassword(e.target.value)}
-                    placeholder={idx === 1 ? '••••••••' : loginType === 'patient' ? 'karthik@nalam.ai' : loginType === 'clinician' ? 'dhanush@nalam.ai / monissha@nalam.ai' : 'hdesk@nalam.ai'}
-                    onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
-                    style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', transition: 'border-color 0.2s', background: '#FAFBFD' }}
-                    onFocus={e => e.target.style.borderColor = loginType === 'patient' ? '#0052A5' : loginType === 'clinician' ? '#0097A7' : '#5C35A1'}
-                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                  />
-                </div>
-              ))}
-              <button
-                onClick={() => handleLogin(loginType!)}
-                style={{ width: '100%', padding: '0.9rem', marginTop: '0.5rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : loginType === 'clinician' ? 'linear-gradient(135deg,#0097A7,#00BCD4)' : 'linear-gradient(135deg,#5C35A1,#8B5CF6)', color: 'white', border: 'none', borderRadius: 10, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s', fontFamily: 'inherit' }}
-                onMouseOver={e => e.currentTarget.style.opacity = '0.88'}
-                onMouseOut={e => e.currentTarget.style.opacity = '1'}
-              >
-                {t('login.signIn')}
-              </button>
-            </div>
+            {loginType === 'patient' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {[t('login.username'), t('login.password')].map((label, idx) => (
+                  <div key={idx}>
+                    <label style={{ display: 'block', fontSize: '0.83rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.4rem' }}>{label}</label>
+                    <input
+                      type={idx === 1 ? 'password' : 'text'}
+                      value={idx === 0 ? username : password}
+                      onChange={e => idx === 0 ? setUsername(e.target.value) : setPassword(e.target.value)}
+                      placeholder={idx === 1 ? '••••••••' : 'karthik@nalam.ai'}
+                      onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
+                      style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', transition: 'border-color 0.2s', background: '#FAFBFD' }}
+                      onFocus={e => e.target.style.borderColor = '#0052A5'}
+                      onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                    />
+                  </div>
+                ))}
+                <button
+                  onClick={() => handleLogin(loginType!)}
+                  style={{ width: '100%', padding: '0.9rem', marginTop: '0.5rem', background: 'linear-gradient(135deg,#0052A5,#0073D9)', color: 'white', border: 'none', borderRadius: 10, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s', fontFamily: 'inherit' }}
+                  onMouseOver={e => e.currentTarget.style.opacity = '0.88'}
+                  onMouseOut={e => e.currentTarget.style.opacity = '1'}
+                >
+                  {t('login.signIn')}
+                </button>
+              </div>
+            ) : loginType === 'clinician' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <p style={{ fontSize: '0.9rem', color: '#4A5568', marginBottom: '0.5rem' }}>Select Clinician Profile:</p>
+                <button onClick={() => handleLogin('clinician', 'specialist')} style={{ width: '100%', padding: '1.2rem', background: 'linear-gradient(135deg,#E0F7FA,#B2EBF2)', color: '#0097A7', border: '2px solid #0097A7', borderRadius: 12, fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span>Dr. Monissha</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4A5568' }}>Cardiology</span>
+                  </div>
+                  <ChevronRight size={20} />
+                </button>
+                <button onClick={() => handleLogin('clinician', 'emergency')} style={{ width: '100%', padding: '1.2rem', background: 'linear-gradient(135deg,#FFEBEE,#FFCDD2)', color: '#C62828', border: '2px solid #C62828', borderRadius: 12, fontSize: '1.05rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <span>Dr. Dhanush</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4A5568' }}>Emergency</span>
+                  </div>
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <p style={{ fontSize: '0.9rem', color: '#4A5568', marginBottom: '0.5rem' }}>Select Hospital Desk Branch:</p>
+                {['Apollo Hospitals', 'Fortis Healthcare', 'Manipal Hospitals'].map(branch => (
+                  <button key={branch} onClick={() => handleLogin('hdesk', branch)} style={{ width: '100%', padding: '1rem', background: 'linear-gradient(135deg,#F3E8FF,#D8B4FE)', color: '#5C35A1', border: '2px solid #5C35A1', borderRadius: 12, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+                    <span>{branch}</span>
+                    <ChevronRight size={18} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* ── CALL AMBULANCE BUTTON ── */}
+      <button
+        onDoubleClick={() => setShowAmbulanceModal(true)}
+        style={{
+          position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 9000,
+          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+          color: 'white', border: 'none', borderRadius: '50%',
+          width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 24px rgba(239, 68, 68, 0.4)', cursor: 'pointer',
+          animation: 'pulseGlow 2s infinite'
+        }}
+        title="Double Click to Call Ambulance"
+      >
+        <PhoneCall size={28} />
+      </button>
+
+      {/* ── AMBULANCE MODAL ── */}
+      {showAmbulanceModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{ background: 'white', padding: '2.5rem', borderRadius: 24, maxWidth: 400, width: '90%', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', animation: 'slideUp 0.3s ease' }}>
+            {callingAmbulance ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'heartbeat 1s infinite' }}>
+                  <PhoneCall size={40} color="#DC2626" />
+                </div>
+                <h2 style={{ fontSize: '1.5rem', color: '#1A2B4A', fontWeight: 800 }}>Calling Ambulance...</h2>
+                <p style={{ color: '#64748B' }}>Connecting to emergency services</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                  <AlertTriangle size={32} color="#DC2626" />
+                </div>
+                <h2 style={{ fontSize: '1.5rem', color: '#1A2B4A', fontWeight: 800, marginBottom: '0.5rem' }}>Emergency Services</h2>
+                <p style={{ color: '#64748B', marginBottom: '2rem' }}>Are you sure you want to call an ambulance?</p>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button onClick={() => setShowAmbulanceModal(false)} style={{ flex: 1, padding: '0.8rem', background: '#F1F5F9', color: '#475569', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => {
+                    setCallingAmbulance(true);
+                    const audio = new Audio('/ringing.mp3');
+                    audio.loop = true;
+                    audio.play().catch(() => {});
+                    setTimeout(() => {
+                      audio.pause();
+                      setCallingAmbulance(false);
+                      setShowAmbulanceModal(false);
+                    }, 5000);
+                  }} style={{ flex: 1, padding: '0.8rem', background: '#DC2626', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}>Proceed</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
