@@ -816,15 +816,7 @@ export default function ClinicianPortal() {
               style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '180px', fontFamily: 'inherit' }}
               onKeyDown={e => { if(e.key === 'Enter') requestContext(); }}
             />
-            <select
-              value={role}
-              onChange={e => setRole(e.target.value)}
-              style={{ padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '200px', fontFamily: 'inherit' }}
-            >
-              <option value="specialist">{t('clinician.roleSpecialist')}</option>
-              <option value="emergency">{t('clinician.roleEmergency')}</option>
-              <option value="research">{t('clinician.roleResearch')}</option>
-            </select>
+
             <button className="glass-button" onClick={requestContext} disabled={loadingContext}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
               {loadingContext

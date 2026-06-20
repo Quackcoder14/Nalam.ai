@@ -261,7 +261,7 @@ export default function HomePage() {
                     type={idx === 1 ? 'password' : 'text'}
                     value={idx === 0 ? username : password}
                     onChange={e => idx === 0 ? setUsername(e.target.value) : setPassword(e.target.value)}
-                    placeholder={idx === 1 ? '••••••••' : loginType === 'patient' ? 'karthik@nalam.ai' : loginType === 'clinician' ? 'monissha@nalam.ai' : 'apollo@nalam.ai'}
+                    placeholder={idx === 1 ? '••••••••' : 'Enter username'}
                     onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
                     style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', transition: 'border-color 0.2s', background: '#FAFBFD' }}
                     onFocus={e => e.target.style.borderColor = loginType === 'patient' ? '#0052A5' : loginType === 'clinician' ? '#0097A7' : '#5C35A1'}
