@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Activity, BellRing, Network, Heart, Clock, Eye, ChevronDown, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, X, Link2, ShieldCheck, Calendar, ClipboardList, MessageSquare } from 'lucide-react';
+import { Shield, Activity, BellRing, Network, Heart, Clock, Eye, ChevronDown, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, X, Link2, ShieldCheck, Calendar, ClipboardList, MessageSquare, PhoneCall } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import VoiceTriage from '../components/VoiceTriage';
 
@@ -72,6 +72,8 @@ export default function PatientDashboard() {
   const [abha, setAbha] = useState<{ verified: boolean; masked: string | null }>({ verified: false, masked: null });
   const [showAbhaModal, setShowAbhaModal] = useState(false);
   const [abhaInput, setAbhaInput] = useState('');
+  const [showAmbulanceModal, setShowAmbulanceModal] = useState(false);
+  const [callingAmbulance, setCallingAmbulance] = useState(false);
   const [abhaSaving, setAbhaSaving] = useState(false);
   const [abhaError, setAbhaError] = useState<string | null>(null);
 
@@ -332,7 +334,9 @@ export default function PatientDashboard() {
                     setAbha({ verified: false, masked: null });
                   }
                 }} 
-                style={{ background: 'none', border: 'none', color: 'var(--accent-red)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ padding: '0.3rem 0.75rem', background: 'var(--accent-red-bg)', border: '1px solid var(--accent-red)', color: 'var(--accent-red)', fontSize: '0.75rem', fontWeight: 700, borderRadius: 8, cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.background = '#FCA5A5'}
+                onMouseOut={e => e.currentTarget.style.background = 'var(--accent-red-bg)'}
               >
                 Unlink
               </button>
@@ -619,6 +623,64 @@ export default function PatientDashboard() {
         @keyframes slideUpRight { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+      
+      {/* ── CALL AMBULANCE BUTTON ── */}
+      <button
+        onDoubleClick={() => setShowAmbulanceModal(true)}
+        style={{
+          position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 9000,
+          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+          color: 'white', border: 'none', borderRadius: '50%',
+          width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 24px rgba(239, 68, 68, 0.4)', cursor: 'pointer',
+          animation: 'pulseGlow 2s infinite'
+        }}
+        title="Double Click to Call Ambulance"
+      >
+        <PhoneCall size={28} />
+      </button>
+
+      {/* ── AMBULANCE MODAL ── */}
+      {showAmbulanceModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{ background: 'white', padding: '2.5rem', borderRadius: 24, maxWidth: 400, width: '90%', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', animation: 'slideUp 0.3s ease' }}>
+            {callingAmbulance ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'heartbeat 1s infinite' }}>
+                  <PhoneCall size={40} color="#DC2626" />
+                </div>
+                <h2 style={{ fontSize: '1.5rem', color: '#1A2B4A', fontWeight: 800 }}>Calling Ambulance...</h2>
+                <p style={{ color: '#64748B' }}>Connecting to emergency services</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                  <AlertTriangle size={32} color="#DC2626" />
+                </div>
+                <h2 style={{ fontSize: '1.5rem', color: '#1A2B4A', fontWeight: 800, marginBottom: '0.5rem' }}>Emergency Services</h2>
+                <p style={{ color: '#64748B', marginBottom: '2rem' }}>Are you sure you want to call an ambulance?</p>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button onClick={() => setShowAmbulanceModal(false)} style={{ flex: 1, padding: '0.8rem', background: '#F1F5F9', color: '#475569', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => {
+                    setCallingAmbulance(true);
+                    const audio = new Audio('/ringing.mp3');
+                    audio.loop = true;
+                    audio.play().catch(() => {});
+                    setTimeout(() => {
+                      audio.pause();
+                      setCallingAmbulance(false);
+                      setShowAmbulanceModal(false);
+                    }, 5000);
+                  }} style={{ flex: 1, padding: '0.8rem', background: '#DC2626', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)' }}>Proceed</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
