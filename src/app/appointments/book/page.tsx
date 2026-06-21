@@ -194,7 +194,7 @@ export default function BookAppointment() {
   const generateSummary = async () => {
     setSummaryLoading(true);
     try {
-      const res = await fetch('/api/appointments/summarize', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments/summarize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -218,7 +218,7 @@ export default function BookAppointment() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      const res = await fetch('/api/appointments', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

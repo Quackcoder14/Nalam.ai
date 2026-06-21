@@ -16,7 +16,7 @@ async function subscribePush(patientId: string) {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC),
     });
-    await fetch('/api/notify/subscribe', {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription: sub.toJSON(), patientId, role: 'patient' }),
@@ -112,7 +112,7 @@ export default function PatientDashboard() {
     setAL(true);
     try {
       const payload = { heart_rate: currentVitals.hr, spo2: currentVitals.spo2, resp: currentVitals.resp, temp: currentVitals.temp, sys: currentVitals.sys, dia: currentVitals.dia, lang };
-      const res = await fetch('/api/anomaly', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/anomaly`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       setAnomaly(data);
       anomalyRef.current = data;
@@ -125,7 +125,7 @@ export default function PatientDashboard() {
         // Embed vitals snapshot so hospital desk can display them
         const vSnap = vitalsRef.current;
         const vitalsTag = ` | hr=${vSnap.hr} spo2=${vSnap.spo2} resp=${vSnap.resp} temp=${vSnap.temp} sys=${vSnap.sys} dia=${vSnap.dia}`;
-        await fetch('/api/notify/send', {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/send`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ patientId: 'P001', title: alertTitle, message: (data.flags?.[0]?.message || 'An anomaly was detected in your vitals.') + vitalsTag, severity: data.severity }),
         });
@@ -158,12 +158,12 @@ export default function PatientDashboard() {
 
   const fetchAudit = useCallback(async () => {
     try {
-      const r = await fetch('/api/audit?patientId=P001');
+      const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/audit?patientId=P001`);
       if (!r.ok) return;
       const d = await r.json();
       setAuditLog(d.entries || []);
 
-      const unRes = await fetch('/api/chat/unread?patientId=P001&role=patient');
+      const unRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread?patientId=P001&role=patient`);
       if (unRes.ok) {
         const unData = await unRes.json();
         setChatUnread(unData.unreadCount || 0);
@@ -177,16 +177,16 @@ export default function PatientDashboard() {
     if (role === 'clinician') { router.push('/clinician'); return; }
     (async () => {
       try {
-        const res = await fetch(`/api/patient?id=P001&lang=${lang}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=P001&lang=${lang}`);
         if (!res.ok) throw new Error(`API Error: ${res.status}`);
         const data = await res.json();
         setPatient(data.patient);
         setRecords(data.records || []);
         setConsent({ emergency: data.patient.consent_emergency === 'true', specialist: data.patient.consent_specialist === 'true', research: data.patient.consent_research === 'true' });
-        const ir = await fetch('/api/agents/intervention', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: data.patient, records: data.records, lang }) });
+        const ir = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/intervention`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: data.patient, records: data.records, lang }) });
         if (ir.ok) setIntervention(await ir.json());
         // Fetch ABHA ID status
-        const ar = await fetch('/api/abha?patientId=P001');
+        const ar = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha?patientId=P001`);
         if (ar.ok) setAbha(await ar.json());
       } catch (e) { console.error(e); }
     })();
@@ -198,7 +198,7 @@ export default function PatientDashboard() {
   const toggleConsent = async (type: keyof ConsentState) => {
     const next = { ...consent, [type]: !consent[type] };
     setConsent(next);
-    await fetch('/api/patient/consent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'P001', ...next }) });
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'P001', ...next }) });
   };
 
   if (!patient) return (
@@ -262,7 +262,7 @@ export default function PatientDashboard() {
                 onClick={async () => {
                   setAbhaSaving(true); setAbhaError(null);
                   try {
-                    const res = await fetch('/api/abha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: 'P001', abha_id: abhaInput }) });
+                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: 'P001', abha_id: abhaInput }) });
                     const data = await res.json();
                     if (!res.ok) { setAbhaError(data.error || t('abha.error')); return; }
                     setAbha({ verified: true, masked: data.masked });
@@ -355,7 +355,7 @@ export default function PatientDashboard() {
             if (fhirLoading) return;
             setFhirLoading(true);
             try {
-              const res = await fetch(`/api/patient/export?id=${patient.id}`);
+              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/export?id=${patient.id}`);
               const data = await res.json();
               setFhirData(data);
             } catch (e) { console.error(e); }

@@ -111,7 +111,7 @@ export default function ViewRequests() {
   const fetchAppointments = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/appointments?patientId=P001');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=P001`);
       if (res.ok) setAppointments(await res.json());
     } catch {} finally { setLoading(false); }
   };
@@ -122,7 +122,7 @@ export default function ViewRequests() {
     if (!confirm('Cancel this appointment request?')) return;
     setCancelling(id);
     try {
-      await fetch(`/api/appointments?id=${id}`, { method: 'DELETE' });
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?id=${id}`, { method: 'DELETE' });
       await fetchAppointments();
     } finally { setCancelling(null); }
   };

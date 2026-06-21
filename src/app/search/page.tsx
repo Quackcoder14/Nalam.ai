@@ -35,7 +35,7 @@ function SearchInner() {
       const params = new URLSearchParams({ q: q.trim(), field: f });
       const patientId = localStorage.getItem('nalamPatientId');
       if (patientId) params.set('patientId', patientId);
-      const res = await fetch(`/api/search?${params}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/search?${params}`);
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setResults(data.records || []);

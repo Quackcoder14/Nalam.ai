@@ -10,8 +10,8 @@
     "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.0",
-    "@capacitor/core": "^8.4.0",
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "@google/genai": "^1.50.1",
     "@prisma/client": "^5.22.0",
     "@types/web-push": "^3.6.4",
@@ -27,7 +27,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.4.0",
+    "@capacitor/cli": "^8.4.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.39",
     "@types/papaparse": "^5.5.2",

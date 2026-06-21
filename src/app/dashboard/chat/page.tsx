@@ -23,11 +23,11 @@ export default function PatientChat() {
 
   const fetchMessages = async (hospital: string) => {
     try {
-      const res = await fetch(`/api/chat?patientId=P001&hospital=${encodeURIComponent(hospital)}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat?patientId=P001&hospital=${encodeURIComponent(hospital)}`);
       if (res.ok) {
         setMessages(await res.json());
         // Mark as read
-        await fetch('/api/chat/unread', {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ patientId: 'P001', hospital, role: 'patient' })
@@ -56,7 +56,7 @@ export default function PatientChat() {
 
     setSending(true);
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

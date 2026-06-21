@@ -53,7 +53,7 @@ export default function VoiceTriage() {
       setIsProcessing(true);
       
       try {
-        const res = await fetch('/api/agents/voice-triage', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/voice-triage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ transcript: text, lang, patientId: 'P001' })

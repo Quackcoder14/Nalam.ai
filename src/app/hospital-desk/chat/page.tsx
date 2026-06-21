@@ -28,7 +28,7 @@ export default function DeskChat() {
 
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await fetch(`/api/chat/conversations?hospital=${encodeURIComponent(hospital)}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/conversations?hospital=${encodeURIComponent(hospital)}`);
       if (res.ok) setConversations(await res.json());
     } catch (e) { console.error('Failed to fetch conversations', e); }
   }, [hospital]);
@@ -43,13 +43,13 @@ export default function DeskChat() {
     setLoading(true);
     try {
       // Fetch patient context
-      const pRes = await fetch(`/api/patient?id=${patientId}&lang=en`);
+      const pRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=${patientId}&lang=en`);
       if (pRes.ok) {
         const pData = await pRes.json();
         setActivePatient(pData.patient);
         
         // Mark messages as read
-        await fetch('/api/chat/unread', {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ patientId, hospital, role: 'desk' })
@@ -67,7 +67,7 @@ export default function DeskChat() {
 
   const fetchMessages = async (patientId: string) => {
     try {
-      const res = await fetch(`/api/chat?patientId=${patientId}&hospital=${encodeURIComponent(hospital)}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat?patientId=${patientId}&hospital=${encodeURIComponent(hospital)}`);
       if (res.ok) setMessages(await res.json());
     } catch (e) {
       console.error('Failed to fetch messages', e);
@@ -79,7 +79,7 @@ export default function DeskChat() {
     if (!activePatient) return;
     const iv = setInterval(() => {
       fetchMessages(activePatient.id);
-      fetch('/api/chat/unread', {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId: activePatient.id, hospital, role: 'desk' })
@@ -97,7 +97,7 @@ export default function DeskChat() {
 
     setSending(true);
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

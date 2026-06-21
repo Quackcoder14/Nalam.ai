@@ -121,7 +121,7 @@ function XAIDashboardInner() {
 
   useEffect(() => {
     if (patientId) {
-      fetch(`/api/patient?id=${patientId}&lang=${lang}`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=${patientId}&lang=${lang}`)
         .then(res => res.json())
         .then(data => { if (data.patient) setPatient(data.patient); })
         .catch(() => {});
@@ -131,7 +131,7 @@ function XAIDashboardInner() {
   const fetchExplanation = useCallback(async (vals: typeof vitals) => {
     setLoading(true); setError('');
     try {
-      const res = await fetch('/api/xai/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/xai/explain`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vals) });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setFeatures(data.explanations?.map((f: any) => ({

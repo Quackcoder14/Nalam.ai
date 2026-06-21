@@ -29,8 +29,8 @@
 
   /* Surfaces */
   --background:         #BEE3FF; /* Sky petal blue */
-  --surface:            #EAF5FF; /* Very very light blue */
-  --surface-muted:      #E0F0FF;
+  --surface:            #E1EFFF; /* Slightly darker light blue */
+  --surface-muted:      #D8EAFF;
 
   /* Text */
   --foreground:         var(--deep-blue);
