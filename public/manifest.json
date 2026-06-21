@@ -1,0 +1,42 @@
+{
+  "name": "nalam.ai — Your Health Memory",
+  "short_name": "nalam.ai",
+  "description": "AI-powered, privacy-preserving patient memory layer that follows you across every provider.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#BEE3FF",
+  "theme_color": "#0052A5",
+  "categories": ["health", "medical", "lifestyle"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Patient Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Book Appointment",
+      "short_name": "Appointments",
+      "url": "/appointments/book",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

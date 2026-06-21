@@ -11,8 +11,22 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://nalam-ai.onrender.com'),
   title: 'nalam.ai — Your Longitudinal Health Memory',
   description: 'An AI-powered, privacy-preserving patient memory layer that follows you across every provider.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'nalam.ai',
+  },
+  formatDetection: { telephone: false },
+  openGraph: {
+    type: 'website',
+    title: 'nalam.ai',
+    description: 'Your AI-powered health memory',
+    images: ['/icon-512.png'],
+  },
 };
 
 export const viewport: Viewport = {
@@ -28,6 +42,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
         {/* Prevent FOUC: apply theme before React paints */}
         <script
           dangerouslySetInnerHTML={{
