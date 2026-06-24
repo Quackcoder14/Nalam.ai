@@ -1,5 +1,5 @@
 // nalam.ai Service Worker — Full PWA offline shell + push notifications
-const CACHE = 'nalam-v2';
+const CACHE = 'nalam-v3';
 
 // Pre-cache the full app shell: all routes + assets
 const PRECACHE_URLS = [
@@ -47,18 +47,16 @@ self.addEventListener('fetch', function (event) {
   // Never cache API calls — always go network for API (Render backend)
   if (url.pathname.startsWith('/api/') || url.hostname.includes('onrender.com')) return;
 
-  // For navigation requests (page loads): Cache-first, fallback to network
+  // For navigation requests (page loads): Network-first, fallback to cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.match(event.request).then(cached => {
-        return cached || fetch(event.request).then(res => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then(c => c.put(event.request, clone));
-          }
-          return res;
-        });
-      }).catch(() => caches.match('/'))
+      fetch(event.request).then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(event.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(event.request).then(cached => cached || caches.match('/')))
     );
     return;
   }
