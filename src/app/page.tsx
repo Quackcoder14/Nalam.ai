@@ -91,7 +91,7 @@ export default function HomePage() {
   /* ── LANGUAGE SELECTION ── */
   if (phase === 'language') return (
     <div style={{
-      minHeight: '100vh', minHeight: '100dvh',
+      minHeight: '100dvh',
       background: 'linear-gradient(150deg, #001d5c 0%, #0052A5 55%, #0097A7 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       opacity: langFading ? 0 : 1, transition: 'opacity 0.4s ease',
@@ -154,7 +154,7 @@ export default function HomePage() {
   /* ── LOGIN ── */
   return (
     <div style={{
-      minHeight: '100vh', minHeight: '100dvh',
+      minHeight: '100dvh',
       background: 'var(--background)',
       display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       animation: 'fadeIn 0.7s ease',
