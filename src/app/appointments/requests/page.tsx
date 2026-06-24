@@ -200,7 +200,7 @@ export default function ViewRequests() {
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                       <div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 3 }}>REFERENCE</div>
                         <div style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'monospace', color: 'var(--primary)' }}>{apt.id}</div>

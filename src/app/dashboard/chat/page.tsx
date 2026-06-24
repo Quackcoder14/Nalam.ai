@@ -128,9 +128,19 @@ export default function PatientChat() {
   };
 
   return (
-    <div className="container fade-in" style={{ maxWidth: 900, display: 'flex', flexDirection: 'column', height: '90vh', gap: '1rem' }}>
+    <div className="container fade-in chat-container" style={{ maxWidth: 1000, display: 'flex', flexDirection: 'column', height: '90vh', gap: '1rem', padding: '1rem' }}>
+      <style>{`
+        .chat-sidebar { display: flex; }
+        .chat-main { display: flex; }
+        @media (max-width: 768px) {
+          .chat-container { height: 100vh; height: 100dvh; max-width: 100%; margin: 0; border-radius: 0; gap: 0; padding: 0 !important; }
+          .chat-header-global { display: none !important; }
+          .chat-sidebar { display: ${selectedHospital ? 'none' : 'flex'}; width: 100% !important; border-radius: 0; border: none; }
+          .chat-main { display: ${selectedHospital ? 'flex' : 'none'}; position: fixed; inset: 0; z-index: 50; border-radius: 0; }
+        }
+      `}</style>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className="chat-header-global" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <button onClick={() => router.push('/dashboard')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.9rem' }}>
           <ArrowLeft size={18} /> Back
         </button>
@@ -142,7 +152,14 @@ export default function PatientChat() {
 
       <div style={{ display: 'flex', flex: 1, gap: '1.5rem', overflow: 'hidden' }}>
         {/* Sidebar - Hospitals */}
-        <div className="glass-panel" style={{ width: 280, display: 'flex', flexDirection: 'column', padding: '1rem', overflowY: 'auto' }}>
+        <div className="glass-panel chat-sidebar" style={{ width: 320, flexDirection: 'column', padding: '1rem', overflowY: 'auto' }}>
+          {/* Mobile Back Button for Sidebar */}
+          <div className="mobile-only-header" style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+            <style>{`@media (min-width: 769px) { .mobile-only-header { display: none !important; } }`}</style>
+            <button onClick={() => router.push('/dashboard')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.9rem' }}>
+              <ArrowLeft size={18} /> Dashboard
+            </button>
+          </div>
           <h3 style={{ fontSize: '0.9rem', color: 'var(--charcoal)', marginBottom: '1rem', fontWeight: 700 }}>AVAILABLE HOSPITALS</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {HOSPITALS.map(h => (
@@ -168,16 +185,21 @@ export default function PatientChat() {
         </div>
 
         {/* Chat Area */}
-        <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0, position: 'relative' }}>
+        <div className="glass-panel chat-main" style={{ flex: 1, flexDirection: 'column', overflow: 'hidden', padding: 0, position: 'relative' }}>
           {!selectedHospital && (
-            <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(2px)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--charcoal)' }}>
+            <div className="desktop-placeholder" style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(2px)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--charcoal)' }}>
+              <style>{`@media (max-width: 768px) { .desktop-placeholder { display: none !important; } }`}</style>
               <Building2 size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
               <h3>Select a hospital to start chatting</h3>
             </div>
           )}
 
           {/* Chat Header */}
-          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button className="mobile-chat-back" onClick={() => setSelectedHospital('')} style={{ background: 'transparent', border: 'none', padding: '0.5rem', cursor: 'pointer', color: 'var(--deep-blue)' }}>
+              <style>{`@media (min-width: 769px) { .mobile-chat-back { display: none !important; } }`}</style>
+              <ArrowLeft size={20} />
+            </button>
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Building2 size={20} />
             </div>

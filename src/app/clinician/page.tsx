@@ -195,10 +195,13 @@ function BodyVisualizer({ effects, medication, dosage }: { effects: Record<strin
   const noEffects = Object.keys(effects).length === 0;
 
   return (
-    <div style={{ display: 'flex', gap: '4rem', alignItems: 'center', justifyContent: 'center', padding: '2rem', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', padding: '1rem 0.5rem', width: '100%' }}>
+      {/* Mobile: stacked. Desktop: row layout done via flex-wrap */}
+      <style>{`@media (min-width: 640px) { .body-viz-row { flex-direction: row !important; gap: 2rem !important; align-items: flex-start !important; } .body-viz-svg { order: -1; } }`}</style>
+      <div className="body-viz-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%' }}>
 
-      {/* ── Legend & Summary (Left Side) ── */}
-      <div style={{ width: 250, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      {/* ── Legend & Summary ── */}
+      <div style={{ width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.2rem' }}>{t('clinician.legend')}</div>
           {[['#22c55e', t('clinician.beneficialEffect')], ['#ef4444', t('clinician.sideEffectRisk')], ['rgba(148,163,184,0.4)', t('clinician.unaffected')]].map(([c, lbl]) => (
@@ -311,9 +314,9 @@ function BodyVisualizer({ effects, medication, dosage }: { effects: Record<strin
         )}
       </div>
 
-      {/* ── Mannequin SVG (Center) ── */}
-      <div style={{ position: 'relative' }}>
-        <svg viewBox="0 0 200 500" width="220" height="550" style={{ filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.15))', overflow: 'visible' }}>
+      {/* ── Mannequin SVG ── */}
+      <div className="body-viz-svg" style={{ position: 'relative' }}>
+        <svg viewBox="0 0 200 500" width="180" height="450" style={{ filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.12))', overflow: 'visible' }}>
           
           {/* Continuous Body Outline Background */}
           <path d="M 100 15
@@ -399,6 +402,7 @@ function BodyVisualizer({ effects, medication, dosage }: { effects: Record<strin
             {t('clinician.noRecognisedDrug')}
           </p>
         )}
+      </div>
       </div>
     </div>
   );
@@ -703,20 +707,21 @@ export default function ClinicianPortal() {
   return (
     <div className="container fade-in">
       {/* Page Header */}
-      <div className="slide-up stagger-1 flex-between" style={{ marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="slide-up stagger-1" style={{ marginBottom: '1.25rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>{t('clinician.title')}</h2>
-          <p style={{ color: 'var(--accent-teal)' }}>{t('clinician.subtitle')}</p>
+          <h2 style={{ fontSize: '1.35rem', marginBottom: '0.15rem', lineHeight: 1.2 }}>{t('clinician.title')}</h2>
+          <p style={{ color: 'var(--accent-teal)', fontSize: '0.82rem' }}>{t('clinician.subtitle')}</p>
         </div>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
         {glassBoxLogs.length > 0 && (
           <button
             className="glass-button"
             onClick={() => setShowGlassBox(p => !p)}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: showGlassBox ? '#4ade80' : 'var(--primary)', color: showGlassBox ? '#4ade80' : 'var(--primary)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderColor: showGlassBox ? '#4ade80' : 'var(--primary)', color: showGlassBox ? '#4ade80' : 'var(--primary)', fontSize: '0.8rem' }}
           >
-            {showGlassBox ? <EyeOff size={16} /> : <Eye size={16} />}
+            {showGlassBox ? <EyeOff size={14} /> : <Eye size={14} />}
             {showGlassBox ? t('clinician.hideGlassBox') : t('clinician.viewGlassBox')}
-            <span style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: 9999, padding: '0 6px', fontSize: '0.75rem' }}>
+            <span style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', borderRadius: 9999, padding: '0 5px', fontSize: '0.7rem' }}>
               {glassBoxLogs.length}
             </span>
           </button>
@@ -724,13 +729,14 @@ export default function ClinicianPortal() {
         <button
           className="glass-button"
           onClick={() => { setShowAppointments(p => !p); if (!showAppointments) fetchAppointments(); }}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: showAppointments ? 'var(--primary)' : 'var(--surface)', color: showAppointments ? 'white' : 'var(--primary)' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: showAppointments ? 'var(--primary)' : 'var(--surface)', color: showAppointments ? 'white' : 'var(--primary)', fontSize: '0.8rem' }}
         >
-          <Clock size={16} /> {showAppointments ? 'Hide Appointments' : 'View Appointments'}
+          <Clock size={14} /> {showAppointments ? 'Hide Apts' : 'Appointments'}
           {appointments.length > 0 && !showAppointments && (
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-orange)' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-orange)' }} />
           )}
         </button>
+        </div>
       </div>
 
       {/* Appointments Panel */}
@@ -798,12 +804,12 @@ export default function ClinicianPortal() {
 
       <div className="grid-2">
         {/* Left Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Context Request */}
           <section className="glass-panel slide-up stagger-2" style={{ height: 'fit-content', marginTop: 0 }}>
-          <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Database size={20} color="var(--primary)" /> {t('clinician.contextRequest')}
+          <div className="flex-between" style={{ marginBottom: '1rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.92rem' }}>
+              <Database size={16} color="var(--primary)" /> {t('clinician.contextRequest')}
             </h3>
           </div>
 
@@ -941,7 +947,7 @@ export default function ClinicianPortal() {
         </div>
 
         {/* Right Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {/* Twin Simulation */}
         <section className="glass-panel slide-up stagger-3" style={{
           marginTop: 0,
@@ -1065,9 +1071,9 @@ export default function ClinicianPortal() {
 
       {/* BP Trajectory Chart */}
       {bpHistory.length > 0 && (
-        <section className="glass-panel slide-up" style={{ marginTop: '1.5rem' }}>
-          <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>
+        <section className="glass-panel slide-up" style={{ marginTop: '1rem' }}>
+          <div className="flex-between" style={{ marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontSize: '0.92rem' }}>
               {t('clinician.bpTrajectory')}
             </h3>
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', alignItems: 'center' }}>
@@ -1105,10 +1111,10 @@ export default function ClinicianPortal() {
 
       {/* Biographer Agent Synthesis — full width below grid */}
       {(biography || loadingBio) && (
-        <section className="glass-panel slide-up" style={{ marginTop: '1.5rem', borderLeft: '4px solid var(--accent-purple)' }}>
-          <div className="flex-between" style={{ marginBottom: '1rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-purple)' }}>
-              <FileText size={20} /> {t('clinician.biographerSynthesis')}
+        <section className="glass-panel slide-up" style={{ marginTop: '1rem', borderLeft: '4px solid var(--accent-purple)' }}>
+          <div className="flex-between" style={{ marginBottom: '0.85rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-purple)', fontSize: '0.92rem' }}>
+              <FileText size={16} /> {t('clinician.biographerSynthesis')}
             </h3>
             <span className="badge purple">{t('clinician.aiGenerated')}</span>
           </div>

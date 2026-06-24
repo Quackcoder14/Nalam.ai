@@ -104,10 +104,11 @@ function VitalsDisplay({ vitals }: { vitals: any }) {
     { label: 'BP',   value: `${vitals.sys}/${vitals.dia}`, color: '#C7D2FE' },
   ];
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', marginTop: '0.75rem' }}>
       {items.map(({ label, value, color }) => (
-        <div key={label} style={{ padding: '0.3rem 0.75rem', borderRadius: 8, background: `${color}22`, border: `1px solid ${color}66`, fontSize: '0.8rem', fontWeight: 700, color: 'var(--foreground)' }}>
-          <span style={{ color: 'var(--foreground-muted)', fontWeight: 500 }}>{label}: </span>{value}
+        <div key={label} style={{ padding: '0.4rem 0.6rem', borderRadius: 8, background: `${color}1A`, border: `1px solid ${color}44`, fontSize: '0.8rem', fontWeight: 700, color: 'var(--foreground)', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+          <span style={{ color: 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.7rem' }}>{label}</span>
+          <span style={{ fontSize: '0.9rem' }}>{value}</span>
         </div>
       ))}
     </div>
@@ -285,8 +286,8 @@ export default function BookAppointment() {
       {/* ── STEP 0: Select Doctor ── */}
       {step === 0 && (
         <div className="slide-up">
-          <h3 style={{ marginBottom: '1.25rem', color: 'var(--deep-blue)' }}>Choose your doctor</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+          <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)', fontSize: '1.1rem' }}>Choose your doctor</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
             {DOCTORS.map(doc => (
               <button
                 key={doc.id}
@@ -441,12 +442,12 @@ export default function BookAppointment() {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
-            <button onClick={() => setStep(0)} className="glass-button">← Back</button>
+          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between' }}>
+            <button onClick={() => setStep(0)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>← Back</button>
             <button
               disabled={!selectedDate || !reason.trim()}
               onClick={() => { setStep(2); generateSummary(); }}
-              style={{ padding: '0.65rem 1.75rem', borderRadius: 10, background: !selectedDate || !reason.trim() ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.9rem', cursor: !selectedDate || !reason.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              style={{ padding: '0.65rem 1.25rem', borderRadius: 10, background: !selectedDate || !reason.trim() ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: !selectedDate || !reason.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, justifyContent: 'center' }}
             >
               Next → AI Summary
             </button>
@@ -507,12 +508,12 @@ export default function BookAppointment() {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
-            <button onClick={() => setStep(1)} className="glass-button">← Back</button>
+          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between' }}>
+            <button onClick={() => setStep(1)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>← Back</button>
             <button
               disabled={summaryLoading}
               onClick={() => setStep(3)}
-              style={{ padding: '0.65rem 1.75rem', borderRadius: 10, background: summaryLoading ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.9rem', cursor: summaryLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              style={{ padding: '0.65rem 1.25rem', borderRadius: 10, background: summaryLoading ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: summaryLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, justifyContent: 'center' }}
             >
               Review & Submit →
             </button>
@@ -568,12 +569,12 @@ export default function BookAppointment() {
             <VitalsDisplay vitals={vitalsSnap} />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
-            <button onClick={() => setStep(2)} className="glass-button">← Back</button>
+          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <button onClick={() => setStep(2)} className="glass-button" style={{ padding: '0.75rem 1.25rem' }}>← Back</button>
             <button
               disabled={submitting}
               onClick={handleSubmit}
-              style={{ padding: '0.75rem 2rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 16px rgba(0,82,165,0.3)' }}
+              style={{ flex: 1, padding: '0.75rem 1.25rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 16px rgba(0,82,165,0.3)' }}
             >
               {submitting
                 ? <><div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid white', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> Submitting…</>

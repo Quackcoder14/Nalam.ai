@@ -191,7 +191,7 @@ export default function DeskChat() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         
         {/* Left Panel: Conversations */}
-        <div style={{ width: 350, display: 'flex', flexDirection: 'column', background: 'var(--surface)', borderRight: '1px solid var(--border)', zIndex: 5 }}>
+        <div className="chat-left-panel" style={{ width: 350, display: 'flex', flexDirection: 'column', background: 'var(--surface)', borderRight: '1px solid var(--border)', zIndex: 5 }}>
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--primary)' }}>Conversations</h3>
             <button onClick={() => setShowNewChat(p => !p)} style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'var(--primary)', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -257,7 +257,7 @@ export default function DeskChat() {
         </div>
 
         {/* Right Panel: Chat Area */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F8FAFC', position: 'relative' }}>
+        <div className="chat-right-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F8FAFC', position: 'relative' }}>
           
           {!activePatient ? (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--charcoal)', background: 'var(--surface-muted)' }}>
@@ -270,6 +270,9 @@ export default function DeskChat() {
               {/* Chat Header with condensed Patient Info */}
               <div style={{ padding: '0.75rem 1.5rem', background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 2 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <button className="mobile-back-btn" onClick={() => setActivePatient(null)} style={{ background: 'transparent', border: 'none', padding: '0.5rem', cursor: 'pointer', color: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', marginLeft: '-1rem', marginRight: '-0.5rem' }}>
+                    <ArrowLeft size={20} />
+                  </button>
                   <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <User size={24} />
                   </div>
@@ -388,6 +391,14 @@ export default function DeskChat() {
           )}
         </div>
       </div>
+      <style>{`
+        @media (max-width: 768px) {
+          .chat-left-panel { display: ${activePatient ? 'none' : 'flex'} !important; width: 100% !important; border-right: none !important; }
+          .chat-right-panel { display: ${!activePatient ? 'none' : 'flex'} !important; width: 100% !important; }
+          .mobile-back-btn { display: flex !important; }
+        }
+        .mobile-back-btn { display: none; }
+      `}</style>
     </div>
   );
 }

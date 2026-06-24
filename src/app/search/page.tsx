@@ -12,7 +12,7 @@ interface SearchRecord {
 }
 
 function HighlightedText({ html }: { html: string }) {
-  return <span dangerouslySetInnerHTML={{ __html: html }} style={{ lineHeight: 1.6 }} />;
+  return <span dangerouslySetInnerHTML={{ __html: html }} style={{ lineHeight: 1.6, wordBreak: 'break-word', overflowWrap: 'anywhere' }} />;
 }
 
 function SearchInner() {
@@ -159,7 +159,7 @@ function SearchInner() {
               {rec.highlights.lab_results && (
                 <div style={{ marginBottom: '0.4rem' }}>
                   <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--foreground-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('search.labResults')}</span>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)', marginTop: '0.15rem', fontFamily: 'monospace' }}><HighlightedText html={rec.highlights.lab_results} /></div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)', marginTop: '0.15rem', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}><HighlightedText html={rec.highlights.lab_results} /></div>
                 </div>
               )}
               {rec.provider && (

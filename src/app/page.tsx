@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, User, Stethoscope, ChevronRight, Monitor, Globe } from 'lucide-react';
+import { Heart, User, Stethoscope, ChevronRight, Monitor, Globe, ArrowLeft } from 'lucide-react';
 import { useLanguage, type Lang } from '@/lib/i18n';
 
 type Phase = 'splash' | 'language' | 'login';
@@ -20,12 +20,7 @@ export default function HomePage() {
   useEffect(() => {
     const splashShown = sessionStorage.getItem('splashShown');
     const alreadyChoseLang = localStorage.getItem('nalamLangChosen');
-
-    if (splashShown) {
-      setPhase(alreadyChoseLang ? 'login' : 'language');
-      return;
-    }
-
+    if (splashShown) { setPhase(alreadyChoseLang ? 'login' : 'language'); return; }
     const t1 = setTimeout(() => setSplashFading(true), 2200);
     const t2 = setTimeout(() => {
       sessionStorage.setItem('splashShown', 'true');
@@ -42,35 +37,25 @@ export default function HomePage() {
   };
 
   const handleLogin = (role: 'patient' | 'clinician' | 'hdesk') => {
-    if (password !== '123') {
-      alert(t('login.invalidCreds'));
-      return;
-    }
+    if (password !== '123') { alert(t('login.invalidCreds')); return; }
     const uname = username.toLowerCase();
-    if (role === 'patient' && uname !== 'karthik@nalam.ai') {
-      alert(t('login.invalidPatient'));
-      return;
-    }
-    
+    if (role === 'patient' && uname !== 'karthik@nalam.ai') { alert(t('login.invalidPatient')); return; }
     let subRole = '';
     if (role === 'clinician') {
       if (uname === 'monissha@nalam.ai') subRole = 'specialist';
       else if (uname === 'dhanush@nalam.ai') subRole = 'emergency';
       else { alert(t('login.invalidClinician')); return; }
     }
-    
     if (role === 'hdesk') {
       if (uname === 'apollo@nalam.ai') subRole = 'Apollo Hospitals';
       else if (uname === 'fortis@nalam.ai') subRole = 'Fortis Healthcare';
       else if (uname === 'manipal@nalam.ai') subRole = 'Manipal Hospitals';
       else { alert(t('login.invalidHdesk')); return; }
     }
-    
     localStorage.setItem('nalamRole', role);
     localStorage.setItem('nalamPatientId', 'P001');
     if (role === 'clinician') localStorage.setItem('nalamClinicianRole', subRole);
     if (role === 'hdesk') localStorage.setItem('nalamHdeskBranch', subRole);
-    
     if (role === 'patient') router.push('/dashboard');
     else if (role === 'clinician') router.push('/clinician');
     else router.push('/hospital-desk');
@@ -81,21 +66,21 @@ export default function HomePage() {
     <div style={{
       position: 'fixed', inset: 0,
       background: 'linear-gradient(145deg, #001d5c 0%, #0052A5 55%, #0097A7 100%)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1.5rem',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1.25rem',
       opacity: splashFading ? 0 : 1, transition: 'opacity 0.6s ease', zIndex: 9999,
     }}>
       <div className="splash-logo">
-        <Heart size={52} color="white" className="splash-heart" />
+        <Heart size={46} color="white" className="splash-heart" />
       </div>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '3.5rem', fontWeight: 800, color: 'white', letterSpacing: '-1px', lineHeight: 1 }}>
+        <div style={{ fontSize: '3rem', fontWeight: 800, color: 'white', letterSpacing: '-1px', lineHeight: 1 }}>
           nalam<span style={{ color: '#F4831F' }}>.ai</span>
         </div>
-        <div style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.65)', marginTop: '0.6rem', letterSpacing: '0.03em' }}>
+        <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.65)', marginTop: '0.5rem', letterSpacing: '0.03em' }}>
           {t('splash.tagline')}
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 6, marginTop: '0.5rem' }}>
+      <div style={{ display: 'flex', gap: 6 }}>
         {[0, 1, 2].map(i => (
           <div key={i} className={`dot-bounce dot-bounce-${i}`} />
         ))}
@@ -105,46 +90,39 @@ export default function HomePage() {
 
   /* ── LANGUAGE SELECTION ── */
   if (phase === 'language') return (
-    <div className="mobile-pad" style={{
-      minHeight: '100vh',
+    <div style={{
+      minHeight: '100vh', minHeight: '100dvh',
       background: 'linear-gradient(150deg, #001d5c 0%, #0052A5 55%, #0097A7 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      opacity: langFading ? 0 : 1,
-      transition: 'opacity 0.4s ease',
+      opacity: langFading ? 0 : 1, transition: 'opacity 0.4s ease',
+      padding: '1.5rem',
     }}>
-      <div style={{ width: '100%', maxWidth: 560, textAlign: 'center', animation: 'slideUp 0.5s ease' }}>
+      <div style={{ width: '100%', maxWidth: 420, textAlign: 'center', animation: 'slideUp 0.5s ease' }}>
         {/* Logo */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem' }}>
-          <div style={{
-            width: 54, height: 54,
-            background: 'rgba(255,255,255,0.15)',
-            borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 6px 24px rgba(0,0,0,0.2)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.2)',
-          }}>
-            <Heart size={28} color="white" />
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.65rem', marginBottom: '2rem' }}>
+          <div style={{ width: 48, height: 48, background: 'rgba(255,255,255,0.15)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 24px rgba(0,0,0,0.2)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            <Heart size={24} color="white" />
           </div>
-          <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'white' }}>nalam</span>
-          <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#F4831F', marginLeft: -10 }}>.ai</span>
+          <span style={{ fontSize: '2rem', fontWeight: 800, color: 'white' }}>nalam</span>
+          <span style={{ fontSize: '2rem', fontWeight: 800, color: '#F4831F', marginLeft: -10 }}>.ai</span>
         </div>
 
         {/* Globe Icon */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}>
-            <Globe size={30} color="white" />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}>
+            <Globe size={26} color="white" />
           </div>
         </div>
 
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'white', marginBottom: '0.5rem' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'white', marginBottom: '0.4rem' }}>
           {t('lang.choose')}
         </h1>
-        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1rem', marginBottom: '2.5rem' }}>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.88rem', marginBottom: '2rem' }}>
           {t('lang.subtitle')}
         </p>
 
         {/* Language cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           {[
             { code: 'en' as Lang, label: t('lang.english'), subLabel: 'English', flag: 'EN' },
             { code: 'ta' as Lang, label: t('lang.tamil'), subLabel: 'தமிழ்', flag: 'TA' },
@@ -155,20 +133,17 @@ export default function HomePage() {
               style={{
                 background: lang === code ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)',
                 border: lang === code ? '2.5px solid white' : '2px solid rgba(255,255,255,0.25)',
-                borderRadius: 20,
-                padding: '2rem 1.5rem',
-                cursor: 'pointer',
-                textAlign: 'center',
+                borderRadius: 18,
+                padding: '1.5rem 1rem',
+                cursor: 'pointer', textAlign: 'center',
                 transition: 'all 0.25s ease',
                 backdropFilter: 'blur(12px)',
                 boxShadow: lang === code ? '0 8px 32px rgba(0,0,0,0.25)' : '0 4px 16px rgba(0,0,0,0.15)',
               }}
-              onMouseOver={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.22)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
-              onMouseOut={e => { e.currentTarget.style.background = lang === code ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
             >
-              <div style={{ fontSize: '2.5rem', fontWeight: 800, color: lang === code ? 'white' : 'rgba(255,255,255,0.8)', marginBottom: '0.75rem', letterSpacing: '-1px' }}>{flag}</div>
-              <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'white', marginBottom: '0.25rem' }}>{subLabel}</div>
-              <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>{label}</div>
+              <div style={{ fontSize: '2rem', fontWeight: 800, color: 'white', marginBottom: '0.5rem' }}>{flag}</div>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'white', marginBottom: '0.2rem' }}>{subLabel}</div>
+              <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>{label}</div>
             </button>
           ))}
         </div>
@@ -178,92 +153,113 @@ export default function HomePage() {
 
   /* ── LOGIN ── */
   return (
-    <div className="mobile-pad" style={{
-      minHeight: '100vh',
+    <div style={{
+      minHeight: '100vh', minHeight: '100dvh',
       background: 'var(--background)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       animation: 'fadeIn 0.7s ease',
+      padding: '1.25rem 1rem',
+      paddingTop: 'max(1.25rem, env(safe-area-inset-top))',
+      paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
     }}>
-      <div style={{ width: '100%', maxWidth: 860 }}>
+      <style>{`
+        .home-wrapper { width: 100%; max-width: 520px; transition: max-width 0.3s; }
+        .home-title { font-size: 1.4rem; transition: font-size 0.3s; }
+        .home-subtitle { font-size: 0.88rem; transition: font-size 0.3s; }
+        .role-btn { padding: 1.1rem 1.25rem; transition: all 0.25s ease; }
+        .role-title { font-size: 1rem; transition: font-size 0.3s; }
+        .role-desc { font-size: 0.8rem; transition: font-size 0.3s; }
+        .login-box { padding: 1.5rem; transition: padding 0.3s; }
+        @media (min-width: 768px) {
+          .home-wrapper { max-width: 680px; }
+          .home-title { font-size: 1.8rem; }
+          .home-subtitle { font-size: 1.05rem; }
+          .role-btn { padding: 1.5rem; }
+          .role-title { font-size: 1.25rem; }
+          .role-desc { font-size: 0.95rem; }
+          .login-box { padding: 2.5rem; }
+        }
+      `}</style>
+      <div className="home-wrapper">
         {/* Brand header */}
-        <div style={{ textAlign: 'center', marginBottom: '2.75rem', animation: 'slideUp 0.5s ease' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <div style={{
-              width: 54, height: 54,
-              background: 'linear-gradient(135deg, #0052A5, #0097A7)',
-              borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 6px 24px rgba(0,82,165,0.28)',
-            }}>
-              <Heart size={28} color="white" />
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem', animation: 'slideUp 0.5s ease' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.75rem' }}>
+            <div style={{ width: 46, height: 46, background: 'linear-gradient(135deg, #0052A5, #0097A7)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 24px rgba(0,82,165,0.28)' }}>
+              <Heart size={24} color="white" />
             </div>
-            <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#0052A5' }}>nalam</span>
-            <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#F4831F', marginLeft: -10 }}>.ai</span>
+            <span style={{ fontSize: '2rem', fontWeight: 800, color: '#0052A5' }}>nalam</span>
+            <span style={{ fontSize: '2rem', fontWeight: 800, color: '#F4831F', marginLeft: -10 }}>.ai</span>
           </div>
-          {/* Language switch button */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+
+          {/* Language switch */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.6rem' }}>
             <button
               onClick={() => { setLangFading(false); setPhase('language'); }}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: '1.5px solid #cbd5e0', borderRadius: 20, padding: '0.3rem 0.9rem', cursor: 'pointer', fontSize: '0.82rem', color: '#4A5568', fontFamily: 'inherit', transition: 'all 0.2s' }}
-              onMouseOver={e => e.currentTarget.style.borderColor = '#0052A5'}
-              onMouseOut={e => e.currentTarget.style.borderColor = '#cbd5e0'}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'none', border: '1.5px solid #cbd5e0', borderRadius: 20, padding: '0.28rem 0.8rem', cursor: 'pointer', fontSize: '0.85rem', color: '#4A5568', fontFamily: 'inherit' }}
             >
               <Globe size={14} /> {lang === 'ta' ? 'தமிழ்' : 'English'} ↻
             </button>
           </div>
-          <h1 style={{ fontSize: '1.6rem', color: '#1A2B4A', fontWeight: 700, marginBottom: '0.4rem' }}>{t('login.welcome')}</h1>
-          <p style={{ color: '#4A5568', fontSize: '0.97rem' }}>{t('login.selectRole')}</p>
+          <h1 className="home-title" style={{ color: '#1A2B4A', fontWeight: 700, marginBottom: '0.3rem' }}>{t('login.welcome')}</h1>
+          <p className="home-subtitle" style={{ color: '#4A5568' }}>{t('login.selectRole')}</p>
         </div>
 
         {!loginType ? (
           /* ── Role picker ── */
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', animation: 'slideUp 0.6s ease' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', animation: 'slideUp 0.6s ease' }}>
             {[
               { role: 'patient' as const, Icon: User, title: t('role.patient.title'), desc: t('role.patient.desc'), accentColor: '#0052A5', bg: 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' },
               { role: 'clinician' as const, Icon: Stethoscope, title: t('role.clinician.title'), desc: t('role.clinician.desc'), accentColor: '#0097A7', bg: 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' },
               { role: 'hdesk' as const, Icon: Monitor, title: t('role.hdesk.title'), desc: t('role.hdesk.desc'), accentColor: '#5C35A1', bg: 'linear-gradient(135deg,#F3E8FF,#D8B4FE)' },
             ].map(({ role, Icon, title, desc, accentColor, bg }) => (
-              <button key={role} onClick={() => setLoginType(role)}
-                className="login-card"
-                style={{ background: 'var(--surface)', border: '2px solid #e2e8f0', borderRadius: 22, padding: '2.5rem 2rem', cursor: 'pointer', textAlign: 'left', transition: 'all 0.25s ease', boxShadow: '0 4px 20px rgba(0,82,165,0.06)', display: 'block', width: '100%' }}
-                onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.boxShadow = `0 14px 40px ${accentColor}22`; }}
-                onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,82,165,0.06)'; }}
+              <button key={role} onClick={() => setLoginType(role)} className="role-btn"
+                style={{
+                  background: 'var(--surface)', border: '1.5px solid #e2e8f0', borderRadius: 18,
+                  cursor: 'pointer', textAlign: 'left',
+                  boxShadow: '0 2px 12px rgba(0,82,165,0.06)',
+                  display: 'flex', alignItems: 'center', gap: '1rem', width: '100%',
+                }}
+                onTouchStart={e => { e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.background = `${accentColor}08`; }}
+                onTouchEnd={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = 'var(--surface)'; }}
+                onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.boxShadow = `0 10px 32px ${accentColor}22`; }}
+                onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,82,165,0.06)'; }}
               >
-                <div style={{ width: 56, height: 56, background: bg, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ width: 56, height: 56, background: bg, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon size={28} color={accentColor} />
                 </div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1A2B4A', marginBottom: '0.5rem' }}>{title}</h3>
-                <p style={{ color: '#4A5568', fontSize: '0.875rem', lineHeight: 1.65 }}>{desc}</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '1.25rem', color: accentColor, fontWeight: 600, fontSize: '0.88rem' }}>
-                  {t('role.continue')} <ChevronRight size={15} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 className="role-title" style={{ fontWeight: 700, color: '#1A2B4A', marginBottom: '0.2rem' }}>{title}</h3>
+                  <p className="role-desc" style={{ color: '#4A5568', lineHeight: 1.45 }}>{desc}</p>
                 </div>
+                <ChevronRight size={20} color={accentColor} style={{ flexShrink: 0 }} />
               </button>
             ))}
           </div>
         ) : (
           /* ── Credentials form ── */
-          <div className="mobile-pad" style={{ maxWidth: 430, margin: '0 auto', background: 'var(--surface)', borderRadius: 22, boxShadow: '0 8px 40px rgba(0,82,165,0.1)', animation: 'slideUp 0.4s ease' }}>
-            <button onClick={() => setLoginType(null)} style={{ background: 'none', border: 'none', color: '#4A5568', cursor: 'pointer', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.88rem', padding: 0, fontFamily: 'inherit' }}>
-              {t('login.back')}
+          <div className="login-box" style={{ background: 'var(--surface)', borderRadius: 20, boxShadow: '0 8px 40px rgba(0,82,165,0.1)', animation: 'slideUp 0.4s ease' }}>
+            <button onClick={() => setLoginType(null)} style={{ background: 'none', border: 'none', color: '#4A5568', cursor: 'pointer', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', padding: 0, fontFamily: 'inherit' }}>
+              <ArrowLeft size={15} /> {t('login.back')}
             </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-              <div style={{ width: 44, height: 44, background: loginType === 'patient' ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : loginType === 'clinician' ? 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' : 'linear-gradient(135deg,#F3E8FF,#D8B4FE)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {loginType === 'patient' ? <User size={22} color="#0052A5" /> : loginType === 'clinician' ? <Stethoscope size={22} color="#0097A7" /> : <Monitor size={22} color="#5C35A1" />}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.5rem' }}>
+              <div style={{ width: 40, height: 40, background: loginType === 'patient' ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : loginType === 'clinician' ? 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' : 'linear-gradient(135deg,#F3E8FF,#D8B4FE)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {loginType === 'patient' ? <User size={20} color="#0052A5" /> : loginType === 'clinician' ? <Stethoscope size={20} color="#0097A7" /> : <Monitor size={20} color="#5C35A1" />}
               </div>
-              <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#1A2B4A' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1A2B4A' }}>
                 {loginType === 'patient' ? t('role.patient.loginTitle') : loginType === 'clinician' ? t('role.clinician.loginTitle') : t('role.hdesk.loginTitle')}
               </h2>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {[t('login.username'), t('login.password')].map((label, idx) => (
                 <div key={idx}>
-                  <label style={{ display: 'block', fontSize: '0.83rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.4rem' }}>{label}</label>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.35rem' }}>{label}</label>
                   <input
                     type={idx === 1 ? 'password' : 'text'}
                     value={idx === 0 ? username : password}
                     onChange={e => idx === 0 ? setUsername(e.target.value) : setPassword(e.target.value)}
                     placeholder={idx === 1 ? '••••••••' : 'Enter username'}
                     onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
-                    style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', transition: 'border-color 0.2s', background: '#FAFBFD' }}
+                    style={{ width: '100%', padding: '0.75rem 0.9rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', background: '#FAFBFD' }}
                     onFocus={e => e.target.style.borderColor = loginType === 'patient' ? '#0052A5' : loginType === 'clinician' ? '#0097A7' : '#5C35A1'}
                     onBlur={e => e.target.style.borderColor = '#e2e8f0'}
                   />
@@ -271,8 +267,8 @@ export default function HomePage() {
               ))}
               <button
                 onClick={() => handleLogin(loginType!)}
-                style={{ width: '100%', padding: '0.9rem', marginTop: '0.5rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : loginType === 'clinician' ? 'linear-gradient(135deg,#0097A7,#00BCD4)' : 'linear-gradient(135deg,#5C35A1,#8B5CF6)', color: 'white', border: 'none', borderRadius: 10, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', transition: 'opacity 0.2s', fontFamily: 'inherit' }}
-                onMouseOver={e => e.currentTarget.style.opacity = '0.88'}
+                style={{ width: '100%', padding: '0.85rem', marginTop: '0.25rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : loginType === 'clinician' ? 'linear-gradient(135deg,#0097A7,#00BCD4)' : 'linear-gradient(135deg,#5C35A1,#8B5CF6)', color: 'white', border: 'none', borderRadius: 12, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+                onMouseOver={e => e.currentTarget.style.opacity = '0.9'}
                 onMouseOut={e => e.currentTarget.style.opacity = '1'}
               >
                 {t('login.signIn')}
@@ -281,7 +277,6 @@ export default function HomePage() {
           </div>
         )}
       </div>
-
     </div>
   );
 }

@@ -234,7 +234,7 @@ export default function HospitalDeskPage() {
             parsed.patientId = criticalPopupAlert.patient_id;
             router.push(`/xai?${new URLSearchParams(parsed).toString()}`);
           }}
-          style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, background: 'var(--accent-red-bg)', border: '2px solid var(--accent-red)', borderRadius: 12, padding: '1rem 1.5rem', boxShadow: '0 8px 32px rgba(239,68,68,0.3)', display: 'flex', alignItems: 'flex-start', gap: '1rem', minWidth: 320, maxWidth: '400px', animation: 'slideUpRight 0.4s cubic-bezier(0.16, 1, 0.3, 1)', cursor: 'pointer' }}
+          style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', width: 'calc(100% - 40px)', zIndex: 9999, background: 'var(--accent-red-bg)', border: '2px solid var(--accent-red)', borderRadius: 12, padding: '1rem 1.2rem', boxShadow: '0 8px 32px rgba(239,68,68,0.3)', display: 'flex', alignItems: 'flex-start', gap: '1rem', maxWidth: '400px', animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)', cursor: 'pointer' }}
         >
           <AlertTriangle size={24} color="var(--accent-red)" style={{ flexShrink: 0, marginTop: 4 }} />
           <div style={{ flex: 1 }}>
