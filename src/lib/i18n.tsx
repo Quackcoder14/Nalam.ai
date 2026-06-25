@@ -770,6 +770,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const saved = localStorage.getItem('nalamLang') as Lang | null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     if (saved === 'en' || saved === 'ta') setLangState(saved);
   }, []);
 

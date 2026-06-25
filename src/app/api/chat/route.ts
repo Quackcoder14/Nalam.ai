@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
 import { encrypt, decrypt } from '@/lib/crypto';
+import { getRoleFromHeader } from '@/lib/auth';
 
 /* ── GET /api/chat?patientId=P001&hospital=Apollo ──────────────────────── */
 export async function GET(request: Request) {
@@ -30,8 +31,9 @@ export async function GET(request: Request) {
     }));
 
     return NextResponse.json(messages);
-  } catch (e: any) {
-    return NextResponse.json({ error: 'Database error', details: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    return NextResponse.json({ error: 'Database error', details: msg }, { status: 500 });
   }
 }
 
@@ -42,6 +44,23 @@ export async function POST(request: Request) {
 
     if (!patientId || !hospital || !sender || !content) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // ── Security: validate that the sender matches the authenticated role ──
+    // A 'patient' sender must have x-nalam-role: patient header.
+    // A 'desk' or 'clinician' sender must have the matching role header.
+    const roleHeader = getRoleFromHeader(request);
+    const senderToRole: Record<string, string> = {
+      patient: 'patient',
+      desk: 'hdesk',
+      clinician: 'clinician',
+    };
+    const expectedRole = senderToRole[sender];
+    if (!expectedRole || roleHeader !== expectedRole) {
+      return NextResponse.json(
+        { error: 'Forbidden: sender does not match authenticated role' },
+        { status: 403 }
+      );
     }
 
     const row = await prisma.chatMessage.create({
@@ -66,7 +85,8 @@ export async function POST(request: Request) {
         createdAt: row.created_at.toISOString(),
       }
     });
-  } catch (e: any) {
-    return NextResponse.json({ error: 'Failed to save message', details: e.message }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to save message', details: msg }, { status: 500 });
   }
 }

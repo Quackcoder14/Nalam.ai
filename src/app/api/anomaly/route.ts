@@ -18,10 +18,13 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const lang = body.lang || 'en';
+    // Accept patient_id from the request body so alerts are linked to the correct patient
+    const patientId: string = body.patientId || body.patient_id || 'unknown';
     
-    // Remove lang from body sent to ML
+    // Remove meta fields from body sent to ML service
     const mlBody = { ...body };
     delete mlBody.lang;
+    delete mlBody.patientId;
 
     const res = await fetch(`${ML_URL}/anomaly/detect`, {
       method: 'POST',
@@ -39,14 +42,15 @@ export async function POST(request: Request) {
     
     // Normalise flag shape
     if (Array.isArray(data.flags)) {
-      data.flags = data.flags.map((f: any) => ({
+      data.flags = data.flags.map((f: Record<string, unknown>) => ({
         ...f,
         message: f.message ?? `${f.label}: ${f.vital} = ${f.value} (threshold ${f.operator} ${f.threshold})`,
       }));
     }
 
-    let dbTitle = data.severity === 'critical' ? '🚨 Critical Vital Anomaly' : '⚠️ Vital Anomaly Detected';
-    let dbMessage = data.flags?.[0]?.message || 'An anomaly was detected in your vitals.';
+    // Use const since these values are not reassigned
+    const dbTitle = data.severity === 'critical' ? '🚨 Critical Vital Anomaly' : '⚠️ Vital Anomaly Detected';
+    const dbMessage = data.flags?.[0]?.message || 'An anomaly was detected in your vitals.';
 
     if (lang === 'ta' && Array.isArray(data.flags) && data.flags.length > 0) {
       try {
@@ -68,9 +72,10 @@ export async function POST(request: Request) {
       try {
         await prisma.clinicalAlert.create({
           data: {
-            patient_id: 'P001',
+            // Use the actual patient ID from the request instead of hardcoded 'P001'
+            patient_id: patientId,
             severity: data.severity,
-            title: dbTitle, // always English in DB
+            title: dbTitle,   // always English in DB
             message: dbMessage, // always English in DB
           }
         });
@@ -79,12 +84,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Now if lang===ta we also mutate the title in the response payload 
-    // (Wait, the frontend uses data.flags[0].message but for title it constructs it in dashboard. Actually dashboard constructs its own title, but just in case, we can leave data unmodified for title because data doesn't have a title field, it only has flags).
     return NextResponse.json(data);
-  } catch (error: any) {
-    console.warn('Anomaly service unavailable:', error.message);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'ML service unavailable';
+    console.warn('Anomaly service unavailable:', msg);
     return NextResponse.json(OFFLINE_FALLBACK);
   }
 }
-

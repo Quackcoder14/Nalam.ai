@@ -18,6 +18,7 @@ export default function ClientNav() {
 
   useEffect(() => {
     const saved = localStorage.getItem('nalamTheme') || 'light';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setDark(saved === 'dark');
     document.documentElement.setAttribute('data-theme', saved);
   }, []);

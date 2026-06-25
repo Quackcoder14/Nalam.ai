@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Download, Activity, Clock, ChevronDown, X, ShieldCheck, Link2, MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface OcrResult {
   rawText: string; medications: string[]; diagnoses: string[];
@@ -72,7 +73,7 @@ export default function HospitalDeskPage() {
 
   const fetchAllAppointments = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?all=true`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?all=true`);
       if (res.ok) setAptList(await res.json());
     } catch {}
   }, []);
@@ -80,9 +81,8 @@ export default function HospitalDeskPage() {
   const handleAptAction = async (id: string, status: 'approved' | 'rejected') => {
     setAptProcessing(id);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status, hdeskNote: aptNote[id] || '' }),
       });
       await fetchAllAppointments();
@@ -110,7 +110,7 @@ export default function HospitalDeskPage() {
 
   const fetchAlerts = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts?lang=${lang}`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts?lang=${lang}`);
       if (res.ok) {
         const data = await res.json();
         const incoming = data.alerts || [];
@@ -134,7 +134,7 @@ export default function HospitalDeskPage() {
     
     const fetchUnread = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread?role=desk&hospital=${encodeURIComponent(branch)}`);
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread?role=desk&hospital=${encodeURIComponent(branch)}`);
         if (res.ok) {
           const data = await res.json();
           setChatUnread(data.unreadCount || 0);
@@ -149,20 +149,20 @@ export default function HospitalDeskPage() {
     }, 10000);
     fetchAllAppointments();
     return () => clearInterval(iv);
-  }, [router, fetchAlerts]);
+  }, [router, fetchAlerts, fetchAllAppointments]);
 
   const loadPatient = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!patientId.trim()) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=${patientId}&lang=${lang}`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=${patientId}&lang=${lang}`);
       if (res.ok) {
         const data = await res.json();
         setPatientData(data.patient);
         setPatientRecords(data.records || []);
         setResult(null); setImported(false); setPreview(null); setFile(null); setOcrError(null);
         // Fetch ABHA status for this patient
-        const ar = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha?patientId=${patientId}`);
+        const ar = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha?patientId=${patientId}`);
         if (ar.ok) setAbhaStatus(await ar.json());
         else setAbhaStatus({ verified: false, masked: null });
       } else {
@@ -193,7 +193,7 @@ export default function HospitalDeskPage() {
     setScanning(true); setOcrError(null);
     try {
       const base64 = preview.split(',')[1];
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/ocr`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: base64, filename: file?.name || 'doc' }) });
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/ocr`, { method: 'POST', body: JSON.stringify({ image: base64, filename: file?.name || 'doc' }) });
       const data = await res.json();
       if (data.error) setOcrError(data.error); else setResult(data);
     } catch { setOcrError('Network error — please try again.'); }
@@ -204,8 +204,8 @@ export default function HospitalDeskPage() {
     if (!result || !patientId) return;
     setImporting(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/record`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/record`, {
+        method: 'POST',
         body: JSON.stringify({ patientId, type: 'Document Scan', provider: 'Hospital Desk OCR', diagnosis: result.diagnoses.join(', '), notes: result.structuredSummary || result.rawText.slice(0, 300), labResults: Object.entries(result.labValues).map(([k, v]) => `${k}:${v}`).join(', ') }),
       });
       const data = await res.json();
@@ -215,10 +215,12 @@ export default function HospitalDeskPage() {
     finally { setImporting(false); }
   };
 
-  const markAlertRead = async (id: string) => {
+  const handleAlertClick = async (a: any) => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-      fetchAlerts();
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts`, { method: 'PATCH', body: JSON.stringify({ id: a.id }) });
+      setAlerts(prev => prev.filter(x => x.id !== a.id));
+      setPatientId(a.patient_id);
+      loadPatient();
     } catch {}
   };
 
@@ -371,7 +373,7 @@ export default function HospitalDeskPage() {
                     {snap.sys  && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(199,210,254,0.25)', border: '1px solid rgba(199,210,254,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>🩸 {snap.sys}/{snap.dia} mmHg</span>}
                   </div>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); markAlertRead(a.id); }} className="glass-button" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>
+                <button onClick={(e) => { e.stopPropagation(); handleAlertClick(a); }} className="glass-button" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>
                   {t('hdesk.markRead')}
                 </button>
               </div>

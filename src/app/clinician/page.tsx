@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Lock, Unlock, Database, Cpu, Stethoscope, AlertTriangle, FlaskConical, Eye, EyeOff, CheckCircle, XCircle, SkipForward, Clock, FileText, Activity, ChevronDown } from 'lucide-react';
+import { Cpu, Stethoscope, AlertTriangle, Activity, Eye, EyeOff, Database, Clock, Lock, Unlock, FlaskConical, FileText, CheckCircle, XCircle, SkipForward, ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+// import BodyVisualizer from '../components/BodyVisualizer';
+// import BodyVisualizer from '../components/BodyVisualizer';
+// import { GlassBoxPanel, type GlassBoxEntry } from '../components/GlassBox';
+import { apiFetch } from '@/lib/apiFetch';
 
 const MEDICATIONS = [
   { name: 'Amlodipine',          dosages: ['2.5mg', '5mg', '10mg'] },
@@ -516,22 +520,20 @@ function GlassBoxPanel({ entries }: { entries: GlassBoxEntry[] }) {
 export default function ClinicianPortal() {
   const { t, lang } = useLanguage();
   const [patientId, setPatientId]         = useState('P001');
-  const [role, setRole]                       = useState('specialist');
-  const [allPatients, setAllPatients]         = useState<any[]>([]);
+  const [role, setRole]                   = useState<'specialist' | 'emergency' | 'research'>('specialist');
+  const [allPatients, setAllPatients]     = useState<any[]>([]);
   const [data, setData]                       = useState<any>(null);
   const [error, setError]                     = useState<string | null>(null);
-  const [simulation, setSimulation]           = useState<PrecisionData | null>(null);
+  const [simulation, setSimulation]           = useState<any>(null);
   const [biography, setBiography]             = useState<string>('');
   const [loadingBio, setLoadingBio]           = useState(false);
   const [loadingContext, setLoadingContext]    = useState(false);
   const [loadingSimulation, setLoadingSimulation] = useState(false);
   const [showGlassBox, setShowGlassBox]       = useState(false);
   const [glassBoxLogs, setGlassBoxLogs]       = useState<GlassBoxEntry[]>([]);
-  const [dynamicEffects, setDynamicEffects]   = useState<Record<string, { effect: 'good' | 'bad', short: string }>>({});
   const [selectedMed, setSelectedMed]         = useState('');
   const [selectedDosage, setSelectedDosage]   = useState('');
   const [manualMed, setManualMed]             = useState('');
-  const [expandedRecord, setExpandedRecord]   = useState<string | null>(null);
   const [simTab, setSimTab]                   = useState<'data' | 'visual'>('data');
   
   // Appointments State
@@ -544,7 +546,7 @@ export default function ClinicianPortal() {
     setAptLoading(true);
     try {
       const docId = role === 'emergency' ? 'dr_dhanush' : 'dr_monissha';
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?doctorId=${docId}`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?doctorId=${docId}`);
       if (res.ok) setAppointments(await res.json());
     } catch {} finally { setAptLoading(false); }
   }, [role]);
@@ -552,9 +554,8 @@ export default function ClinicianPortal() {
   const handleAptAction = async (id: string, status: 'scheduled') => {
     setAptProcessing(id);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
       });
       await fetchAppointments();
@@ -583,18 +584,16 @@ export default function ClinicianPortal() {
   const requestContext = async () => {
     setError(null); setData(null); setSimulation(null); setGlassBoxLogs([]); setBiography('');
     setLoadingContext(true);
-    let clinicianName = 'Dr. Monissha (Cardiology)';
-    if (role === 'emergency') clinicianName = 'Dr. Dhanush (ER Attending)';
-    if (role === 'research')  clinicianName = 'BioPharm Research Lab';
+    const clinicianName = role === 'emergency' ? 'Dr. Dhanush (ER Attending)' : role === 'research' ? 'BioPharm Research Lab' : 'Dr. Monissha (Cardiology)';
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`);
       const result = await res.json();
       if (!res.ok) { setError(result.error); }
       else {
         setData(result.data);
         setLoadingBio(true);
         try {
-          const br = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/biographer`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: result.data.patient, records: result.data.records, role, lang }) });
+          const br = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/biographer`, { method: 'POST', body: JSON.stringify({ patient: result.data.patient, records: result.data.records, role, lang }) });
           const bd = await br.json();
           setBiography(bd.summary || '');
           if (bd.glassBox) setGlassBoxLogs(prev => [...prev, ...bd.glassBox]);
@@ -609,9 +608,8 @@ export default function ClinicianPortal() {
     if (!data || !medicationInput.trim()) return;
     try {
       setLoadingSimulation(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/twin`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/twin`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patient: data.patient, records: data.records, intervention: medicationInput, role, lang }),
       });
       if (!res.ok) throw new Error('Simulation failed');
@@ -630,9 +628,8 @@ export default function ClinicianPortal() {
     setLoadingNav(true);
     setNavResult(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/disease-navigator`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/disease-navigator`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           disease: finalDisease,
           patient: data?.patient || null,
@@ -658,30 +655,34 @@ export default function ClinicianPortal() {
     // If language changes and we already have data loaded, auto-refetch the text-heavy AI calls
     if (data) {
       // Refetch the records timeline
-      let clinicianName = role === 'emergency' ? 'Dr. Dhanush (ER Attending)' : role === 'research' ? 'BioPharm Research Lab' : 'Dr. Monissha (Cardiology)';
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`)
+      const clinicianName = role === 'emergency' ? 'Dr. Dhanush (ER Attending)' : role === 'research' ? 'BioPharm Research Lab' : 'Dr. Monissha (Cardiology)';
+      apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`)
         .then(r => r.json())
         .then(result => { if (result.data) setData(result.data); })
         .catch(() => {});
 
-      setLoadingBio(true);
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/biographer`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: data.patient, records: data.records, role, lang }) })
-        .then(r => r.json())
-        .then(bd => setBiography(bd.summary || ''))
-        .catch(() => {})
-        .finally(() => setLoadingBio(false));
+      const fetchBio = async () => {
+        setLoadingBio(true);
+        try {
+          const r = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/biographer`, { method: 'POST', body: JSON.stringify({ patient: data.patient, records: data.records, role, lang }) });
+          const bd = await r.json();
+          setBiography(bd.summary || '');
+        } catch {} finally { setLoadingBio(false); }
+      };
+      fetchBio();
     }
     if (simulation) {
-      setLoadingSimulation(true);
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/twin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient: data.patient, records: data.records, intervention: medicationInput, role, lang }),
-      })
-      .then(r => r.json())
-      .then(res => setSimulation(res))
-      .catch(() => {})
-      .finally(() => setLoadingSimulation(false));
+      const fetchSim = async () => {
+        setLoadingSimulation(true);
+        try {
+          const r = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/twin`, {
+            method: 'POST',
+            body: JSON.stringify({ patient: data.patient, records: data.records, intervention: medicationInput, role, lang }),
+          });
+          setSimulation(await r.json());
+        } catch {} finally { setLoadingSimulation(false); }
+      };
+      fetchSim();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lang]);
@@ -1059,7 +1060,8 @@ export default function ClinicianPortal() {
 
               {simTab === 'visual' && (
                 <div className="slide-up fade-in">
-                  <BodyVisualizer effects={dynamicEffects} medication={medicationInput} dosage={selectedDosage} />
+                  {/* <BodyVisualizer conditions={[]} vitals={data?.patient} /> */}
+                  <span style={{color: 'var(--foreground-muted)'}}>Visualization Unavailable</span>
                 </div>
               )}
             </>

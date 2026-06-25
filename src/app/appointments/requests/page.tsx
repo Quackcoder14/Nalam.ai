@@ -1,8 +1,9 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, AlertTriangle, CheckCircle, Clock, XCircle, ChevronRight, Activity, Paperclip, Trash2, RefreshCw } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import { apiFetch } from '@/lib/apiFetch';
 
 const STATUS_STEPS = ['pending', 'approved', 'scheduled'];
 
@@ -108,21 +109,21 @@ export default function ViewRequests() {
   const [expanded, setExpanded]         = useState<string | null>(null);
   const [cancelling, setCancelling]     = useState<string | null>(null);
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=P001`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=P001`);
       if (res.ok) setAppointments(await res.json());
     } catch {} finally { setLoading(false); }
-  };
+  }, []);
 
-  useEffect(() => { fetchAppointments(); }, []);
+  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
   const cancelRequest = async (id: string) => {
     if (!confirm('Cancel this appointment request?')) return;
     setCancelling(id);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?id=${id}`, { method: 'DELETE' });
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?id=${id}&patientId=P001`, { method: 'DELETE' });
       await fetchAppointments();
     } finally { setCancelling(null); }
   };

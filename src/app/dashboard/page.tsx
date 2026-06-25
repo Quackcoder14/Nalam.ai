@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Shield, Activity, BellRing, Network, Heart, Clock, Eye, ChevronDown, ChevronUp, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, X, Link2, ShieldCheck, Calendar, ClipboardList, MessageSquare, PhoneCall, MoreHorizontal } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import VoiceTriage from '../components/VoiceTriage';
+import { apiFetch } from '@/lib/apiFetch';
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
@@ -111,8 +112,9 @@ export default function PatientDashboard() {
   const checkAnomaly = useCallback(async (currentVitals: typeof vitals) => {
     setAL(true);
     try {
-      const payload = { heart_rate: currentVitals.hr, spo2: currentVitals.spo2, resp: currentVitals.resp, temp: currentVitals.temp, sys: currentVitals.sys, dia: currentVitals.dia, lang };
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/anomaly`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const patientId = localStorage.getItem('nalamPatientId') || 'P001';
+      const payload = { heart_rate: currentVitals.hr, spo2: currentVitals.spo2, resp: currentVitals.resp, temp: currentVitals.temp, sys: currentVitals.sys, dia: currentVitals.dia, lang, patientId };
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/anomaly`, { method: 'POST', body: JSON.stringify(payload) });
       const data = await res.json();
       setAnomaly(data);
       anomalyRef.current = data;
@@ -170,15 +172,15 @@ export default function PatientDashboard() {
     if (role === 'clinician') { router.push('/clinician'); return; }
     (async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=P001&lang=${lang}`);
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=P001&lang=${lang}`);
         if (!res.ok) throw new Error(`API Error: ${res.status}`);
         const data = await res.json();
         setPatient(data.patient);
         setRecords(data.records || []);
         setConsent({ emergency: data.patient.consent_emergency === 'true', specialist: data.patient.consent_specialist === 'true', research: data.patient.consent_research === 'true' });
-        const ir = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/intervention`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient: data.patient, records: data.records, lang }) });
+        const ir = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/intervention`, { method: 'POST', body: JSON.stringify({ patient: data.patient, records: data.records, lang }) });
         if (ir.ok) setIntervention(await ir.json());
-        const ar = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha?patientId=P001`);
+        const ar = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha?patientId=P001`);
         if (ar.ok) setAbha(await ar.json());
       } catch (e) { console.error(e); }
     })();

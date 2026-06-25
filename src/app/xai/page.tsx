@@ -146,6 +146,7 @@ function XAIDashboardInner() {
     } finally { setLoading(false); }
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchExplanation(vitals); }, []);
 
   const vitalLabels: Record<string, string> = {
