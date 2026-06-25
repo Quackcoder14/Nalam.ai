@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, User, Stethoscope, ChevronRight, Monitor, Globe, ArrowLeft } from 'lucide-react';
 import { useLanguage, type Lang } from '@/lib/i18n';
@@ -13,6 +13,7 @@ export default function HomePage() {
   const [loginType, setLoginType] = useState<LoginType>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [hdeskStaffId, setHdeskStaffId] = useState('');
   const [langFading, setLangFading] = useState(false);
   const router = useRouter();
   const { lang, setLang, t } = useLanguage();
@@ -36,29 +37,46 @@ export default function HomePage() {
     setTimeout(() => setPhase('login'), 450);
   };
 
-  const handleLogin = (role: 'patient' | 'clinician' | 'hdesk') => {
-    if (password !== '123') { alert(t('login.invalidCreds')); return; }
-    const uname = username.toLowerCase();
-    if (role === 'patient' && uname !== 'karthik@nalam.ai') { alert(t('login.invalidPatient')); return; }
-    let subRole = '';
-    if (role === 'clinician') {
-      if (uname === 'monissha@nalam.ai') subRole = 'specialist';
-      else if (uname === 'dhanush@nalam.ai') subRole = 'emergency';
-      else { alert(t('login.invalidClinician')); return; }
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  const handleLogin = async (role: 'patient' | 'clinician' | 'hdesk') => {
+    setLoginError(null);
+    setLoginLoading(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username, password, hdeskStaffId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setLoginError(data.error || t('login.invalidCreds'));
+        return;
+      }
+      // Validate the returned role matches the button clicked
+      if (data.role !== role) {
+        setLoginError(t('login.invalidCreds'));
+        return;
+      }
+      // localStorage is purely a UI cache — security decisions use the JWT cookie
+      localStorage.setItem('nalamRole', data.role);
+      localStorage.setItem('nalamPatientId', 'P001');
+      if (data.clinicianRole) localStorage.setItem('nalamClinicianRole', data.clinicianRole);
+      if (data.branch) localStorage.setItem('nalamHdeskBranch', data.branch);
+      if (data.staffId) localStorage.setItem('nalamStaffId', data.staffId);
+      // Store token in sessionStorage as a Bearer fallback for API calls
+      if (data.token) sessionStorage.setItem('nalamToken', data.token);
+
+      if (data.role === 'patient') router.push('/dashboard');
+      else if (data.role === 'clinician') router.push('/clinician');
+      else router.push('/hospital-desk');
+    } catch {
+      setLoginError('Network error — please try again.');
+    } finally {
+      setLoginLoading(false);
     }
-    if (role === 'hdesk') {
-      if (uname === 'apollo@nalam.ai') subRole = 'Apollo Hospitals';
-      else if (uname === 'fortis@nalam.ai') subRole = 'Fortis Healthcare';
-      else if (uname === 'manipal@nalam.ai') subRole = 'Manipal Hospitals';
-      else { alert(t('login.invalidHdesk')); return; }
-    }
-    localStorage.setItem('nalamRole', role);
-    localStorage.setItem('nalamPatientId', 'P001');
-    if (role === 'clinician') localStorage.setItem('nalamClinicianRole', subRole);
-    if (role === 'hdesk') localStorage.setItem('nalamHdeskBranch', subRole);
-    if (role === 'patient') router.push('/dashboard');
-    else if (role === 'clinician') router.push('/clinician');
-    else router.push('/hospital-desk');
   };
 
   /* ── SPLASH ── */
@@ -265,13 +283,39 @@ export default function HomePage() {
                   />
                 </div>
               ))}
+              {loginType === 'hdesk' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.35rem' }}>Staff ID</label>
+                  <input
+                    type="text"
+                    value={hdeskStaffId}
+                    onChange={e => setHdeskStaffId(e.target.value)}
+                    placeholder="Enter your desk staff ID"
+                    onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
+                    style={{ width: '100%', padding: '0.75rem 0.9rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', background: '#FAFBFD' }}
+                    onFocus={e => e.target.style.borderColor = '#5C35A1'}
+                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                  />
+                  <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.35rem', fontStyle: 'italic' }}>
+                    Hint: Use HD-101 (Front Desk) or HD-102 (Manager)
+                  </div>
+                </div>
+              )}
+              {loginError && (
+                <div style={{ padding: '0.6rem 0.9rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, color: '#B91C1C', fontSize: '0.82rem', fontWeight: 600 }}>
+                  ⚠️ {loginError}
+                </div>
+              )}
               <button
                 onClick={() => handleLogin(loginType!)}
-                style={{ width: '100%', padding: '0.85rem', marginTop: '0.25rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : loginType === 'clinician' ? 'linear-gradient(135deg,#0097A7,#00BCD4)' : 'linear-gradient(135deg,#5C35A1,#8B5CF6)', color: 'white', border: 'none', borderRadius: 12, fontSize: '1rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-                onMouseOver={e => e.currentTarget.style.opacity = '0.9'}
-                onMouseOut={e => e.currentTarget.style.opacity = '1'}
+                disabled={loginLoading}
+                style={{ width: '100%', padding: '0.85rem', marginTop: '0.25rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : loginType === 'clinician' ? 'linear-gradient(135deg,#0097A7,#00BCD4)' : 'linear-gradient(135deg,#5C35A1,#8B5CF6)', color: 'white', border: 'none', borderRadius: 12, fontSize: '1rem', fontWeight: 700, cursor: loginLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: loginLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                onMouseOver={e => { if (!loginLoading) e.currentTarget.style.opacity = '0.9'; }}
+                onMouseOut={e => { if (!loginLoading) e.currentTarget.style.opacity = '1'; }}
               >
-                {t('login.signIn')}
+                {loginLoading ? (
+                  <><div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> {t('login.signingIn') || 'Signing in…'}</>
+                ) : t('login.signIn')}
               </button>
             </div>
           </div>

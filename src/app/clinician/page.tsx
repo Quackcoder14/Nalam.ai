@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Cpu, Stethoscope, AlertTriangle, Activity, Eye, EyeOff, Database, Clock, Lock, Unlock, FlaskConical, FileText, CheckCircle, XCircle, SkipForward, ChevronDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 // import BodyVisualizer from '../components/BodyVisualizer';
@@ -518,9 +519,11 @@ function GlassBoxPanel({ entries }: { entries: GlassBoxEntry[] }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ClinicianPortal() {
+  const router = useRouter();
   const { t, lang } = useLanguage();
   const [patientId, setPatientId]         = useState('P001');
   const [role, setRole]                   = useState<'specialist' | 'emergency' | 'research'>('specialist');
+  const [doctorId, setDoctorId]           = useState<string>('');
   const [allPatients, setAllPatients]     = useState<any[]>([]);
   const [data, setData]                       = useState<any>(null);
   const [error, setError]                     = useState<string | null>(null);
@@ -542,23 +545,30 @@ export default function ClinicianPortal() {
   const [aptLoading, setAptLoading]             = useState(false);
   const [aptProcessing, setAptProcessing]       = useState<string | null>(null);
 
+  const [rescheduleApt, setRescheduleApt] = useState<any>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
+
   const fetchAppointments = useCallback(async () => {
     setAptLoading(true);
     try {
-      const docId = role === 'emergency' ? 'dr_dhanush' : 'dr_monissha';
+      // Use the logged-in doctor's actual staffId from localStorage, not a role guess
+      const docId = localStorage.getItem('nalamStaffId') || (role === 'emergency' ? 'dr_dhanush' : 'dr_monissha');
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?doctorId=${docId}`);
       if (res.ok) setAppointments(await res.json());
     } catch {} finally { setAptLoading(false); }
   }, [role]);
 
-  const handleAptAction = async (id: string, status: 'scheduled') => {
+  const handleAptAction = async (id: string, status: string, payload?: any) => {
     setAptProcessing(id);
     try {
       await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
         method: 'PATCH',
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status, ...payload }),
       });
       await fetchAppointments();
+      if (status === 'pending_reschedule') setRescheduleApt(null);
     } finally { setAptProcessing(null); }
   };
 
@@ -575,6 +585,21 @@ export default function ClinicianPortal() {
     : selectedMed ? selectedMed : manualMed;
 
   useEffect(() => {
+    // Check if session is valid
+    apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/me`)
+      .then(res => {
+        if (!res.ok) {
+          router.push('/');
+        }
+      })
+      .catch(() => router.push('/'));
+
+    // Read the logged-in doctor's id and clinician role from localStorage
+    const storedStaffId = localStorage.getItem('nalamStaffId') || '';
+    const storedClinicianRole = localStorage.getItem('nalamClinicianRole') as 'specialist' | 'emergency' | 'research' | null;
+    if (storedStaffId) setDoctorId(storedStaffId);
+    if (storedClinicianRole) setRole(storedClinicianRole);
+
     fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=ALL`)
       .then(r => r.json())
       .then(d => { if (d.patients) setAllPatients(d.patients); })
@@ -762,7 +787,9 @@ export default function ClinicianPortal() {
                       <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: apt.status==='scheduled'?'#E8F5E9':'#EBF3FF', color: apt.status==='scheduled'?'#2E7D32':'#0052A5', fontWeight: 700 }}>{apt.status.toUpperCase()}</span>
                     </div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginBottom: '0.75rem' }}>
-                      <strong>Date:</strong> {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})} | <strong>Ref:</strong> {apt.id}
+                      <strong>Date:</strong> {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}
+                      {apt.time && <> &nbsp;|&nbsp; <strong>Time:</strong> {apt.time}</>}
+                      &nbsp;| <strong>Ref:</strong> {apt.id}
                     </div>
                     <div style={{ marginBottom: '0.75rem' }}>
                       <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 2 }}>PATIENT REASON</div>
@@ -782,10 +809,19 @@ export default function ClinicianPortal() {
                       </div>
                     )}
                   </div>
-                  {apt.status === 'approved' && (
-                    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                      <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'scheduled')} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: 'var(--accent-green)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(34,197,94,0.3)' }}>
-                        {aptProcessing === apt.id ? 'Updating…' : '✓ Mark as Scheduled'}
+                  {apt.status === 'pending_reschedule' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFF8E1', padding: '0.5rem 0.85rem', borderRadius: 8, border: '1px solid #FFE082', color: '#C07A00', fontWeight: 600, fontSize: '0.8rem' }}>
+                      Reschedule proposed. Awaiting desk approval.
+                    </div>
+                  ) : (apt.status === 'approved' || apt.status === 'scheduled') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+                      {apt.status === 'approved' && (
+                        <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'scheduled')} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: 'var(--accent-green)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(34,197,94,0.3)', width: '100%' }}>
+                          {aptProcessing === apt.id ? 'Updating…' : '✓ Mark as Scheduled'}
+                        </button>
+                      )}
+                      <button disabled={aptProcessing === apt.id} onClick={() => { setRescheduleApt(apt); setRescheduleDate(''); setRescheduleTime(''); setRescheduleReason(''); }} style={{ padding: '0.5rem 1rem', borderRadius: 8, background: 'var(--surface-muted)', color: 'var(--charcoal)', border: '1px solid var(--border)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', width: '100%' }}>
+                        Propose Reschedule
                       </button>
                     </div>
                   )}
@@ -793,6 +829,31 @@ export default function ClinicianPortal() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Reschedule Modal */}
+      {rescheduleApt && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
+          <div className="glass-panel slide-up" style={{ width: '90%', maxWidth: 400, background: 'white', padding: '1.5rem', borderRadius: 16 }}>
+            <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)' }}>Propose Reschedule</h3>
+            
+            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>New Date</label>
+            <input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1rem', fontFamily: 'inherit' }} />
+
+            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>New Time</label>
+            <input type="time" value={rescheduleTime} onChange={e => setRescheduleTime(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1rem', fontFamily: 'inherit' }} />
+
+            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>Reason</label>
+            <textarea value={rescheduleReason} onChange={e => setRescheduleReason(e.target.value)} rows={3} placeholder="Provide a reason for the hospital desk..." style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1.5rem', fontFamily: 'inherit', resize: 'vertical' }} />
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => setRescheduleApt(null)} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: 'var(--surface-muted)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button disabled={!rescheduleDate || !rescheduleTime || !rescheduleReason || aptProcessing === rescheduleApt.id} onClick={() => handleAptAction(rescheduleApt.id, 'pending_reschedule', { rescheduleDate, rescheduleTime, rescheduleReason })} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 600, cursor: (!rescheduleDate || !rescheduleTime || !rescheduleReason) ? 'not-allowed' : 'pointer', opacity: (!rescheduleDate || !rescheduleTime || !rescheduleReason) ? 0.6 : 1 }}>
+                {aptProcessing === rescheduleApt.id ? 'Submitting...' : 'Submit Proposal'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

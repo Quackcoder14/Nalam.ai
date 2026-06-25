@@ -63,12 +63,15 @@ export default function PatientDashboard() {
   const [records, setRecords] = useState<any[]>([]);
   const [consent, setConsent] = useState<ConsentState>({ emergency: false, specialist: false, research: false });
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [patientAlerts, setPatientAlerts] = useState<any[]>([]);
   const [showAudit, setShowAudit] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [intervention, setIntervention] = useState<any>(null);
   const [fhirData, setFhirData] = useState<any>(null);
   const [fhirLoading, setFhirLoading] = useState(false);
   const [showMoreActions, setShowMoreActions] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [dismissedPopups, setDismissedPopups] = useState<Set<string>>(new Set());
 
   const [abha, setAbha] = useState<{ verified: boolean; masked: string | null }>({ verified: false, masked: null });
   const [showAbhaModal, setShowAbhaModal] = useState(false);
@@ -163,8 +166,14 @@ export default function PatientDashboard() {
       setAuditLog(d.entries || []);
       const unRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread?patientId=P001&role=patient`);
       if (unRes.ok) { const unData = await unRes.json(); setChatUnread(unData.unreadCount || 0); }
+      const alRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts?lang=${lang}`);
+      if (alRes.ok) {
+        const alData = await alRes.json();
+        const ptAlerts = (alData.alerts || []).filter((a: any) => a.patient_id === 'P001');
+        setPatientAlerts(ptAlerts);
+      }
     } catch { }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     const role = localStorage.getItem('nalamRole');
@@ -223,7 +232,60 @@ export default function PatientDashboard() {
         </div>
       )}
 
-      {/* ── ABHA Modal ── */}
+      {/* ── Notification Popups (Bottom) ── */}
+      <div style={{ position: 'fixed', bottom: 80, right: 12, left: 12, zIndex: 9998, display: 'flex', flexDirection: 'column', gap: '0.5rem', pointerEvents: 'none' }}>
+        {patientAlerts.filter(a => !dismissedPopups.has(a.id)).slice(0, 3).map(alert => (
+          <div key={alert.id} style={{ background: '#E0F2FE', borderLeft: '4px solid #0EA5E9', borderRadius: 12, padding: '0.85rem 1rem', boxShadow: '0 8px 32px rgba(14,165,233,0.2)', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', animation: 'slideUp 0.4s ease', pointerEvents: 'auto' }}>
+            <Bell size={20} color="#0EA5E9" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, color: '#0369A1', fontSize: '0.9rem', marginBottom: '0.1rem' }}>{alert.title}</div>
+              <div style={{ fontSize: '0.82rem', color: '#0C4A6E', lineHeight: 1.4 }}>{alert.message}</div>
+            </div>
+            <button onClick={(e) => {
+              e.stopPropagation();
+              setDismissedPopups(prev => new Set(prev).add(alert.id));
+            }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#0284C7', flexShrink: 0 }}>
+              <X size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Notifications Modal ── */}
+      {showNotificationsModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(3px)' }}>
+          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: '500px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: 'var(--background)', padding: 0, overflow: 'hidden' }}>
+            <div className="flex-between" style={{ padding: '1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)', fontSize: '1.1rem', margin: 0 }}>
+                <Bell size={20} color="var(--primary)" /> Notifications
+              </h3>
+              <button onClick={() => setShowNotificationsModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--foreground-muted)' }}><X size={20} /></button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {patientAlerts.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--foreground-muted)', padding: '2rem 0' }}>No new notifications</div>
+              ) : patientAlerts.map(alert => (
+                <div key={alert.id} style={{ padding: '0.85rem 1rem', background: '#E0F2FE', borderLeft: '4px solid #0EA5E9', borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: '0.65rem' }}>
+                  <Bell size={16} color="#0EA5E9" style={{ marginTop: 3 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: '#0369A1', fontSize: '0.9rem', marginBottom: '0.2rem' }}>{alert.title}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#0C4A6E', lineHeight: 1.4 }}>{alert.message}</div>
+                  </div>
+                  <button onClick={async () => {
+                    // mark read permanently
+                    try {
+                      await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts`, { method: 'PATCH', body: JSON.stringify({ id: alert.id }), headers: { 'Content-Type': 'application/json' } });
+                      setPatientAlerts(prev => prev.filter(a => a.id !== alert.id));
+                    } catch {}
+                  }} style={{ background: 'rgba(2,132,199,0.1)', padding: '0.35rem 0.65rem', borderRadius: 6, border: 'none', cursor: 'pointer', color: '#0284C7', fontSize: '0.75rem', fontWeight: 600 }}>
+                    Clear
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {showAbhaModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(4px)' }}>
           <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 440, background: 'var(--background)' }}>
@@ -297,6 +359,7 @@ export default function PatientDashboard() {
       {/* ── HEADER ── */}
       <div className="slide-up stagger-1" style={{ marginBottom: '1rem' }}>
         {/* Name row */}
+        {/* Name row */}
         <div className="flex-between" style={{ marginBottom: '0.6rem', gap: '0.75rem', flexWrap: 'wrap' }}>
           <div>
             <h2 style={{ fontSize: '1.35rem', marginBottom: '0.1rem', lineHeight: 1.25 }}>{t('dashboard.welcome')} {patient.name} 👋</h2>
@@ -337,6 +400,12 @@ export default function PatientDashboard() {
           </button>
           <button className="glass-button" onClick={() => router.push('/appointments/requests')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
             <ClipboardList size={13} /> Requests
+          </button>
+          <button className="glass-button" onClick={() => setShowNotificationsModal(true)} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0, background: patientAlerts.length > 0 ? 'var(--primary-light)' : 'var(--surface)', color: patientAlerts.length > 0 ? 'var(--primary)' : 'var(--foreground)' }}>
+            <Bell size={13} /> Notifications
+            {patientAlerts.length > 0 && (
+              <span style={{ position: 'absolute', top: -4, right: -4, width: 10, height: 10, background: 'var(--accent-red)', borderRadius: '50%', border: '2px solid white' }} />
+            )}
           </button>
           <button className="glass-button" onClick={() => { setShowMoreActions(p => !p); }} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
             <MoreHorizontal size={13} /> More

@@ -50,9 +50,16 @@ export default function ClientNav() {
     document.documentElement.setAttribute('data-theme', next);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) { console.error('Logout failed', e); }
     localStorage.removeItem('nalamRole');
     localStorage.removeItem('nalamPatientId');
+    localStorage.removeItem('nalamClinicianRole');
+    localStorage.removeItem('nalamHdeskBranch');
+    localStorage.removeItem('nalamStaffId');
+    sessionStorage.removeItem('nalamToken');
     setDrawerOpen(false);
     router.push('/');
   };

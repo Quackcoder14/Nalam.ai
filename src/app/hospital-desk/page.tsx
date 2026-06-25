@@ -78,7 +78,7 @@ export default function HospitalDeskPage() {
     } catch {}
   }, []);
 
-  const handleAptAction = async (id: string, status: 'approved' | 'rejected') => {
+  const handleAptAction = async (id: string, status: string) => {
     setAptProcessing(id);
     try {
       await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
@@ -103,6 +103,7 @@ export default function HospitalDeskPage() {
   const [imported, setImported] = useState(false);
   const [result, setResult] = useState<OcrResult | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
+  const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -160,7 +161,7 @@ export default function HospitalDeskPage() {
         const data = await res.json();
         setPatientData(data.patient);
         setPatientRecords(data.records || []);
-        setResult(null); setImported(false); setPreview(null); setFile(null); setOcrError(null);
+        setResult(null); setImported(false); setPreview(null); setFile(null); setOcrError(null); setMismatchWarning(null);
         // Fetch ABHA status for this patient
         const ar = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha?patientId=${patientId}`);
         if (ar.ok) setAbhaStatus(await ar.json());
@@ -189,13 +190,27 @@ export default function HospitalDeskPage() {
   };
 
   const scan = async () => {
-    if (!preview) return;
-    setScanning(true); setOcrError(null);
+    if (!preview || !patientData) return;
+    setScanning(true); setOcrError(null); setMismatchWarning(null);
     try {
       const base64 = preview.split(',')[1];
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/ocr`, { method: 'POST', body: JSON.stringify({ image: base64, filename: file?.name || 'doc' }) });
       const data = await res.json();
-      if (data.error) setOcrError(data.error); else setResult(data);
+      if (data.error) {
+        setOcrError(data.error);
+      } else {
+        setResult(data);
+        
+        // Mismatch logic
+        if (data.patientName) {
+          const docName = data.patientName.toLowerCase();
+          const pName = patientData.name.toLowerCase();
+          // Extremely basic fuzzy matching just for MVP
+          if (!docName.includes(pName.split(' ')[0]) && !pName.includes(docName.split(' ')[0])) {
+            setMismatchWarning(`Patient name mismatch: Document says "${data.patientName}" but profile is "${patientData.name}".`);
+          }
+        }
+      }
     } catch { setOcrError('Network error — please try again.'); }
     finally { setScanning(false); }
   };
@@ -396,8 +411,8 @@ export default function HospitalDeskPage() {
             {appointments.map(apt => {
               const urgColors: Record<string, {color:string;bg:string}> = { Routine:{color:'#0097A7',bg:'#E0F7FA'}, Urgent:{color:'#C07A00',bg:'#FFF8E1'}, Emergency:{color:'#C62828',bg:'#FFEBEE'} };
               const uc = urgColors[apt.urgency] || urgColors.Routine;
-              const stColor = apt.status === 'approved' ? '#0052A5' : apt.status === 'scheduled' ? '#2E7D32' : apt.status === 'rejected' ? '#C62828' : apt.status === 'cancelled' ? '#71717A' : '#C07A00';
-              const stBg    = apt.status === 'approved' ? '#EBF3FF' : apt.status === 'scheduled' ? '#E8F5E9' : apt.status === 'rejected' ? '#FFEBEE' : apt.status === 'cancelled' ? '#F4F4F5' : '#FFF8E1';
+              const stColor = apt.status === 'approved' ? '#0052A5' : apt.status === 'scheduled' ? '#2E7D32' : apt.status === 'rejected' ? '#C62828' : apt.status === 'cancelled' ? '#71717A' : apt.status === 'pending_reschedule' ? '#C07A00' : '#C07A00';
+              const stBg    = apt.status === 'approved' ? '#EBF3FF' : apt.status === 'scheduled' ? '#E8F5E9' : apt.status === 'rejected' ? '#FFEBEE' : apt.status === 'cancelled' ? '#F4F4F5' : apt.status === 'pending_reschedule' ? '#FFF8E1' : '#FFF8E1';
               const isEx = aptExpanded === apt.id;
               return (
                 <div key={apt.id} style={{ borderRadius: 12, border: `1.5px solid ${isEx ? 'var(--primary)' : 'var(--border)'}`, overflow: 'hidden', transition: 'border-color 0.2s' }}>
@@ -445,6 +460,26 @@ export default function HospitalDeskPage() {
                             </button>
                             <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'approved')} style={{ padding: '0.5rem 1.25rem', borderRadius: 8, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(0,82,165,0.25)' }}>
                               {aptProcessing === apt.id ? '…' : '✓ Approve & Route to Doctor'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      {apt.status === 'pending_reschedule' && (
+                        <>
+                          <div style={{ marginBottom: '0.75rem', padding: '1rem', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 8 }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C07A00', marginBottom: '0.5rem' }}>DOCTOR PROPOSED RESCHEDULE</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                              <div><span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>New Date:</span> <span style={{ fontWeight: 600 }}>{apt.rescheduleProposedDate}</span></div>
+                              <div><span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>New Time:</span> <span style={{ fontWeight: 600 }}>{apt.rescheduleProposedTime}</span></div>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--foreground)' }}><strong>Reason:</strong> {apt.rescheduleReason}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+                            <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'reschedule_rejected')} style={{ padding: '0.5rem 1.1rem', borderRadius: 8, background: '#FFEBEE', border: '1px solid rgba(198,40,40,0.3)', color: '#C62828', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
+                              {aptProcessing === apt.id ? '…' : '✕ Reject Proposal'}
+                            </button>
+                            <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'reschedule_approved')} style={{ padding: '0.5rem 1.25rem', borderRadius: 8, background: 'var(--accent-green)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(34,197,94,0.3)' }}>
+                              {aptProcessing === apt.id ? '…' : '✓ Approve New Time'}
                             </button>
                           </div>
                         </>
@@ -522,10 +557,24 @@ export default function HospitalDeskPage() {
                           </div>
                         </div>
                       )}
-                      <button onClick={importToVault} disabled={imported || importing} className="glass-button"
-                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: imported ? 'var(--accent-green-bg)' : 'var(--primary-light)', borderColor: imported ? 'var(--accent-green)' : 'var(--primary)', color: imported ? 'var(--accent-green)' : 'var(--primary)', fontWeight: 700 }}>
-                        {importing ? <><div style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid currentColor', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> {t('hdesk.saving')}</> : imported ? t('hdesk.addedTimeline') : t('hdesk.importMemory')}
+                  {mismatchWarning && !imported && (
+                    <div style={{ marginTop: '1rem', padding: '1rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#B91C1C', fontWeight: 700, marginBottom: '0.5rem' }}>
+                        <AlertTriangle size={20} /> ⚠️ PATIENT MISMATCH
+                      </div>
+                      <p style={{ color: '#991B1B', fontSize: '0.9rem', marginBottom: '1rem' }}>{mismatchWarning}</p>
+                      <button onClick={() => setMismatchWarning(null)} style={{ padding: '0.5rem 1rem', background: '#DC2626', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                        Acknowledge & Proceed Anyway
                       </button>
+                    </div>
+                  )}
+                  {result && !imported && !mismatchWarning && (
+                    <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button onClick={importToVault} disabled={importing} className="primary-button" style={{ padding: '0.75rem 1.5rem', opacity: importing ? 0.7 : 1, width: '100%' }}>
+                        {importing ? t('hdesk.importing') : t('hdesk.importToVault')}
+                      </button>
+                    </div>
+                  )}
                     </div>
                   )}
                 </section>

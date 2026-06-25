@@ -13,6 +13,7 @@ export default function PatientChat() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [mockProfile, setMockProfile] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -140,6 +141,35 @@ export default function PatientChat() {
         }
       `}</style>
       {/* Header */}
+      {/* Mock Profile Modal */}
+      {mockProfile && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(4px)' }}>
+          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 360, background: 'white', padding: '1.5rem', borderRadius: 16, position: 'relative' }}>
+            <button onClick={() => setMockProfile(null)} style={{ position: 'absolute', top: 12, right: 12, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--charcoal)' }}>
+              <X size={20} />
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <UserCircle size={48} />
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ fontSize: '1.25rem', color: 'var(--deep-blue)', marginBottom: '0.2rem' }}>Staff Profile</h3>
+                <p style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.9rem' }}>{mockProfile}</p>
+                <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem', marginTop: '0.5rem' }}>Hospital Desk Representative at {selectedHospital}</p>
+              </div>
+            </div>
+            <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--charcoal)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} /> Currently Active
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--charcoal)', fontSize: '0.85rem' }}>
+                <Building2 size={14} /> Assigned to Front Desk Support
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="chat-header-global" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         <button onClick={() => router.push('/dashboard')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.9rem' }}>
           <ArrowLeft size={18} /> Back
@@ -251,6 +281,16 @@ export default function PatientChat() {
                       </div>
                       <span style={{ fontSize: '0.65rem', color: 'var(--foreground-muted)' }}>
                         {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {!isMe && m.staff_id && (
+                          <button onClick={() => setMockProfile(m.staff_id)} style={{ marginLeft: '0.5rem', background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.65rem', textDecoration: 'underline' }}>
+                            View Profile ({m.staff_id})
+                          </button>
+                        )}
+                        {!isMe && !m.staff_id && (
+                          <button onClick={() => setMockProfile('Desk Worker')} style={{ marginLeft: '0.5rem', background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.65rem', textDecoration: 'underline' }}>
+                            View Profile
+                          </button>
+                        )}
                       </span>
                     </div>
 

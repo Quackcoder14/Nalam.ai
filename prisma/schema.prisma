@@ -98,25 +98,29 @@ model ClinicalAlert {
 
 // ─── Appointments ────────────────────────────────────────────────────────────
 model Appointment {
-  id                String    @id @default(cuid())
-  patient_id        String
-  doctor_id         String
-  doctor_name       String
-  doctor_specialty  String
-  hospital          String
-  date              String
-  reason_enc        String    @db.Text
-  urgency           String
-  vitals_json       String?   @db.Text
-  attachments_json  String?   @db.Text
-  status            String    @default("pending")
-  ai_summary_enc    String?   @db.Text
-  hdesk_note_enc    String?   @db.Text
-  created_at        DateTime  @default(now())
-  approved_at       DateTime?
-  scheduled_at      DateTime?
+  id                        String    @id @default(cuid())
+  patient_id                String
+  doctor_id                 String
+  doctor_name               String
+  doctor_specialty          String
+  hospital                  String
+  date                      String
+  time                      String?
+  reason_enc                String    @db.Text
+  urgency                   String
+  vitals_json               String?   @db.Text
+  attachments_json          String?   @db.Text
+  status                    String    @default("pending")
+  ai_summary_enc            String?   @db.Text
+  hdesk_note_enc            String?   @db.Text
+  reschedule_reason_enc     String?   @db.Text
+  reschedule_proposed_date  String?
+  reschedule_proposed_time  String?
+  created_at                DateTime  @default(now())
+  approved_at               DateTime?
+  scheduled_at              DateTime?
 
-  patient           Patient   @relation(fields: [patient_id], references: [id])
+  patient                   Patient   @relation(fields: [patient_id], references: [id])
 
   @@index([patient_id, status])
   @@map("appointments")
@@ -130,6 +134,7 @@ model ChatMessage {
   sender       String   // "patient" | "desk"
   type         String   @default("text") // "text", "voice", "image", "file"
   content_enc  String   @db.Text
+  staff_id     String?  // The identity of the staff member who sent this message (if desk/clinician)
   is_read      Boolean  @default(false)
   created_at   DateTime @default(now())
 

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Mic, MicOff, Loader2, Paperclip, X, ChevronRight, CheckCircle, Calendar, Stethoscope, AlertTriangle, FileText, Activity, Heart, Zap, Brain } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import { DOCTOR_SCHEDULES, getNextSlots, AVAILABLE_TIME_SLOTS } from '@/lib/doctors';
 
 /* ─── Doctor Roster ─────────────────────────────────────────────────────── */
 const DOCTORS = [
@@ -16,8 +17,8 @@ const DOCTORS = [
     avatar: 'D',
     avatarColor: '#0052A5',
     languages: ['English', 'Tamil'],
-    slots: ['Mon', 'Wed', 'Fri'],
-    availableDates: getNextSlots(['Mon', 'Wed', 'Fri']),
+    slots: DOCTOR_SCHEDULES['dr_dhanush'],
+    availableDates: getNextSlots(DOCTOR_SCHEDULES['dr_dhanush']),
   },
   {
     id: 'dr_monissha',
@@ -29,8 +30,8 @@ const DOCTORS = [
     avatar: 'M',
     avatarColor: '#5C35A1',
     languages: ['English', 'Tamil'],
-    slots: ['Tue', 'Thu', 'Sat'],
-    availableDates: getNextSlots(['Tue', 'Thu', 'Sat']),
+    slots: DOCTOR_SCHEDULES['dr_monissha'],
+    availableDates: getNextSlots(DOCTOR_SCHEDULES['dr_monissha']),
   },
 ];
 
@@ -40,20 +41,7 @@ const URGENCY_OPTIONS = [
   { value: 'Emergency', label: 'Emergency', color: '#C62828', bg: '#FFEBEE', desc: 'Serious symptoms needing same-day care' },
 ];
 
-function getNextSlots(days: string[]): string[] {
-  const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  const today = new Date();
-  const dates: string[] = [];
-  for (let i = 1; i <= 30 && dates.length < 6; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
-    if (days.includes(dayName)) {
-      dates.push(d.toISOString().slice(0, 10));
-    }
-  }
-  return dates;
-}
+
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -123,6 +111,7 @@ export default function BookAppointment() {
   const [step, setStep]                 = useState(0);
   const [selectedDoctor, setDoctor]     = useState<typeof DOCTORS[0] | null>(null);
   const [selectedDate, setDate]         = useState('');
+  const [selectedTime, setTime]         = useState('');
   const [urgency, setUrgency]           = useState('Routine');
   const [reason, setReason]             = useState('');
   const [inputMode, setInputMode]       = useState<'text' | 'voice'>('text');
@@ -217,6 +206,7 @@ export default function BookAppointment() {
 
   /* ── Submit ────────────────────────────────────────── */
   const handleSubmit = async () => {
+    if (!selectedDoctor || !selectedDate || !selectedTime || !reason) return;
     setSubmitting(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
@@ -225,11 +215,12 @@ export default function BookAppointment() {
         body: JSON.stringify({
           patientId: 'P001',
           patientName: 'Arjun Sharma',
-          doctorId: selectedDoctor!.id,
-          doctorName: selectedDoctor!.name,
-          doctorSpecialty: selectedDoctor!.specialty,
-          hospital: selectedDoctor!.hospital,
+          doctorId: selectedDoctor.id,
+          doctorName: selectedDoctor.name,
+          doctorSpecialty: selectedDoctor.specialty,
+          hospital: 'Apollo Hospitals',
           date: selectedDate,
+          time: selectedTime,
           reason,
           aiSummary,
           urgency,
@@ -238,13 +229,16 @@ export default function BookAppointment() {
         }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setAptId(data.appointment.id);
         setSubmitted(true);
         setTimeout(() => router.push('/appointments/requests'), 2800);
+      } else {
+        alert(data.error || 'Failed to book appointment.');
       }
     } catch (e) {
       console.error(e);
+      alert('Network error while booking appointment.');
     } finally {
       setSubmitting(false);
     }
@@ -370,6 +364,29 @@ export default function BookAppointment() {
             </div>
           </div>
 
+          {/* Time Selection */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
+              <Calendar size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />Select Time
+            </label>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {AVAILABLE_TIME_SLOTS.map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTime(t)}
+                  style={{
+                    padding: '0.5rem 1rem', borderRadius: 10, border: `1.5px solid ${selectedTime === t ? 'var(--primary)' : 'var(--border)'}`,
+                    background: selectedTime === t ? 'var(--primary)' : 'var(--surface)',
+                    color: selectedTime === t ? 'white' : 'var(--foreground)',
+                    fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.18s ease',
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Urgency */}
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
@@ -445,9 +462,9 @@ export default function BookAppointment() {
           <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between' }}>
             <button onClick={() => setStep(0)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>← Back</button>
             <button
-              disabled={!selectedDate || !reason.trim()}
+              disabled={!selectedDate || !selectedTime || !reason.trim()}
               onClick={() => { setStep(2); generateSummary(); }}
-              style={{ padding: '0.65rem 1.25rem', borderRadius: 10, background: !selectedDate || !reason.trim() ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: !selectedDate || !reason.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, justifyContent: 'center' }}
+              style={{ padding: '0.65rem 1.25rem', borderRadius: 10, background: !selectedDate || !selectedTime || !reason.trim() ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: !selectedDate || !selectedTime || !reason.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, justifyContent: 'center' }}
             >
               Next → AI Summary
             </button>

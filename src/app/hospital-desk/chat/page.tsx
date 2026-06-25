@@ -23,6 +23,7 @@ export default function DeskChat() {
   // Show "New Chat" dialog
   const [showNewChat, setShowNewChat] = useState(false);
   const [newChatInput, setNewChatInput] = useState('');
+  const [showMockProfile, setShowMockProfile] = useState(false);
 
   const hospital = 'Apollo Hospitals'; // Hardcoded for MVP
 
@@ -180,6 +181,45 @@ export default function DeskChat() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--surface-muted)' }}>
+      {/* Mock Patient Profile Modal */}
+      {showMockProfile && activePatient && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(4px)' }}>
+          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 400, background: 'white', padding: '1.5rem', borderRadius: 16, position: 'relative' }}>
+            <button onClick={() => setShowMockProfile(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--charcoal)' }}>
+              <stopCircle size={20} /> {/* We will use X icon but it is not imported from lucide-react here, so I will add a close text or button */}
+              <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>×</span>
+            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <User size={40} />
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ fontSize: '1.4rem', color: 'var(--deep-blue)', marginBottom: '0.2rem' }}>{activePatient.name}</h3>
+                <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', marginTop: '0.2rem' }}>Patient ID: {activePatient.id}</p>
+              </div>
+            </div>
+            <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--foreground-muted)' }}>Date of Birth</span>
+                <span style={{ color: 'var(--deep-blue)', fontWeight: 600 }}>{activePatient.dob}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--foreground-muted)' }}>Gender</span>
+                <span style={{ color: 'var(--deep-blue)', fontWeight: 600 }}>{activePatient.gender}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--foreground-muted)' }}>Blood Type</span>
+                <span style={{ color: 'var(--deep-blue)', fontWeight: 600 }}>{activePatient.blood_type || 'Unknown'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--foreground-muted)' }}>Contact</span>
+                <span style={{ color: 'var(--deep-blue)', fontWeight: 600 }}>{activePatient.phone || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '1rem 2rem', background: 'var(--surface)', borderBottom: '1px solid var(--border)', zIndex: 10 }}>
         <button onClick={() => router.push('/hospital-desk')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.9rem' }}>
@@ -286,7 +326,7 @@ export default function DeskChat() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button onClick={() => alert('View full profile (mock)')} className="glass-button" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>View Profile</button>
+                  <button onClick={() => setShowMockProfile(true)} className="glass-button" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>View Profile</button>
                 </div>
               </div>
 
@@ -331,6 +371,7 @@ export default function DeskChat() {
                             )}
                           </div>
                           <span style={{ fontSize: '0.65rem', color: 'var(--foreground-muted)' }}>
+                            {m.staffId && <span style={{ fontWeight: 600, marginRight: 4 }}>{m.staffId} •</span>}
                             {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>

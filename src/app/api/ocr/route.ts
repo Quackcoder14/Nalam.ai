@@ -34,6 +34,8 @@ ${langInstruction}
 
 Extract and return a JSON object with EXACTLY this structure:
 {
+  "patientName": "<patient name if visible, else null>",
+  "patientDob": "<patient DOB or age if visible, else null>",
   "rawText": "<all text visible in the document, verbatim>",
   "medications": ["<medication name + dosage>", ...],
   "diagnoses": ["<diagnosis/condition>", ...],
@@ -70,6 +72,8 @@ Return ONLY valid JSON, no markdown, no code blocks, no explanation.`,
     } catch {
       // If JSON parse fails, return the raw text at minimum
       parsed = {
+        patientName: null,
+        patientDob: null,
         rawText: raw,
         medications: [],
         diagnoses: [],
@@ -83,6 +87,8 @@ Return ONLY valid JSON, no markdown, no code blocks, no explanation.`,
     const durationMs = Date.now() - t0;
 
     return NextResponse.json({
+      patientName: parsed.patientName ?? null,
+      patientDob: parsed.patientDob ?? null,
       rawText: parsed.rawText ?? '',
       medications: Array.isArray(parsed.medications) ? parsed.medications : [],
       diagnoses: Array.isArray(parsed.diagnoses) ? parsed.diagnoses : [],

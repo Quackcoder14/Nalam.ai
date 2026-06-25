@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
 import { encrypt, decrypt } from '@/lib/crypto';
-import { getRoleFromHeader } from '@/lib/auth';
+import { getSessionFromRequest } from '@/lib/auth';
 
 /* ── GET /api/chat?patientId=P001&hospital=Apollo ──────────────────────── */
 export async function GET(request: Request) {
@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       sender: r.sender,
       type: r.type,
       content: decrypt(r.content_enc),
+      staffId: r.staff_id,
       createdAt: r.created_at.toISOString(),
     }));
 
@@ -47,16 +48,18 @@ export async function POST(request: Request) {
     }
 
     // ── Security: validate that the sender matches the authenticated role ──
-    // A 'patient' sender must have x-nalam-role: patient header.
-    // A 'desk' or 'clinician' sender must have the matching role header.
-    const roleHeader = getRoleFromHeader(request);
+    const session = getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Forbidden: not authenticated' }, { status: 401 });
+    }
+
     const senderToRole: Record<string, string> = {
       patient: 'patient',
       desk: 'hdesk',
       clinician: 'clinician',
     };
     const expectedRole = senderToRole[sender];
-    if (!expectedRole || roleHeader !== expectedRole) {
+    if (!expectedRole || session.role !== expectedRole) {
       return NextResponse.json(
         { error: 'Forbidden: sender does not match authenticated role' },
         { status: 403 }
@@ -70,6 +73,7 @@ export async function POST(request: Request) {
         sender,
         type: type || 'text',
         content_enc: encrypt(content),
+        staff_id: session.role !== 'patient' ? session.staffId : null,
       },
     });
 
@@ -82,6 +86,7 @@ export async function POST(request: Request) {
         sender: row.sender,
         type: row.type,
         content: decrypt(row.content_enc),
+        staffId: row.staff_id,
         createdAt: row.created_at.toISOString(),
       }
     });

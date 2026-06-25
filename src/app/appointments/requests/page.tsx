@@ -8,11 +8,12 @@ import { apiFetch } from '@/lib/apiFetch';
 const STATUS_STEPS = ['pending', 'approved', 'scheduled'];
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-  pending:   { label: 'Under Review',  color: '#C07A00', bg: '#FFF8E1', icon: Clock },
-  approved:  { label: 'Approved',      color: '#0052A5', bg: '#EBF3FF', icon: CheckCircle },
-  scheduled: { label: 'Scheduled',     color: '#2E7D32', bg: '#E8F5E9', icon: CheckCircle },
-  rejected:  { label: 'Rejected',      color: '#C62828', bg: '#FFEBEE', icon: XCircle },
-  cancelled: { label: 'Cancelled',     color: '#71717A', bg: '#F4F4F5', icon: XCircle },
+  pending:            { label: 'Under Review',       color: '#C07A00', bg: '#FFF8E1', icon: Clock },
+  approved:           { label: 'Approved',           color: '#0052A5', bg: '#EBF3FF', icon: CheckCircle },
+  scheduled:          { label: 'Scheduled',          color: '#2E7D32', bg: '#E8F5E9', icon: CheckCircle },
+  pending_reschedule: { label: 'Reschedule Proposed', color: '#7C3AED', bg: '#F3E8FF', icon: AlertTriangle },
+  rejected:           { label: 'Rejected',           color: '#C62828', bg: '#FFEBEE', icon: XCircle },
+  cancelled:          { label: 'Cancelled',          color: '#71717A', bg: '#F4F4F5', icon: XCircle },
 };
 
 const URGENCY_COLORS: Record<string, { color: string; bg: string }> = {
@@ -36,7 +37,9 @@ function StatusStepper({ status }: { status: string }) {
     { key: 'approved',  label: 'Approved' },
     { key: 'scheduled', label: 'Scheduled' },
   ];
-  const currentIdx = status === 'rejected' ? -1 : STATUS_STEPS.indexOf(status);
+  const currentIdx = (status === 'rejected' || status === 'cancelled') ? -1
+    : status === 'pending_reschedule' ? 2
+    : STATUS_STEPS.indexOf(status);
 
   if (status === 'rejected') {
     return (
@@ -187,8 +190,11 @@ export default function ViewRequests() {
                       <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: uc.bg, color: uc.color, fontWeight: 700, border: `1px solid ${uc.color}44` }}>{apt.urgency}</span>
                     </div>
                     <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginBottom: '0.25rem' }}>{apt.doctorSpecialty} · {apt.hospital}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                       <Calendar size={12} /> {formatDate(apt.date)}
+                      {apt.time && (
+                        <><Clock size={12} style={{ marginLeft: 4 }} /> {apt.time}</>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
@@ -253,6 +259,24 @@ export default function ViewRequests() {
                             </span>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Reschedule Proposal Banner */}
+                    {apt.status === 'pending_reschedule' && (
+                      <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 10, background: '#F3E8FF', border: '1.5px solid #7C3AED44' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                          <AlertTriangle size={15} color="#7C3AED" />
+                          <span style={{ fontWeight: 700, color: '#7C3AED', fontSize: '0.82rem' }}>RESCHEDULE PROPOSED BY DOCTOR</span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#4C1D95', marginBottom: '0.35rem' }}>
+                          <strong>New Date:</strong> {apt.rescheduleProposedDate ? formatDate(apt.rescheduleProposedDate) : '—'}
+                          {apt.rescheduleProposedTime && <> &nbsp;at&nbsp; <strong>{apt.rescheduleProposedTime}</strong></>}
+                        </div>
+                        {apt.rescheduleReason && (
+                          <div style={{ fontSize: '0.82rem', color: '#4C1D95', fontStyle: 'italic' }}>Reason: {apt.rescheduleReason}</div>
+                        )}
+                        <div style={{ fontSize: '0.75rem', color: '#7C3AED', marginTop: '0.4rem', fontWeight: 600 }}>Awaiting desk approval — you will be notified once confirmed.</div>
                       </div>
                     )}
 
