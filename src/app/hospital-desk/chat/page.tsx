@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Search, Send, Mic, Paperclip, User, ShieldCheck, Activity, Calendar, StopCircle, File, Plus, UserCircle, Phone, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Search, Send, Mic, Paperclip, User, ShieldCheck, Activity, Calendar, StopCircle, File, Plus, UserCircle, Phone, MessageSquare, X } from 'lucide-react';
 
 export default function DeskChat() {
   const router = useRouter();
@@ -186,8 +186,7 @@ export default function DeskChat() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(4px)' }}>
           <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 400, background: 'white', padding: '1.5rem', borderRadius: 16, position: 'relative' }}>
             <button onClick={() => setShowMockProfile(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--charcoal)' }}>
-              <stopCircle size={20} /> {/* We will use X icon but it is not imported from lucide-react here, so I will add a close text or button */}
-              <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>×</span>
+              <X size={20} />
             </button>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
               <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
