@@ -423,7 +423,7 @@ export default function HospitalDeskPage() {
                         <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.55rem', borderRadius: 20, background: uc.bg, color: uc.color, fontWeight: 700, border: `1px solid ${uc.color}44` }}>{apt.urgency}</span>
                         <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.55rem', borderRadius: 20, background: stBg, color: stColor, fontWeight: 700 }}>{apt.status.charAt(0).toUpperCase()+apt.status.slice(1)}</span>
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)' }}>→ {apt.doctorName} · {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)' }}>→ {apt.doctorName} · {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}{apt.time ? ` at ${apt.time}` : ''}</div>
                     </div>
                     <span style={{ fontSize: '0.72rem', color: 'var(--foreground-muted)' }}>{new Date(apt.createdAt).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
                   </div>
@@ -432,6 +432,8 @@ export default function HospitalDeskPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
                         <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>PATIENT</div><div style={{ fontWeight: 700 }}>{apt.patientName} · <span style={{ fontFamily: 'monospace', color: 'var(--primary)', fontSize: '0.85rem' }}>{apt.patientId}</span></div></div>
                         <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>DOCTOR</div><div style={{ fontWeight: 700 }}>{apt.doctorName}</div><div style={{ fontSize: '0.78rem', color: 'var(--charcoal)' }}>{apt.doctorSpecialty}</div></div>
+                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>REQUESTED DATE</div><div style={{ fontWeight: 600 }}>{new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</div></div>
+                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>REQUESTED TIME</div><div style={{ fontWeight: 600 }}>{apt.time || <span style={{ color: 'var(--foreground-muted)', fontWeight: 400 }}>Not specified</span>}</div></div>
                       </div>
                       <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>PATIENT REASON</div><div style={{ fontSize: '0.88rem', lineHeight: 1.6, padding: '0.6rem 0.85rem', background: 'var(--surface-muted)', borderRadius: 8 }}>{apt.reason}</div></div>
                       <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>AI CLINICAL SUMMARY</div><div style={{ fontSize: '0.85rem', lineHeight: 1.6, padding: '0.6rem 0.85rem', background: 'rgba(0,82,165,0.05)', border: '1px solid rgba(0,82,165,0.15)', borderRadius: 8 }}>{apt.aiSummary || '—'}</div></div>
