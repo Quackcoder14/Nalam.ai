@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Mic, Paperclip, Building2, User, UserCircle, StopCircle, Image as ImageIcon, File } from 'lucide-react';
+import { ArrowLeft, Send, Mic, Paperclip, Building2, User, UserCircle, StopCircle, Image as ImageIcon, File, X } from 'lucide-react';
 
 const HOSPITALS = ['Apollo Hospitals', 'Fortis Healthcare', 'Nalam.ai General Hospital'];
 
