@@ -144,3 +144,13 @@ model ChatMessage {
   @@index([patient_id, hospital])
   @@map("chat_messages")
 }
+
+// ─── FCM Tokens ──────────────────────────────────────────────────────────────
+model FcmToken {
+  id         String   @id @default(cuid())
+  username   String   @unique
+  token      String   @db.Text
+  created_at DateTime @default(now())
+
+  @@map("fcm_tokens")
+}

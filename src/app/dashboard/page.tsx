@@ -1,10 +1,19 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Activity, BellRing, Network, Heart, Clock, Eye, ChevronDown, ChevronUp, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, X, Link2, ShieldCheck, Calendar, ClipboardList, MessageSquare, PhoneCall, MoreHorizontal } from 'lucide-react';
+import { Shield, Activity, BellRing, Network, Heart, Clock, Eye, ChevronDown, ChevronUp, Zap, Brain, AlertTriangle, CheckCircle, Bell, BellOff, X, Link2, ShieldCheck, Calendar, ClipboardList, MessageSquare, PhoneCall, MoreHorizontal, MapPin } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import VoiceTriage from '../components/VoiceTriage';
 import { apiFetch } from '@/lib/apiFetch';
+import { useFCMToken } from '@/lib/useFCMToken';
+import dynamic from 'next/dynamic';
+
+// Dynamically import the Ola Map (maplibre needs the browser)
+const OlaMap = dynamic(() => import('../components/OlaMap'), { ssr: false, loading: () => (
+  <div style={{ height: 340, borderRadius: 16, background: 'var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--charcoal)', fontSize: '0.85rem' }}>
+    Loading map…
+  </div>
+) });
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
@@ -98,6 +107,10 @@ export default function PatientDashboard() {
   const [hasSeenReschedulePopup, setHasSeenReschedulePopup] = useState(false);
   const anomalyRef = useRef<any>(null);
   const router = useRouter();
+
+  // Register this device with Firebase Cloud Messaging for push notifications
+  const storedUser = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId')) : null;
+  useFCMToken(storedUser);
 
   useEffect(() => { vitalsRef.current = vitals; }, [vitals]);
 
@@ -546,6 +559,20 @@ export default function PatientDashboard() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* ── NEARBY HOSPITALS MAP (Ola Maps) ── */}
+      <section className="glass-panel slide-up stagger-2" style={{ marginBottom: '1rem' }}>
+        <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--deep-blue)', fontSize: '0.95rem' }}>
+            <MapPin size={17} color="#0052A5" /> Nearby Hospitals
+          </h3>
+          <span className="badge" style={{ background: '#EBF4FF', color: '#0052A5', fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.55rem', borderRadius: 6 }}>Tamil Nadu</span>
+        </div>
+        <OlaMap height="340px" />
+        <p style={{ fontSize: '0.72rem', color: 'var(--charcoal)', marginTop: '0.5rem', textAlign: 'center' }}>
+          Click any marker to see hospital details
+        </p>
       </section>
 
       {/* ── AUDIT LOG ── */}

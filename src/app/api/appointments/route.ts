@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { encrypt, decrypt } from '@/lib/crypto';
 import { requireRole } from '@/lib/auth';
 import { DOCTOR_SCHEDULES } from '@/lib/doctors';
+import { sendPushToUser } from '@/lib/sendPush';
 
 /* ── GET ──────────────────────────────────────────────────────────────────── */
 export async function GET(request: Request) {
@@ -224,6 +225,13 @@ export async function PATCH(request: Request) {
       updateData.reschedule_proposed_time = rescheduleTime;
       updateData.reschedule_reason_enc = encrypt(rescheduleReason);
 
+      // 🔔 FCM: notify patient about the reschedule proposal
+      sendPushToUser(existing.patient_id, {
+        title: '📅 Reschedule Proposed',
+        body: `Dr. ${existing.doctor_name} has proposed a new time for your appointment: ${rescheduleDate} at ${rescheduleTime}.`,
+        url: '/appointments/requests',
+      }).catch(() => {});
+
     } else if (status === 'reschedule_accepted') {
       // Patient accepts the proposed new date/time
       const existing = await prisma.appointment.findUnique({ where: { id } });
@@ -306,6 +314,16 @@ export async function PATCH(request: Request) {
       data: updateData,
       include: { patient: true },
     });
+
+    // 🔔 FCM: notify patient when appointment is approved or scheduled
+    if (status === 'approved' || status === 'scheduled') {
+      const label = status === 'approved' ? 'Approved ✅' : 'Scheduled 🗓️';
+      sendPushToUser(row.patient_id, {
+        title: `Appointment ${label}`,
+        body: `Your appointment with ${row.doctor_name} on ${row.date}${row.time ? ` at ${row.time}` : ''} has been ${status}.`,
+        url: '/appointments/requests',
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ success: true, appointment: mapRowToApt(row) });
   } catch (e: unknown) {
