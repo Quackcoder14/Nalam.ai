@@ -16,13 +16,11 @@ interface NearbyPlace {
 
 async function fetchNearby(lat: number, lng: number, type: 'hospital' | 'pharmacy'): Promise<NearbyPlace[]> {
   try {
-    // Step 1: Get nearby place IDs
     const searchUrl = `https://api.olamaps.io/places/v1/nearbysearch?location=${lat},${lng}&radius=5000&types=${type}&api_key=${OLA_API_KEY}`;
     const searchRes = await fetch(searchUrl);
     const searchData = await searchRes.json();
     if (searchData.status !== 'ok' || !searchData.predictions) return [];
 
-    // Step 2: Fetch details for each place to get coordinates
     const places = await Promise.all(
       searchData.predictions.slice(0, 6).map(async (p: any) => {
         try {
@@ -45,13 +43,96 @@ async function fetchNearby(lat: number, lng: number, type: 'hospital' | 'pharmac
   } catch { return []; }
 }
 
-export default function OlaMap({
-  height = '380px',
-  className = '',
-}: {
-  height?: string;
-  className?: string;
-}) {
+// Popup card rendered inside the map overlay (not MapLibre native popup)
+function PlacePopup({ place, onClose }: { place: NearbyPlace; onClose: () => void }) {
+  const [info, setInfo] = useState<{ phone?: string; hours?: string } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch('/api/agents/place-info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: place.name, address: place.address, type: place.type }),
+    })
+      .then(r => r.json())
+      .then(d => setInfo(d))
+      .catch(() => setInfo(null))
+      .finally(() => setLoading(false));
+  }, [place.place_id]);
+
+  const isHospital = place.type === 'hospital';
+  const color = isHospital ? '#0052A5' : '#00897B';
+
+  return (
+    <div
+      onClick={e => e.stopPropagation()}
+      style={{
+        position: 'absolute', bottom: 12, left: 12, right: 12, zIndex: 999,
+        background: 'white', borderRadius: 16,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+        padding: '1rem 1.1rem',
+        borderTop: `4px solid ${color}`,
+        animation: 'slideUpCard 0.25s ease',
+        fontFamily: 'inherit',
+      }}
+    >
+      <style>{`@keyframes slideUpCard { from { transform:translateY(20px); opacity:0 } to { transform:translateY(0); opacity:1 } }`}</style>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+        <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>{isHospital ? '🏥' : '💊'}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: '1rem', color, marginBottom: '0.2rem', lineHeight: 1.3 }}>{place.name}</div>
+          {place.address && (
+            <div style={{ fontSize: '0.78rem', color: '#555', marginBottom: '0.5rem', lineHeight: 1.45 }}>
+              📍 {place.address.substring(0, 100)}
+            </div>
+          )}
+          {loading && (
+            <div style={{ fontSize: '0.78rem', color: '#888', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 12, height: 12, border: '2px solid #ccc', borderTopColor: color, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+              Fetching contact info…
+            </div>
+          )}
+          {!loading && info && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {info.phone && (
+                <a href={`tel:${info.phone.replace(/\s/g, '')}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color, fontWeight: 700, textDecoration: 'none' }}>
+                  📞 {info.phone}
+                </a>
+              )}
+              {info.hours && (
+                <div style={{ fontSize: '0.78rem', color: '#444' }}>🕐 {info.hours}</div>
+              )}
+              {!info.phone && !info.hours && (
+                <div style={{ fontSize: '0.76rem', color: '#888' }}>Contact info unavailable</div>
+              )}
+            </div>
+          )}
+        </div>
+        <button onClick={onClose} style={{ background: 'rgba(0,0,0,0.07)', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: '1rem', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555' }}>✕</button>
+      </div>
+      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`}
+          target="_blank" rel="noopener"
+          style={{ flex: 1, textAlign: 'center', padding: '0.5rem', borderRadius: 10, background: color, color: 'white', fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none' }}
+        >
+          🧭 Get Directions
+        </a>
+        {info?.phone && (
+          <a
+            href={`tel:${info.phone.replace(/\s/g, '')}`}
+            style={{ flex: 1, textAlign: 'center', padding: '0.5rem', borderRadius: 10, border: `1.5px solid ${color}`, color, fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none' }}
+          >
+            📞 Call
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function OlaMap({ height = '380px', className = '' }: { height?: string; className?: string }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -59,12 +140,12 @@ export default function OlaMap({
   const [locationLabel, setLocationLabel] = useState('');
   const [filter, setFilter] = useState<'all' | 'hospital' | 'pharmacy'>('all');
   const placesRef = useRef<NearbyPlace[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<NearbyPlace | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
-      // 1. Get user location
       let userLat = DEFAULT_CENTER[1];
       let userLng = DEFAULT_CENTER[0];
 
@@ -75,20 +156,18 @@ export default function OlaMap({
         if (cancelled) return;
         userLat = pos.coords.latitude;
         userLng = pos.coords.longitude;
-        setLocationLabel('Using your location');
+        setLocationLabel('Your location');
       } catch {
-        setLocationLabel('Showing Chennai (location unavailable)');
+        setLocationLabel('Chennai (location unavailable)');
       }
 
       setStatus('loading');
       if (cancelled) return;
 
-      // 2. Import MapLibre
       const maplibre = await import('maplibre-gl');
       if (cancelled) return;
-      const { Map, NavigationControl, Marker, Popup } = maplibre.default || maplibre;
+      const { Map, NavigationControl, Marker } = maplibre.default || maplibre;
 
-      // 3. Create map with transformRequest to inject api_key into ALL tile requests
       const map = new Map({
         container: mapContainer.current!,
         style: `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${OLA_API_KEY}`,
@@ -96,7 +175,6 @@ export default function OlaMap({
         zoom: 14,
         attributionControl: false,
         transformRequest: (url: string, resourceType?: string) => {
-          // Inject api_key into every Ola Maps tile / source request
           if (url.includes('api.olamaps.io') && !url.includes('api_key=')) {
             const sep = url.includes('?') ? '&' : '?';
             return { url: `${url}${sep}api_key=${OLA_API_KEY}` };
@@ -108,30 +186,18 @@ export default function OlaMap({
       map.addControl(new NavigationControl(), 'top-right');
       mapRef.current = map;
 
-      // 4. Add user location marker
+      // User location dot (plain circle, no transform issues)
       const userEl = document.createElement('div');
-      userEl.style.cssText = `
-        width:20px;height:20px;border-radius:50%;
-        background:#0052A5;border:3px solid white;
-        box-shadow:0 0 0 5px rgba(0,82,165,0.25);
-        animation:userPulse 2s infinite;
-      `;
-      // Add pulse animation
-      if (!document.getElementById('ola-pulse-style')) {
-        const style = document.createElement('style');
-        style.id = 'ola-pulse-style';
-        style.textContent = `
-          @keyframes userPulse { 0%,100%{box-shadow:0 0 0 4px rgba(0,82,165,0.25)} 50%{box-shadow:0 0 0 10px rgba(0,82,165,0.08)} }
-        `;
-        document.head.appendChild(style);
-      }
+      userEl.style.cssText = `width:18px;height:18px;border-radius:50%;background:#0052A5;border:3px solid white;box-shadow:0 0 0 5px rgba(0,82,165,0.2);flex-shrink:0;`;
       new Marker({ element: userEl }).setLngLat([userLng, userLat]).addTo(map);
+
+      // Close popup when clicking map background
+      map.on('click', () => setSelectedPlace(null));
 
       map.on('load', async () => {
         if (cancelled) return;
         setStatus('ready');
 
-        // 5. Fetch nearby hospitals and pharmacies in parallel
         const [hospitals, pharmacies] = await Promise.all([
           fetchNearby(userLat, userLng, 'hospital'),
           fetchNearby(userLat, userLng, 'pharmacy'),
@@ -140,8 +206,7 @@ export default function OlaMap({
 
         const allPlaces = [...hospitals, ...pharmacies];
         placesRef.current = allPlaces;
-
-        addMarkers(map, allPlaces, 'all', Marker, Popup);
+        renderMarkers(map, allPlaces, 'all', Marker, setSelectedPlace);
       });
     }
 
@@ -154,8 +219,7 @@ export default function OlaMap({
     };
   }, []);
 
-  function addMarkers(map: any, places: NearbyPlace[], filterType: string, Marker: any, Popup: any) {
-    // Clear existing markers
+  function renderMarkers(map: any, places: NearbyPlace[], filterType: string, Marker: any, onSelect: (p: NearbyPlace) => void) {
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
@@ -165,91 +229,87 @@ export default function OlaMap({
       const isHospital = place.type === 'hospital';
       const color = isHospital ? '#0052A5' : '#00897B';
 
-      const el = document.createElement('div');
-      el.style.cssText = `
-        width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-        background:${color};border:2.5px solid white;border-radius:50% 50% 50% 0;
-        transform:rotate(-45deg);box-shadow:0 4px 12px ${color}66;
-        transition:transform 0.2s,box-shadow 0.2s;
+      // Wrapper keeps the MapLibre anchor at bottom-center; inner div handles visual rotation
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = `width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center;`;
+
+      const pin = document.createElement('div');
+      pin.style.cssText = `
+        width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+        background:${color};border:2.5px solid white;
+        border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+        box-shadow:0 3px 10px ${color}77;
+        transition:box-shadow 0.2s,filter 0.2s;
+        pointer-events:none;
       `;
       const icon = document.createElement('span');
-      icon.style.cssText = 'transform:rotate(45deg);font-size:15px;line-height:1;';
+      icon.style.cssText = `transform:rotate(45deg);font-size:14px;line-height:1;pointer-events:none;`;
       icon.textContent = isHospital ? '🏥' : '💊';
-      el.appendChild(icon);
-      el.onmouseenter = () => { el.style.transform = 'rotate(-45deg) scale(1.2)'; el.style.boxShadow = `0 6px 20px ${color}88`; };
-      el.onmouseleave = () => { el.style.transform = 'rotate(-45deg) scale(1)'; el.style.boxShadow = `0 4px 12px ${color}66`; };
+      pin.appendChild(icon);
+      wrapper.appendChild(pin);
 
-      const popup = new Popup({ offset: 30, closeButton: true, className: 'ola-popup' })
-        .setHTML(`
-          <div style="padding:4px 2px;font-family:inherit;min-width:160px">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-              <span style="font-size:16px">${isHospital ? '🏥' : '💊'}</span>
-              <strong style="color:${color};font-size:0.9rem;line-height:1.3">${place.name}</strong>
-            </div>
-            ${place.address ? `<p style="margin:0;color:#666;font-size:0.76rem;line-height:1.4">${place.address.substring(0, 80)}</p>` : ''}
-            <a href="https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}"
-               target="_blank" rel="noopener"
-               style="display:inline-block;margin-top:6px;font-size:0.72rem;color:${color};font-weight:600;text-decoration:none;padding:3px 8px;border:1px solid ${color};border-radius:6px">
-              📍 Get Directions
-            </a>
-          </div>
-        `);
+      // Hover brightens the pin without touching the transform
+      wrapper.onmouseenter = () => { pin.style.filter = 'brightness(1.2)'; pin.style.boxShadow = `0 6px 18px ${color}aa`; };
+      wrapper.onmouseleave = () => { pin.style.filter = ''; pin.style.boxShadow = `0 3px 10px ${color}77`; };
+      wrapper.onclick = (e) => { e.stopPropagation(); onSelect(place); };
 
-      const marker = new Marker({ element: el })
+      const marker = new Marker({ element: wrapper, anchor: 'bottom' })
         .setLngLat([place.lng, place.lat])
-        .setPopup(popup)
         .addTo(map);
 
       markersRef.current.push(marker);
     });
   }
 
-  // Handle filter change
   const handleFilter = async (newFilter: 'all' | 'hospital' | 'pharmacy') => {
     setFilter(newFilter);
+    setSelectedPlace(null);
     if (!mapRef.current || placesRef.current.length === 0) return;
     const maplibre = await import('maplibre-gl');
-    const { Marker, Popup } = maplibre.default || maplibre;
-    addMarkers(mapRef.current, placesRef.current, newFilter, Marker, Popup);
+    const { Marker } = maplibre.default || maplibre;
+    renderMarkers(mapRef.current, placesRef.current, newFilter, Marker, setSelectedPlace);
   };
 
   return (
     <div style={{ position: 'relative', width: '100%' }}>
-      {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.6rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
         {(['all', 'hospital', 'pharmacy'] as const).map(f => (
           <button key={f} onClick={() => handleFilter(f)}
             style={{
               padding: '0.3rem 0.75rem', borderRadius: 20, border: 'none', cursor: 'pointer',
               fontWeight: 600, fontSize: '0.75rem', fontFamily: 'inherit',
-              background: filter === f ? (f === 'pharmacy' ? '#00897B' : '#0052A5') : 'var(--surface-muted)',
-              color: filter === f ? 'white' : 'var(--foreground-muted)',
+              background: filter === f ? (f === 'pharmacy' ? '#00897B' : '#0052A5') : 'var(--surface-muted, #f1f5f9)',
+              color: filter === f ? 'white' : '#555',
               transition: 'all 0.2s',
             }}>
             {f === 'all' ? '🗺 All' : f === 'hospital' ? '🏥 Hospitals' : '💊 Pharmacies'}
           </button>
         ))}
         {locationLabel && (
-          <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--charcoal)', alignSelf: 'center' }}>
-            📍 {locationLabel}
-          </span>
+          <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#888' }}>📍 {locationLabel}</span>
         )}
       </div>
 
-      {/* Map Container */}
       <div style={{ position: 'relative', width: '100%', height, borderRadius: 16, overflow: 'hidden' }}>
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} className={className} />
+
+        {/* Loading overlay */}
         {status !== 'ready' && (
           <div style={{
             position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
-            background: 'var(--surface-muted)', borderRadius: 16,
+            background: '#f1f5f9', borderRadius: 16,
           }}>
             <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #0052A5', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
-            <span style={{ fontSize: '0.82rem', color: 'var(--charcoal)', fontWeight: 500 }}>
+            <span style={{ fontSize: '0.82rem', color: '#555', fontWeight: 500 }}>
               {status === 'locating' ? '📍 Getting your location…' : '🗺 Loading map…'}
             </span>
           </div>
+        )}
+
+        {/* Custom place popup card */}
+        {selectedPlace && (
+          <PlacePopup place={selectedPlace} onClose={() => setSelectedPlace(null)} />
         )}
       </div>
     </div>

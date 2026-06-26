@@ -81,6 +81,7 @@ export default function PatientDashboard() {
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [dismissedPopups, setDismissedPopups] = useState<Set<string>>(new Set());
+  const autoDismissTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const [abha, setAbha] = useState<{ verified: boolean; masked: string | null }>({ verified: false, masked: null });
   const [showAbhaModal, setShowAbhaModal] = useState(false);
@@ -108,9 +109,8 @@ export default function PatientDashboard() {
   const anomalyRef = useRef<any>(null);
   const router = useRouter();
 
-  // Register this device with Firebase Cloud Messaging for push notifications
-  // FCM Token management
-  const storedUser = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId')) : null;
+  // FCM Token management — use login username so token matches sendPushToUser lookup
+  const storedUser = typeof window !== 'undefined' ? (localStorage.getItem('nalamPatientId') || 'P001') : null;
   const { registerFCM } = useFCMToken(storedUser);
 
 
@@ -293,23 +293,37 @@ export default function PatientDashboard() {
         </div>
       )}
 
-      {/* ── Notification Popups (Bottom) ── */}
+      {/* ── Notification Popups (Bottom) — auto-dismiss after 5s ── */}
       <div style={{ position: 'fixed', bottom: 80, right: 12, left: 12, zIndex: 9998, display: 'flex', flexDirection: 'column', gap: '0.5rem', pointerEvents: 'none' }}>
-        {patientAlerts.filter(a => !dismissedPopups.has(a.id)).slice(0, 3).map(alert => (
-          <div key={alert.id} style={{ background: '#E0F2FE', borderLeft: '4px solid #0EA5E9', borderRadius: 12, padding: '0.85rem 1rem', boxShadow: '0 8px 32px rgba(14,165,233,0.2)', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', animation: 'slideUp 0.4s ease', pointerEvents: 'auto' }}>
-            <Bell size={20} color="#0EA5E9" style={{ flexShrink: 0, marginTop: 2 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, color: '#0369A1', fontSize: '0.9rem', marginBottom: '0.1rem' }}>{alert.title}</div>
-              <div style={{ fontSize: '0.82rem', color: '#0C4A6E', lineHeight: 1.4 }}>{alert.message}</div>
-            </div>
-            <button onClick={(e) => {
-              e.stopPropagation();
+        {patientAlerts.filter(a => !dismissedPopups.has(a.id)).slice(0, 3).map(alert => {
+          // Auto-dismiss after 5 seconds
+          if (!autoDismissTimers.current[alert.id]) {
+            autoDismissTimers.current[alert.id] = setTimeout(() => {
               setDismissedPopups(prev => new Set(prev).add(alert.id));
-            }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#0284C7', flexShrink: 0 }}>
-              <X size={16} />
-            </button>
-          </div>
-        ))}
+              delete autoDismissTimers.current[alert.id];
+            }, 5000);
+          }
+          return (
+            <div key={alert.id} style={{ background: '#E0F2FE', borderLeft: '4px solid #0EA5E9', borderRadius: 12, padding: '0.85rem 1rem', boxShadow: '0 8px 32px rgba(14,165,233,0.2)', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', animation: 'slideUp 0.4s ease', pointerEvents: 'auto', position: 'relative', overflow: 'hidden' }}>
+              {/* 5-second countdown bar */}
+              <div style={{ position: 'absolute', bottom: 0, left: 0, height: 3, background: '#0EA5E9', borderRadius: '0 0 0 12px', animation: 'shrinkBar 5s linear forwards' }} />
+              <style>{`@keyframes shrinkBar { from { width:100% } to { width:0% } }`}</style>
+              <Bell size={20} color="#0EA5E9" style={{ flexShrink: 0, marginTop: 2 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 800, color: '#0369A1', fontSize: '0.9rem', marginBottom: '0.1rem' }}>{alert.title}</div>
+                <div style={{ fontSize: '0.82rem', color: '#0C4A6E', lineHeight: 1.4 }}>{alert.message}</div>
+              </div>
+              <button onClick={(e) => {
+                e.stopPropagation();
+                clearTimeout(autoDismissTimers.current[alert.id]);
+                delete autoDismissTimers.current[alert.id];
+                setDismissedPopups(prev => new Set(prev).add(alert.id));
+              }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#0284C7', flexShrink: 0 }}>
+                <X size={16} />
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {/* ── Notifications Modal ── */}
