@@ -206,10 +206,10 @@ export default function ClientNav() {
                   <Brain size={18} /> {t('nav.aiInsights')}
                 </button>
                 <button className={`drawer-item${isActive('/dashboard/consent') ? ' active' : ''}`} onClick={() => nav('/dashboard/consent')}>
-                  <Shield size={18} /> Smart Consent
+                  <Shield size={18} /> {t('dashboard.smartConsent')}
                 </button>
                 <button className={`drawer-item${isActive('/dashboard/ehr') ? ' active' : ''}`} onClick={() => nav('/dashboard/ehr')}>
-                  <Network size={18} /> Connected EHR
+                  <Network size={18} /> {t('dashboard.connectedEHR')}
                 </button>
                 <button className="drawer-item" onClick={() => nav('/search')}>
                   <Search size={18} /> {t('nav.searchRecords')}

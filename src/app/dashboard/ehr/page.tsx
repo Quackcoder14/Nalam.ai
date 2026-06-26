@@ -10,7 +10,7 @@ export default function EHRPage() {
   return (
     <div style={{ padding: '1.5rem', maxWidth: '600px', margin: '0 auto', minHeight: 'calc(100vh - var(--nav-height) - var(--bottom-nav-height))' }}>
       <button onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 600, cursor: 'pointer', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-        <ArrowLeft size={16} /> Back
+        <ArrowLeft size={16} /> {t('nav.back')}
       </button>
 
       <section className="glass-panel slide-up">
@@ -22,7 +22,7 @@ export default function EHRPage() {
         </div>
         
         <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
-          Your health data is synchronized from external Electronic Health Records and medical devices in real-time.
+          {t('dashboard.ehrDesc')}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
