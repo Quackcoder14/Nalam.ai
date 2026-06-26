@@ -109,8 +109,10 @@ export default function PatientDashboard() {
   const router = useRouter();
 
   // Register this device with Firebase Cloud Messaging for push notifications
+  // FCM Token management
   const storedUser = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId')) : null;
-  useFCMToken(storedUser);
+  const { registerFCM } = useFCMToken(storedUser);
+
 
   useEffect(() => { vitalsRef.current = vitals; }, [vitals]);
 
@@ -491,7 +493,8 @@ export default function PatientDashboard() {
               onClick={async () => {
                 if (pushEnabled) { setPushEnabled(false); return; }
                 setPushLoading(true);
-                const ok = await subscribePush('P001');
+                // Trigger FCM manual permission request and registration
+                const ok = await registerFCM(true);
                 setPushEnabled(ok); setPushLoading(false);
               }}
               style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.8rem', borderRadius: 8, border: `1px solid ${pushEnabled ? 'var(--accent-green)' : 'var(--border)'}`, background: pushEnabled ? 'var(--accent-green-bg)' : 'var(--surface)', color: pushEnabled ? 'var(--accent-green)' : 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: pushLoading ? 0.6 : 1, fontFamily: 'inherit' }}>

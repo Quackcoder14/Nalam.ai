@@ -48,7 +48,7 @@ export default function OlaMap({
 
       map = new Map({
         container: mapContainer.current!,
-        style: `https://api.olakrutrim.com/maps/v1/styles/default-light-standard/style.json?api_key=${apiKey}`,
+        style: `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${apiKey}`,
         center,
         zoom,
         attributionControl: false,
@@ -100,7 +100,7 @@ export default function OlaMap({
     <div
       ref={mapContainer}
       className={className}
-      style={{ width: '100%', height, borderRadius: 16, overflow: 'hidden' }}
+      style={{ position: 'relative', width: '100%', height, borderRadius: 16, overflow: 'hidden' }}
     />
   );
 }
