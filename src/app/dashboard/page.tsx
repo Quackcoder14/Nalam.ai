@@ -117,6 +117,22 @@ export default function PatientDashboard() {
   useEffect(() => { vitalsRef.current = vitals; }, [vitals]);
 
   useEffect(() => {
+    const handleFCM = (e: any) => {
+      const payload = e.detail;
+      const notif = payload.notification || payload.data || {};
+      const newAlert = {
+        id: Math.random().toString(36).substring(7),
+        title: notif.title || 'New Notification',
+        message: notif.body || 'You have a new message.',
+        type: 'info'
+      };
+      setPatientAlerts(prev => [newAlert, ...prev]);
+    };
+    window.addEventListener('fcm-message', handleFCM);
+    return () => window.removeEventListener('fcm-message', handleFCM);
+  }, []);
+
+  useEffect(() => {
     const iv = setInterval(() => {
       setVitals({
         hr: Math.max(45, Math.min(200, baseVitals.hr + Math.floor(Math.random() * 5) - 2)),
@@ -578,19 +594,7 @@ export default function PatientDashboard() {
         </div>
       </section>
 
-      {/* ── NEARBY HOSPITALS MAP (Ola Maps) ── */}
-      <section className="glass-panel slide-up stagger-2" style={{ marginBottom: '1rem' }}>
-        <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--deep-blue)', fontSize: '0.95rem' }}>
-            <MapPin size={17} color="#0052A5" /> Nearby Hospitals
-          </h3>
-          <span className="badge" style={{ background: '#EBF4FF', color: '#0052A5', fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.55rem', borderRadius: 6 }}>Tamil Nadu</span>
-        </div>
-        <OlaMap height="340px" />
-        <p style={{ fontSize: '0.72rem', color: 'var(--charcoal)', marginTop: '0.5rem', textAlign: 'center' }}>
-          Click any marker to see hospital details
-        </p>
-      </section>
+
 
       {/* ── AUDIT LOG ── */}
       {showAudit && (
@@ -619,10 +623,8 @@ export default function PatientDashboard() {
         </section>
       )}
 
-      {/* ── MAIN CONTENT GRID ── */}
-      <div className="grid-2">
-        {/* LEFT — Anomaly + Timeline */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* ── MAIN CONTENT ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
           {/* Anomaly Monitor */}
           <section className="glass-panel slide-up stagger-2" style={{ borderColor: anomaly?.is_anomaly ? (anomaly.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)') : 'var(--glass-border)' }}>
@@ -707,50 +709,6 @@ export default function PatientDashboard() {
               ))}
             </div>
           </section>
-        </div>
-
-        {/* RIGHT — Consent + EHR */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-
-          {/* Consent */}
-          <section className="glass-panel slide-up stagger-2">
-            <div className="flex-between" style={{ marginBottom: '0.85rem' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.92rem' }}>
-                <Shield size={16} color="var(--primary)" /> {t('dashboard.smartConsent')}
-              </h3>
-              <span className="badge teal">{t('dashboard.masterKey')}</span>
-            </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--charcoal)', marginBottom: '1rem', lineHeight: 1.5 }}>{t('dashboard.consentDesc')}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <ConsentToggle label={t('dashboard.emergencyAccess')} desc={t('dashboard.emergencyDesc')} active={consent.emergency} onToggle={() => toggleConsent('emergency')} />
-              <ConsentToggle label={t('dashboard.specialistAccess')} desc={t('dashboard.specialistDesc')} active={consent.specialist} onToggle={() => toggleConsent('specialist')} />
-              <ConsentToggle label={t('dashboard.researchAccess')} desc={t('dashboard.researchDesc')} active={consent.research} onToggle={() => toggleConsent('research')} />
-            </div>
-          </section>
-
-          {/* EHR Silos */}
-          <section className="glass-panel slide-up stagger-2">
-            <div className="flex-between" style={{ marginBottom: '0.85rem' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.92rem' }}>
-                <Network size={16} color="var(--accent-purple)" /> {t('dashboard.connectedEHR')}
-              </h3>
-              <span className="badge purple pulse-glow">{t('dashboard.live')}</span>
-            </div>
-            {[
-              { name: 'Epic Systems', loc: 'Apollo Hospital Chennai', color: 'var(--primary)' },
-              { name: 'Cerner Health', loc: 'AIIMS Delhi', color: 'var(--accent-teal)' },
-              { name: 'Apple HealthKit', loc: 'Wearables · Live Stream', color: 'var(--accent-amber)' },
-            ].map(s => (
-              <div key={s.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.55rem 0.75rem', background: 'var(--surface-muted)', borderRadius: 8, borderLeft: `3px solid ${s.color}`, marginBottom: '0.5rem' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--deep-blue)' }}>{s.name}</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)' }}>{s.loc}</div>
-                </div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-green)', background: 'var(--accent-green-bg)', padding: '0.15rem 0.5rem', borderRadius: 6, flexShrink: 0 }}>{t('dashboard.synced')}</span>
-              </div>
-            ))}
-          </section>
-        </div>
       </div>
 
       {/* ── INTERVENTION ENGINE ── */}
@@ -770,6 +728,20 @@ export default function PatientDashboard() {
           </div>
         </section>
       )}
+
+      {/* ── NEARBY HOSPITALS MAP (Ola Maps) ── */}
+      <section className="glass-panel slide-up stagger-2" style={{ marginTop: '1rem' }}>
+        <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--deep-blue)', fontSize: '0.95rem' }}>
+            <MapPin size={17} color="#0052A5" /> Nearby Hospitals
+          </h3>
+          <span className="badge" style={{ background: '#EBF4FF', color: 'var(--primary)', fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.55rem', borderRadius: 6 }}>Tamil Nadu</span>
+        </div>
+        <OlaMap height="340px" />
+        <p style={{ fontSize: '0.72rem', color: 'var(--charcoal)', marginTop: '0.5rem', textAlign: 'center' }}>
+          Click any marker to see hospital details
+        </p>
+      </section>
 
       <style>{`
         @keyframes slideDown { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }

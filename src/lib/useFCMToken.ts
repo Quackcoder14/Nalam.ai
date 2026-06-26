@@ -80,5 +80,20 @@ export function useFCMToken(userId: string | null) {
     }
   }, [registerFCM]);
 
+  useEffect(() => {
+    // Listen for foreground messages
+    let unsub: any = null;
+    getFirebaseMessaging().then(async (messaging) => {
+      if (!messaging) return;
+      const { onMessage } = await import('firebase/messaging');
+      unsub = onMessage(messaging, (payload) => {
+        console.log('[FCM Foreground]', payload);
+        const event = new CustomEvent('fcm-message', { detail: payload });
+        window.dispatchEvent(event);
+      });
+    });
+    return () => { if (unsub) unsub(); };
+  }, []);
+
   return { registerFCM };
 }

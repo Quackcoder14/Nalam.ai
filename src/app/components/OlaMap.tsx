@@ -168,9 +168,23 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
       if (cancelled) return;
       const { Map, NavigationControl, Marker } = maplibre.default || maplibre;
 
+      // Fetch and sanitize style JSON to avoid MapLibre validation errors with Ola's style
+      let styleObj: any = `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${OLA_API_KEY}`;
+      try {
+        const styleRes = await fetch(styleObj);
+        const styleJson = await styleRes.json();
+        if (styleJson.layers) {
+          styleJson.layers = styleJson.layers.filter((l: any) => l.id !== '3d_model_data' && l['source-layer'] !== '3d_model');
+        }
+        styleObj = styleJson;
+      } catch (e) {
+        console.warn('Failed to sanitize style JSON, falling back to URL', e);
+      }
+      if (cancelled) return;
+
       const map = new Map({
         container: mapContainer.current!,
-        style: `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${OLA_API_KEY}`,
+        style: styleObj,
         center: [userLng, userLat],
         zoom: 14,
         attributionControl: false,

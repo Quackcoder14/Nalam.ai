@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Heart, LogOut, LayoutDashboard, Stethoscope,
   Search, Moon, Sun, Menu, X, Brain, Calendar,
-  MessageSquare, Building2, Globe, Shield,
+  MessageSquare, Building2, Globe, Shield, Network
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -204,6 +204,12 @@ export default function ClientNav() {
                 </button>
                 <button className={`drawer-item${isActive('/xai') ? ' active' : ''}`} onClick={() => nav('/xai')}>
                   <Brain size={18} /> {t('nav.aiInsights')}
+                </button>
+                <button className={`drawer-item${isActive('/dashboard/consent') ? ' active' : ''}`} onClick={() => nav('/dashboard/consent')}>
+                  <Shield size={18} /> Smart Consent
+                </button>
+                <button className={`drawer-item${isActive('/dashboard/ehr') ? ' active' : ''}`} onClick={() => nav('/dashboard/ehr')}>
+                  <Network size={18} /> Connected EHR
                 </button>
                 <button className="drawer-item" onClick={() => nav('/search')}>
                   <Search size={18} /> {t('nav.searchRecords')}
