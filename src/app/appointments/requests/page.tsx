@@ -7,15 +7,15 @@ import { apiFetch } from '@/lib/apiFetch';
 
 const STATUS_STEPS = ['pending', 'approved', 'scheduled'];
 
-const STATUS_META: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-  pending:                   { label: 'Under Review',          color: '#C07A00', bg: '#FFF8E1', icon: Clock },
-  approved:                  { label: 'Approved',              color: '#0052A5', bg: '#EBF3FF', icon: CheckCircle },
-  scheduled:                 { label: 'Scheduled',             color: '#2E7D32', bg: '#E8F5E9', icon: CheckCircle },
-  pending_reschedule:        { label: 'Reschedule Proposed',   color: '#7C3AED', bg: '#F3E8FF', icon: AlertTriangle },
-  reschedule_accepted:       { label: 'Rescheduled',           color: '#2E7D32', bg: '#E8F5E9', icon: CheckCircle },
-  reschedule_patient_rejected:{ label: 'Reschedule Rejected',  color: '#71717A', bg: '#F4F4F5', icon: XCircle },
-  rejected:                  { label: 'Rejected',              color: '#C62828', bg: '#FFEBEE', icon: XCircle },
-  cancelled:                 { label: 'Cancelled',             color: '#71717A', bg: '#F4F4F5', icon: XCircle },
+const STATUS_META: Record<string, { labelKey: string; color: string; bg: string; icon: any }> = {
+  pending:                   { labelKey: 'req.statusUnderReview',          color: '#C07A00', bg: '#FFF8E1', icon: Clock },
+  approved:                  { labelKey: 'req.statusApproved',              color: '#0052A5', bg: '#EBF3FF', icon: CheckCircle },
+  scheduled:                 { labelKey: 'req.statusScheduled',             color: '#2E7D32', bg: '#E8F5E9', icon: CheckCircle },
+  pending_reschedule:        { labelKey: 'req.statusRescheduleProposed',   color: '#7C3AED', bg: '#F3E8FF', icon: AlertTriangle },
+  reschedule_accepted:       { labelKey: 'req.statusRescheduled',           color: '#2E7D32', bg: '#E8F5E9', icon: CheckCircle },
+  reschedule_patient_rejected:{ labelKey: 'req.statusRescheduleRejected',  color: '#71717A', bg: '#F4F4F5', icon: XCircle },
+  rejected:                  { labelKey: 'req.statusRejected',              color: '#C62828', bg: '#FFEBEE', icon: XCircle },
+  cancelled:                 { labelKey: 'req.statusCancelled',             color: '#71717A', bg: '#F4F4F5', icon: XCircle },
 };
 
 const URGENCY_COLORS: Record<string, { color: string; bg: string }> = {
@@ -40,10 +40,11 @@ function isGreyedOut(status: string) {
 }
 
 function StatusStepper({ status }: { status: string }) {
+  const { t } = useLanguage();
   const steps = [
-    { key: 'pending',   label: 'Submitted' },
-    { key: 'approved',  label: 'Approved' },
-    { key: 'scheduled', label: 'Scheduled' },
+    { key: 'pending',   label: t('req.submitted') },
+    { key: 'approved',  label: t('req.approved') },
+    { key: 'scheduled', label: t('req.scheduled') },
   ];
   const isTerminal = ['rejected', 'cancelled', 'reschedule_patient_rejected'].includes(status);
   const currentIdx = isTerminal ? -1
@@ -53,21 +54,21 @@ function StatusStepper({ status }: { status: string }) {
   if (status === 'rejected') return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: '#FFEBEE', border: '1px solid rgba(198,40,40,0.25)' }}>
       <XCircle size={15} color="#C62828" />
-      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#C62828' }}>Request Rejected</span>
+      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#C62828' }}>{t('req.requestRejected')}</span>
     </div>
   );
 
   if (status === 'cancelled') return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: '#F4F4F5', border: '1px solid #D4D4D8' }}>
       <XCircle size={15} color="#71717A" />
-      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#71717A' }}>Request Cancelled</span>
+      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#71717A' }}>{t('req.requestCancelled')}</span>
     </div>
   );
 
   if (status === 'reschedule_patient_rejected') return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: '#F4F4F5', border: '1px solid #D4D4D8' }}>
       <XCircle size={15} color="#71717A" />
-      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#71717A' }}>Reschedule Rejected</span>
+      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#71717A' }}>{t('req.statusRescheduleRejected')}</span>
     </div>
   );
 
@@ -130,10 +131,10 @@ export default function ViewRequests() {
   const [rejectConfirmApt, setRejectConfirmApt]   = useState<any | null>(null);
   const [showContactModal, setShowContactModal]    = useState<any | null>(null);
 
-  const fetchAppointments = useCallback(async () => {
+  const fetchAppointments = useCallback(async (forceRefetch = false) => {
     setLoading(true);
     try {
-      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=P001`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=P001`, { skipCache: forceRefetch });
       if (res.ok) setAppointments(await res.json());
     } catch {} finally { setLoading(false); }
   }, []);
@@ -141,7 +142,7 @@ export default function ViewRequests() {
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
   const cancelRequest = async (id: string) => {
-    if (!confirm('Cancel this appointment request?')) return;
+    if (!confirm(t('req.cancelRequest') + '?')) return;
     setCancelling(id);
     try {
       await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?id=${id}&patientId=P001`, { method: 'DELETE' });
@@ -208,7 +209,7 @@ export default function ViewRequests() {
                 onClick={() => respondToReschedule(rejectConfirmApt, 'reschedule_patient_rejected')}
                 style={{ minWidth: 140, padding: '0.6rem 1.25rem', borderRadius: 10, background: '#C62828', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}
               >
-                {respondingTo === rejectConfirmApt.id ? 'Rejecting…' : 'Proceed to Reject'}
+                {respondingTo === rejectConfirmApt.id ? t('req.cancelling') : t('req.reject')}
               </button>
             </div>
           </div>
@@ -220,9 +221,9 @@ export default function ViewRequests() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(4px)' }}>
           <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 420, background: 'var(--background)' }}>
             <div style={{ fontSize: '1.5rem', textAlign: 'center', marginBottom: '0.75rem' }}>🏥</div>
-            <h3 style={{ textAlign: 'center', color: 'var(--deep-blue)', marginBottom: '0.75rem', fontSize: '1.05rem' }}>Reschedule Rejected</h3>
+            <h3 style={{ textAlign: 'center', color: 'var(--deep-blue)', marginBottom: '0.75rem', fontSize: '1.05rem' }}>{t('req.rejectedByYou')}</h3>
             <p style={{ fontSize: '0.875rem', color: 'var(--charcoal)', lineHeight: 1.6, marginBottom: '0.5rem', textAlign: 'center' }}>
-              Your rejection has been recorded. Reach out to <strong>{showContactModal.hospital}</strong> if you need assistance with your appointment.
+              {t('req.rejectedNote')}
             </p>
             <div style={{ background: 'var(--surface-muted)', borderRadius: 8, padding: '0.75rem', marginBottom: '1.5rem', fontSize: '0.8rem', color: 'var(--charcoal)', lineHeight: 1.6 }}>
               <strong>Ref:</strong> {showContactModal.id}<br />
@@ -239,7 +240,7 @@ export default function ViewRequests() {
                 }}
                 style={{ minWidth: 140, padding: '0.6rem 1.25rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}
               >
-                💬 Open Chat
+                {t('req.openChat')}
               </button>
             </div>
           </div>
@@ -249,18 +250,18 @@ export default function ViewRequests() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         <button onClick={() => router.push('/dashboard')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.9rem' }}>
-          <ArrowLeft size={18} /> Back
+          <ArrowLeft size={18} /> {t('req.back')}
         </button>
         <div style={{ flex: 1 }}>
-          <h2 style={{ fontSize: '1.6rem', marginBottom: 0 }}>📋 My Appointment Requests</h2>
-          <p style={{ color: 'var(--charcoal)', fontSize: '0.88rem' }}>{appointments.length} total request{appointments.length !== 1 ? 's' : ''}</p>
+          <h2 style={{ fontSize: '1.6rem', marginBottom: 0 }}>{t('req.title')}</h2>
+          <p style={{ color: 'var(--charcoal)', fontSize: '0.88rem' }}>{appointments.length} {appointments.length !== 1 ? t('req.totals') : t('req.total')}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={fetchAppointments} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <RefreshCw size={14} /> Refresh
+          <button onClick={() => fetchAppointments(true)} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <RefreshCw size={14} /> {t('req.refresh')}
           </button>
           <button onClick={() => router.push('/appointments/book')} style={{ padding: '0.5rem 1.1rem', borderRadius: 8, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}>
-            + Book New
+            {t('req.bookNew')}
           </button>
         </div>
       </div>
@@ -268,28 +269,28 @@ export default function ViewRequests() {
       {/* Sort Bar */}
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem', alignItems: 'center' }}>
         <ArrowUpDown size={14} color="var(--foreground-muted)" />
-        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>Sort:</span>
+        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>{t('req.sort')}</span>
         {(['newest', 'oldest', 'upcoming', 'past'] as SortOption[]).map(opt => (
           <button
             key={opt}
             onClick={() => setSort(opt)}
             style={{ padding: '0.3rem 0.75rem', borderRadius: 20, border: `1.5px solid ${sort === opt ? 'var(--primary)' : 'var(--border)'}`, background: sort === opt ? 'var(--primary)' : 'var(--surface)', color: sort === opt ? 'white' : 'var(--foreground)', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', textTransform: 'capitalize' }}
           >
-            {opt === 'newest' ? 'Newest First' : opt === 'oldest' ? 'Oldest First' : opt === 'upcoming' ? 'Upcoming' : 'Past'}
+            {opt === 'newest' ? t('req.newest') : opt === 'oldest' ? t('req.oldest') : opt === 'upcoming' ? t('req.upcoming') : t('req.past')}
           </button>
         ))}
         {(sort === 'upcoming' || sort === 'past') && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)' }}>({sortedAppointments.length} shown)</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)' }}>({sortedAppointments.length} {t('req.shown')})</span>
         )}
       </div>
 
       {sortedAppointments.length === 0 ? (
         <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', color: 'var(--charcoal)' }}>
           <Calendar size={40} style={{ marginBottom: '1rem', opacity: 0.4 }} />
-          <h3 style={{ marginBottom: '0.5rem' }}>{sort === 'upcoming' || sort === 'past' ? `No ${sort} appointments` : 'No requests yet'}</h3>
-          <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>Book your first appointment with a Nalam.ai-connected doctor.</p>
+          <h3 style={{ marginBottom: '0.5rem' }}>{sort === 'upcoming' ? t('req.noUpcoming') : sort === 'past' ? t('req.noPast') : t('req.noRequests')}</h3>
+          <p style={{ fontSize: '0.9rem', marginBottom: '1.5rem' }}>{t('req.bookFirst')}</p>
           <button onClick={() => router.push('/appointments/book')} style={{ padding: '0.65rem 1.5rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
-            Book Appointment
+            {t('req.bookAppointment')}
           </button>
         </div>
       ) : (
@@ -332,41 +333,41 @@ export default function ViewRequests() {
                   <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                       <div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 3 }}>REFERENCE</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 3 }}>{t('req.labelRef')}</div>
                         <div style={{ fontWeight: 700, fontSize: '0.85rem', fontFamily: 'monospace', color: 'var(--primary)' }}>{apt.id}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 3 }}>STATUS</div>
-                        <span style={{ padding: '0.2rem 0.7rem', borderRadius: 20, background: sm.bg, color: sm.color, fontWeight: 700, fontSize: '0.8rem', border: `1px solid ${sm.color}44` }}>{sm.label}</span>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 3 }}>{t('req.labelStatus')}</div>
+                        <span style={{ padding: '0.2rem 0.7rem', borderRadius: 20, background: sm.bg, color: sm.color, fontWeight: 700, fontSize: '0.8rem', border: `1px solid ${sm.color}44` }}>{t(sm.labelKey)}</span>
                       </div>
                       {apt.approvedAt && (
                         <div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 3 }}>APPROVED AT</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 3 }}>{t('req.labelApprovedAt')}</div>
                           <div style={{ fontSize: '0.83rem' }}>{formatDateTime(apt.approvedAt)}</div>
                         </div>
                       )}
                       {apt.scheduledAt && (
                         <div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 3 }}>SCHEDULED AT</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 3 }}>{t('req.labelScheduledAt')}</div>
                           <div style={{ fontSize: '0.83rem' }}>{formatDateTime(apt.scheduledAt)}</div>
                         </div>
                       )}
                     </div>
 
                     <div style={{ marginBottom: '1rem' }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 4 }}>YOUR REASON</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 4 }}>{t('req.labelReason')}</div>
                       <div style={{ fontSize: '0.88rem', color: 'var(--foreground)', lineHeight: 1.6, padding: '0.65rem 0.85rem', background: 'var(--surface-muted)', borderRadius: 8 }}>{apt.reason}</div>
                     </div>
 
                     <div style={{ marginBottom: '1rem' }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 4 }}>AI CLINICAL SUMMARY</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 4 }}>{t('req.labelAiSummary')}</div>
                       <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.6, padding: '0.65rem 0.85rem', background: 'rgba(0,82,165,0.05)', border: '1px solid rgba(0,82,165,0.15)', borderRadius: 8 }}>{apt.aiSummary}</div>
                     </div>
 
                     {apt.vitalsSnapshot && (
                       <div style={{ marginBottom: '1rem' }}>
                         <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Activity size={11} /> VITALS AT SUBMISSION
+                          <Activity size={11} /> {t('req.labelVitals')}
                         </div>
                         <VitalsDisplay vitals={apt.vitalsSnapshot} />
                       </div>
@@ -374,7 +375,7 @@ export default function ViewRequests() {
 
                     {apt.attachments?.length > 0 && (
                       <div style={{ marginBottom: '1rem' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 6 }}>ATTACHMENTS</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 700, marginBottom: 6 }}>{t('req.labelAttachments')}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                           {apt.attachments.map((att: any, i: number) => (
                             <span key={i} style={{ padding: '0.25rem 0.65rem', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)', fontSize: '0.78rem', fontWeight: 600 }}>
@@ -390,14 +391,14 @@ export default function ViewRequests() {
                       <div style={{ marginBottom: '1rem', padding: '1rem', borderRadius: 12, background: '#F3E8FF', border: '1.5px solid #7C3AED55' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.65rem' }}>
                           <AlertTriangle size={16} color="#7C3AED" />
-                          <span style={{ fontWeight: 800, color: '#7C3AED', fontSize: '0.85rem' }}>RESCHEDULE PROPOSED BY DOCTOR</span>
+                          <span style={{ fontWeight: 800, color: '#7C3AED', fontSize: '0.85rem' }}>{t('req.rescheduleProposed')}</span>
                         </div>
                         <div style={{ fontSize: '0.88rem', color: '#4C1D95', marginBottom: '0.35rem' }}>
-                          <strong>New Date:</strong> {apt.rescheduleProposedDate ? formatDate(apt.rescheduleProposedDate) : '—'}
-                          {apt.rescheduleProposedTime && <> &nbsp;at&nbsp; <strong>{apt.rescheduleProposedTime}</strong></>}
+                          <strong>{t('req.newDate')}</strong> {apt.rescheduleProposedDate ? formatDate(apt.rescheduleProposedDate) : '—'}
+                          {apt.rescheduleProposedTime && <> &nbsp;{t('req.at')}&nbsp; <strong>{apt.rescheduleProposedTime}</strong></>}
                         </div>
                         {apt.rescheduleReason && (
-                          <div style={{ fontSize: '0.83rem', color: '#4C1D95', fontStyle: 'italic', marginBottom: '1rem' }}>Reason: {apt.rescheduleReason}</div>
+                          <div style={{ fontSize: '0.83rem', color: '#4C1D95', fontStyle: 'italic', marginBottom: '1rem' }}>{t('req.reason')} {apt.rescheduleReason}</div>
                         )}
                         <div style={{ display: 'flex', gap: '0.65rem' }}>
                           <button
@@ -405,14 +406,14 @@ export default function ViewRequests() {
                             onClick={() => respondToReschedule(apt, 'reschedule_accepted')}
                             style={{ flex: 1, padding: '0.6rem', borderRadius: 10, background: '#2E7D32', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
                           >
-                            {respondingTo === apt.id ? '…' : '✓ Accept New Time'}
+                            {respondingTo === apt.id ? '…' : t('req.accept')}
                           </button>
                           <button
                             disabled={respondingTo === apt.id}
                             onClick={() => setRejectConfirmApt(apt)}
                             style={{ flex: 1, padding: '0.6rem', borderRadius: 10, background: '#FFEBEE', color: '#C62828', border: '1px solid rgba(198,40,40,0.3)', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
                           >
-                            ✕ Reject
+                            {t('req.reject')}
                           </button>
                         </div>
                       </div>
@@ -421,8 +422,8 @@ export default function ViewRequests() {
                     {/* Post-rejection notice */}
                     {apt.status === 'reschedule_patient_rejected' && (
                       <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 10, background: '#F4F4F5', border: '1px solid #D4D4D8' }}>
-                        <div style={{ fontWeight: 700, color: '#71717A', fontSize: '0.82rem', marginBottom: '0.3rem' }}>RESCHEDULE REJECTED BY YOU</div>
-                        <div style={{ fontSize: '0.82rem', color: '#52525B' }}>You rejected the reschedule proposal. Contact the hospital for further assistance.</div>
+                        <div style={{ fontWeight: 700, color: '#71717A', fontSize: '0.82rem', marginBottom: '0.3rem' }}>{t('req.rejectedByYou')}</div>
+                        <div style={{ fontSize: '0.82rem', color: '#52525B' }}>{t('req.rejectedNote')}</div>
                         <button
                           onClick={() => {
                             const prefill = `Hi, I am reaching out regarding appointment Ref: ${apt.id} with ${apt.doctorName} originally scheduled for ${formatDate(apt.date)}${apt.time ? ` at ${apt.time}` : ''}. I rejected the reschedule proposal and would like assistance.`;
@@ -430,14 +431,14 @@ export default function ViewRequests() {
                           }}
                           style={{ marginTop: '0.65rem', padding: '0.4rem 0.9rem', borderRadius: 8, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
                         >
-                          💬 Open Chat
+                          {t('req.openChat')}
                         </button>
                       </div>
                     )}
 
                     {apt.hdeskNote && (
                       <div style={{ marginBottom: '1rem', padding: '0.75rem', borderRadius: 8, background: 'var(--primary-light)', border: '1px solid rgba(0,82,165,0.2)' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 700, marginBottom: 3 }}>NOTE FROM HOSPITAL DESK</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 700, marginBottom: 3 }}>{t('req.labelHdeskNote')}</div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--deep-blue)' }}>{apt.hdeskNote}</div>
                       </div>
                     )}
@@ -448,7 +449,7 @@ export default function ViewRequests() {
                         onClick={() => cancelRequest(apt.id)}
                         style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', borderRadius: 8, background: '#FFEBEE', border: '1px solid rgba(198,40,40,0.3)', color: '#C62828', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}
                       >
-                        <Trash2 size={13} /> {cancelling === apt.id ? 'Cancelling…' : 'Cancel Request'}
+                        <Trash2 size={14} /> {cancelling === apt.id ? t('req.cancelling') : t('req.cancelRequest')}
                       </button>
                     )}
                   </div>

@@ -36,9 +36,9 @@ const DOCTORS = [
 ];
 
 const URGENCY_OPTIONS = [
-  { value: 'Routine',   label: 'Routine',   color: '#0097A7', bg: '#E0F7FA', desc: 'Non-urgent follow-up or check-up' },
-  { value: 'Urgent',    label: 'Urgent',    color: '#C07A00', bg: '#FFF8E1', desc: 'Requires attention within 48 hours' },
-  { value: 'Emergency', label: 'Emergency', color: '#C62828', bg: '#FFEBEE', desc: 'Serious symptoms needing same-day care' },
+  { value: 'Routine',   labelKey: 'book.urgencyRoutine',   color: '#0097A7', bg: '#E0F7FA', descKey: 'book.urgencyRoutineDesc' },
+  { value: 'Urgent',    labelKey: 'book.urgencyUrgent',    color: '#C07A00', bg: '#FFF8E1', descKey: 'book.urgencyUrgentDesc' },
+  { value: 'Emergency', labelKey: 'book.urgencyEmergency', color: '#C62828', bg: '#FFEBEE', descKey: 'book.urgencyEmergencyDesc' },
 ];
 
 
@@ -49,13 +49,14 @@ function formatDate(dateStr: string): string {
 }
 
 /* ─── Status Step Bar ───────────────────────────────────────────────────── */
-const STEPS = ['Select Doctor', 'Date & Reason', 'AI Summary', 'Review & Submit'];
-
 function StepBar({ current }: { current: number }) {
+  const { t } = useLanguage();
+  const steps = [t('book.stepDoctor'), t('book.stepDate'), t('book.stepSummary'), t('book.stepReview')];
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: '2.5rem' }}>
-      {STEPS.map((label, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : 'none' }}>
+      {steps.map((label, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', flex: i < steps.length - 1 ? 1 : 'none' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <div style={{
               width: 34, height: 34, borderRadius: '50%',
@@ -72,7 +73,7 @@ function StepBar({ current }: { current: number }) {
               {label}
             </span>
           </div>
-          {i < STEPS.length - 1 && (
+          {i < steps.length - 1 && (
             <div style={{ flex: 1, height: 2, background: i < current ? '#22c55e' : 'var(--border)', margin: '0 0.5rem', marginBottom: 18, transition: 'background 0.3s ease' }} />
           )}
         </div>
@@ -309,11 +310,11 @@ export default function BookAppointment() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
         <button onClick={() => router.push('/dashboard')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.9rem', padding: '0.4rem 0' }}>
-          <ArrowLeft size={18} /> Back
+          <ArrowLeft size={18} /> {t('book.back')}
         </button>
         <div style={{ flex: 1 }}>
-          <h2 style={{ fontSize: '1.6rem', marginBottom: 0 }}>📅 Book Appointment</h2>
-          <p style={{ color: 'var(--charcoal)', fontSize: '0.88rem' }}>Request an appointment with a Nalam.ai-connected doctor</p>
+          <h2 style={{ fontSize: '1.6rem', marginBottom: 0 }}>{t('book.title')}</h2>
+          <p style={{ color: 'var(--charcoal)', fontSize: '0.88rem' }}>{t('book.subtitle')}</p>
         </div>
       </div>
 
@@ -322,7 +323,7 @@ export default function BookAppointment() {
       {/* ── STEP 0: Select Doctor ── */}
       {step === 0 && (
         <div className="slide-up">
-          <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)', fontSize: '1.1rem' }}>Choose your doctor</h3>
+          <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)', fontSize: '1.1rem' }}>{t('book.chooseDoctor')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
             {DOCTORS.map(doc => (
               <button
@@ -352,15 +353,15 @@ export default function BookAppointment() {
                     ⭐ {doc.rating}
                   </span>
                   <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'var(--surface-muted)', color: 'var(--charcoal)', fontWeight: 500 }}>
-                    {doc.experience} exp.
+                    {doc.experience} {t('book.experience')}
                   </span>
                   <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'var(--surface-muted)', color: 'var(--charcoal)', fontWeight: 500 }}>
                     🗣 {doc.languages.join(' · ')}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--foreground-muted)', marginBottom: '0.5rem', fontWeight: 500 }}>Available: {doc.slots.join(' · ')}</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--foreground-muted)', marginBottom: '0.5rem', fontWeight: 500 }}>{t('book.available')} {doc.slots.join(' · ')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end', color: 'var(--primary)', fontWeight: 700, fontSize: '0.88rem' }}>
-                  Select <ChevronRight size={16} />
+                  {t('book.select')} <ChevronRight size={16} />
                 </div>
               </button>
             ))}
@@ -386,7 +387,7 @@ export default function BookAppointment() {
           {/* Date selection */}
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
-              <Calendar size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />Select Available Date
+              <Calendar size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />{t('book.selectDate')}
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {selectedDoctor.availableDates.map(d => {
@@ -396,7 +397,7 @@ export default function BookAppointment() {
                     key={d}
                     onClick={() => !isFullyBooked && setDate(d)}
                     disabled={isFullyBooked}
-                    title={isFullyBooked ? 'Fully booked — no slots available' : undefined}
+                    title={isFullyBooked ? t('book.fullyBooked') : undefined}
                     style={{
                       padding: '0.5rem 1rem', borderRadius: 10,
                       border: `1.5px solid ${isFullyBooked ? '#E2E8F0' : selectedDate === d ? 'var(--primary)' : 'var(--border)'}`,
@@ -419,8 +420,8 @@ export default function BookAppointment() {
           {/* Time Selection */}
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
-              <Calendar size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />Select Time
-              {!selectedDate && <span style={{ fontWeight: 400, fontSize: '0.78rem', color: 'var(--charcoal)', marginLeft: 8 }}>— pick a date first</span>}
+              <Calendar size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />{t('book.selectTime')}
+              {!selectedDate && <span style={{ fontWeight: 400, fontSize: '0.78rem', color: 'var(--charcoal)', marginLeft: 8 }}>{t('book.pickDateFirst')}</span>}
             </label>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {AVAILABLE_TIME_SLOTS.map(slot => {
@@ -430,7 +431,7 @@ export default function BookAppointment() {
                     key={slot}
                     onClick={() => !isBooked && selectedDate && setTime(slot)}
                     disabled={isBooked || !selectedDate}
-                    title={isBooked ? 'This slot is already booked' : !selectedDate ? 'Select a date first' : undefined}
+                    title={isBooked ? t('book.slotBooked') : !selectedDate ? t('book.selectDateFirst') : undefined}
                     style={{
                       padding: '0.5rem 1rem', borderRadius: 10,
                       border: `1.5px solid ${isBooked ? '#E2E8F0' : selectedTime === slot ? 'var(--primary)' : 'var(--border)'}`,
@@ -449,14 +450,14 @@ export default function BookAppointment() {
               })}
             </div>
             {selectedDate && bookedSlots.length > 0 && (
-              <p style={{ fontSize: '0.75rem', color: 'var(--charcoal)', marginTop: '0.5rem' }}>✗ = already booked</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--charcoal)', marginTop: '0.5rem' }}>{t('book.alreadyBooked')}</p>
             )}
           </div>
 
           {/* Urgency */}
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
-              <AlertTriangle size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />Urgency Level
+              <AlertTriangle size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />{t('book.urgency')}
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
               {URGENCY_OPTIONS.map(opt => (
@@ -472,8 +473,8 @@ export default function BookAppointment() {
                     textAlign: 'left',
                   }}
                 >
-                  <div>{opt.label}</div>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 400, opacity: 0.85 }}>{opt.desc}</div>
+                  <div>{t(opt.labelKey)}</div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 400, opacity: 0.85 }}>{t(opt.descKey)}</div>
                 </button>
               ))}
             </div>
@@ -483,7 +484,7 @@ export default function BookAppointment() {
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
               <label style={{ fontWeight: 700, color: 'var(--deep-blue)', fontSize: '0.95rem' }}>
-                <FileText size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />Reason for Appointment
+                <FileText size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />{t('book.reason')}
               </label>
               <div style={{ display: 'flex', gap: '0.4rem' }}>
                 {(['text', 'voice'] as const).map(mode => (
@@ -492,7 +493,7 @@ export default function BookAppointment() {
                     border: `1.5px solid ${inputMode === mode ? 'var(--primary)' : 'var(--border)'}`,
                     background: inputMode === mode ? 'var(--primary)' : 'var(--surface)',
                     color: inputMode === mode ? 'white' : 'var(--charcoal)', cursor: 'pointer',
-                  }}>{mode === 'text' ? '⌨ Type' : '🎙 Voice'}</button>
+                  }}>{mode === 'text' ? t('book.typeMode') : t('book.voiceMode')}</button>
                 ))}
               </div>
             </div>
@@ -501,7 +502,7 @@ export default function BookAppointment() {
               <textarea
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                placeholder="Describe your symptoms, concerns, or reason for the appointment…"
+                placeholder={t('book.describeSymptoms')}
                 rows={4}
                 style={{ width: '100%', padding: '0.85rem 1rem', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontSize: '0.9rem', resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
               />
@@ -514,11 +515,11 @@ export default function BookAppointment() {
                   {isRecording ? <MicOff size={28} /> : <Mic size={28} />}
                 </button>
                 <p style={{ color: 'var(--charcoal)', fontSize: '0.88rem', fontWeight: 600 }}>
-                  {isRecording ? '🔴 Listening… speak clearly' : 'Tap the mic to speak your reason'}
+                  {isRecording ? t('book.listening') : t('book.tapMic')}
                 </p>
                 {reason && (
                   <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.75rem 1rem', width: '100%', fontSize: '0.88rem', color: 'var(--foreground)', lineHeight: 1.6 }}>
-                    <strong>Heard:</strong> {reason}
+                    <strong>{t('book.heard')}</strong> {reason}
                   </div>
                 )}
               </div>
@@ -526,13 +527,13 @@ export default function BookAppointment() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between' }}>
-            <button onClick={() => setStep(0)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>← Back</button>
+            <button onClick={() => setStep(0)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>{t('book.back')}</button>
             <button
               disabled={!selectedDate || !selectedTime || !reason.trim()}
               onClick={() => { setStep(2); generateSummary(); }}
               style={{ padding: '0.65rem 1.25rem', borderRadius: 10, background: !selectedDate || !selectedTime || !reason.trim() ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: !selectedDate || !selectedTime || !reason.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, justifyContent: 'center' }}
             >
-              Next → AI Summary
+              {t('book.nextSummary')}
             </button>
           </div>
         </div>
@@ -541,22 +542,22 @@ export default function BookAppointment() {
       {/* ── STEP 2: AI Summary + Attachments ── */}
       {step === 2 && (
         <div className="slide-up">
-          <h3 style={{ marginBottom: '0.5rem', color: 'var(--deep-blue)' }}>AI Clinical Summary</h3>
-          <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Our AI has analyzed your reason and generated a clinical summary for the doctor.</p>
+          <h3 style={{ marginBottom: '0.5rem', color: 'var(--deep-blue)' }}>{t('book.aiSummaryTitle')}</h3>
+          <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>{t('book.aiSummaryDesc')}</p>
 
           {summaryLoading ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem', borderRadius: 12, background: 'var(--primary-light)', border: '1px solid rgba(0,82,165,0.2)', marginBottom: '1.5rem' }}>
               <Loader2 size={22} color="var(--primary)" style={{ animation: 'spin 0.8s linear infinite' }} />
-              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Generating clinical summary via AI…</span>
+              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{t('book.generating')}</span>
             </div>
           ) : (
             <div style={{ padding: '1.25rem', borderRadius: 12, background: 'rgba(0,82,165,0.05)', border: '1.5px solid rgba(0,82,165,0.18)', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                 <Brain size={18} color="var(--primary)" />
-                <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.88rem' }}>AI-Generated Summary · Groq</span>
+                <span style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '0.88rem' }}>{t('book.aiLabel')}</span>
               </div>
               <p style={{ color: 'var(--foreground)', lineHeight: 1.7, fontSize: '0.9rem' }}>{aiSummary}</p>
-              <button onClick={() => setAiSummary(prev => prev)} style={{ marginTop: '0.75rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--charcoal)', fontSize: '0.78rem', fontWeight: 600 }}>✎ Edit summary</button>
+              <button onClick={() => setAiSummary(prev => prev)} style={{ marginTop: '0.75rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--charcoal)', fontSize: '0.78rem', fontWeight: 600 }}>{t('book.editSummary')}</button>
               {/* Editable override */}
               <textarea
                 value={aiSummary}
@@ -570,14 +571,14 @@ export default function BookAppointment() {
           {/* Attachments */}
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
-              <Paperclip size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />Attachments <span style={{ fontWeight: 400, color: 'var(--charcoal)', fontSize: '0.8rem' }}>(Optional — max 5 files)</span>
+              <Paperclip size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />{t('book.attachments')} <span style={{ fontWeight: 400, color: 'var(--charcoal)', fontSize: '0.8rem' }}>{t('book.attachmentsOptional')}</span>
             </label>
             <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf" onChange={handleFile} style={{ display: 'none' }} />
             <button
               onClick={() => fileInputRef.current?.click()}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem', borderRadius: 10, border: '2px dashed var(--border)', background: 'var(--surface-muted)', color: 'var(--charcoal)', cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', width: '100%', justifyContent: 'center', marginBottom: '0.75rem' }}
             >
-              <Paperclip size={16} /> Upload Photos or PDFs
+              <Paperclip size={16} /> {t('book.uploadFiles')}
             </button>
             {attachments.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -598,7 +599,7 @@ export default function BookAppointment() {
               onClick={() => setStep(3)}
               style={{ padding: '0.65rem 1.25rem', borderRadius: 10, background: summaryLoading ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: summaryLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, justifyContent: 'center' }}
             >
-              Review & Submit →
+              {t('book.reviewSubmit')}
             </button>
           </div>
         </div>
@@ -607,34 +608,34 @@ export default function BookAppointment() {
       {/* ── STEP 3: Review & Submit ── */}
       {step === 3 && selectedDoctor && (
         <div className="slide-up">
-          <h3 style={{ marginBottom: '0.5rem', color: 'var(--deep-blue)' }}>Review Your Request</h3>
-          <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Please confirm all details before submitting.</p>
+          <h3 style={{ marginBottom: '0.5rem', color: 'var(--deep-blue)' }}>{t('book.reviewTitle')}</h3>
+          <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>{t('book.reviewDesc')}</p>
 
           <div className="glass-panel" style={{ marginBottom: '1.25rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 2 }}>DOCTOR</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 2 }}>{t('book.labelDoctor')}</div>
                 <div style={{ fontWeight: 700, color: 'var(--deep-blue)' }}>{selectedDoctor.name}</div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)' }}>{selectedDoctor.specialty} · {selectedDoctor.hospital}</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 2 }}>DATE</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 2 }}>{t('book.labelDate')}</div>
                 <div style={{ fontWeight: 700, color: 'var(--deep-blue)' }}>{formatDate(selectedDate)}</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 2 }}>URGENCY</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 2 }}>{t('book.labelUrgency')}</div>
                 {(() => {
                   const opt = URGENCY_OPTIONS.find(o => o.value === urgency)!;
-                  return <span style={{ padding: '0.2rem 0.75rem', borderRadius: 20, background: opt.bg, color: opt.color, fontWeight: 700, fontSize: '0.83rem', border: `1px solid ${opt.color}44` }}>{urgency}</span>;
+                  return <span style={{ padding: '0.2rem 0.75rem', borderRadius: 20, background: opt.bg, color: opt.color, fontWeight: 700, fontSize: '0.83rem', border: `1px solid ${opt.color}44` }}>{t(opt.labelKey)}</span>;
                 })()}
               </div>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 2 }}>ATTACHMENTS</div>
-                <div style={{ fontWeight: 600 }}>{attachments.length > 0 ? `${attachments.length} file(s)` : 'None'}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 2 }}>{t('book.labelAttachments')}</div>
+                <div style={{ fontWeight: 600 }}>{attachments.length > 0 ? `${attachments.length} ${t('book.files')}` : t('book.noAttachments')}</div>
               </div>
             </div>
             <div style={{ marginBottom: '0.75rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 4 }}>AI CLINICAL SUMMARY</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', fontWeight: 600, marginBottom: 4 }}>{t('book.labelSummary')}</div>
               <div style={{ fontSize: '0.88rem', color: 'var(--foreground)', lineHeight: 1.6, padding: '0.75rem', background: 'var(--surface-muted)', borderRadius: 8 }}>{aiSummary}</div>
             </div>
           </div>
@@ -643,25 +644,25 @@ export default function BookAppointment() {
           <div className="glass-panel" style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <Activity size={16} color="var(--accent-teal)" />
-              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent-teal)' }}>Live Vitals Snapshot</span>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent-teal)' }}>{t('book.liveVitals')}</span>
               <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#22c55e', fontWeight: 700 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'nalamPulse 1.4s infinite' }} /> Live
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'nalamPulse 1.4s infinite' }} /> {t('feed.live')}
               </span>
             </div>
-            <p style={{ fontSize: '0.78rem', color: 'var(--charcoal)', marginBottom: '0.5rem' }}>These vitals will be attached to your request at the moment of submission.</p>
+            <p style={{ fontSize: '0.78rem', color: 'var(--charcoal)', marginBottom: '0.5rem' }}>{t('book.vitalsNote')}</p>
             <VitalsDisplay vitals={vitalsSnap} />
           </div>
 
           <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            <button onClick={() => setStep(2)} className="glass-button" style={{ padding: '0.75rem 1.25rem' }}>← Back</button>
+            <button onClick={() => setStep(2)} className="glass-button" style={{ padding: '0.75rem 1.25rem' }}>{t('book.back')}</button>
             <button
               disabled={submitting}
               onClick={handleSubmit}
               style={{ flex: 1, padding: '0.75rem 1.25rem', borderRadius: 10, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 16px rgba(0,82,165,0.3)' }}
             >
               {submitting
-                ? <><div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid white', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> Submitting…</>
-                : <><CheckCircle size={18} /> Submit Request</>
+                ? <><div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid white', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> {t('book.submitting')}</>
+                : <><CheckCircle size={18} /> {t('book.submit')}</>
               }
             </button>
           </div>
