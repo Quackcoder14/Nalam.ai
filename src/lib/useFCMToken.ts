@@ -22,23 +22,49 @@ export function useFCMToken(userId: string | null) {
 
       if (permission !== 'granted') return false;
 
-      const sw = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-      const messaging = await getFirebaseMessaging();
-      if (!messaging) return false;
+      console.log('[FCM] Notification permission:', permission);
+      console.log('[FCM] Registering service worker…');
 
+      const sw = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+      await navigator.serviceWorker.ready;
+      console.log('[FCM] Service worker registered:', sw.scope);
+
+      const messaging = await getFirebaseMessaging();
+      if (!messaging) {
+        console.warn('[FCM] getFirebaseMessaging() returned null — browser may not support it');
+        return false;
+      }
+
+      console.log('[FCM] Requesting FCM token with VAPID key:', VAPID_KEY.substring(0, 20) + '…');
       const { getToken } = await import('firebase/messaging');
       const token = await getToken(messaging, {
         vapidKey: VAPID_KEY,
         serviceWorkerRegistration: sw,
       });
 
-      if (!token) return false;
+      if (!token) {
+        console.warn('[FCM] No token returned — check VAPID key and Firebase config');
+        return false;
+      }
+      console.log('[FCM] Token obtained:', token.substring(0, 20) + '…');
 
-      await fetch('/api/fcm/register', {
+      // Save token to backend
+      const regRes = await fetch('/api/fcm/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, token }),
       });
+      console.log('[FCM] Token registered with backend:', await regRes.json());
+
+      // Send a test notification to verify the full pipeline
+      if (requestPermission) {
+        await fetch('/api/fcm/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
+        console.log('[FCM] Test notification sent!');
+      }
 
       return true;
     } catch (err) {
