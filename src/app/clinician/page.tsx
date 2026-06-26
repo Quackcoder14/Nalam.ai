@@ -1,13 +1,100 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Cpu, Stethoscope, AlertTriangle, Activity, Eye, EyeOff, Database, Clock, Lock, Unlock, FlaskConical, FileText, CheckCircle, XCircle, SkipForward, ChevronDown } from 'lucide-react';
+import { Cpu, Stethoscope, AlertTriangle, Activity, Eye, EyeOff, Database, Clock, Lock, Unlock, FlaskConical, FileText, CheckCircle, XCircle, SkipForward, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 // import BodyVisualizer from '../components/BodyVisualizer';
 // import BodyVisualizer from '../components/BodyVisualizer';
 // import { GlassBoxPanel, type GlassBoxEntry } from '../components/GlassBox';
 import { apiFetch } from '@/lib/apiFetch';
+import { AVAILABLE_TIME_SLOTS } from '@/lib/doctors';
+
+/* ── Reschedule Modal with live slot availability ────────────────────────── */
+function RescheduleModal({ apt, processing, onCancel, onSubmit }: {
+  apt: any;
+  processing: boolean;
+  onCancel: () => void;
+  onSubmit: (date: string, time: string, reason: string) => void;
+}) {
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [reason, setReason] = useState('');
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  // Set min date to tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = tomorrow.toISOString().split('T')[0];
+
+  useEffect(() => {
+    if (!date || !apt?.doctorId) return;
+    setLoadingSlots(true);
+    setTime('');
+    fetch(`/api/appointments/availability?doctorId=${apt.doctorId}&date=${date}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => setBookedSlots(d.bookedSlots || []))
+      .catch(() => {})
+      .finally(() => setLoadingSlots(false));
+  }, [date, apt?.doctorId]);
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '1rem' }}>
+      <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 440, background: 'var(--surface)', padding: '1.5rem', borderRadius: 16, maxHeight: '90vh', overflowY: 'auto' }}>
+        <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)' }}>📅 Propose Reschedule</h3>
+        <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginBottom: '1.25rem' }}>
+          For: <strong>{apt.patientName}</strong> — original {apt.date} at {apt.time}
+        </p>
+
+        <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>New Date</label>
+        <input type="date" min={minDate} value={date} onChange={e => setDate(e.target.value)}
+          style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1.25rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+
+        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>
+          New Time {!date && <span style={{ fontWeight: 400, color: 'var(--charcoal)', fontSize: '0.78rem' }}>— pick a date first</span>}
+          {loadingSlots && <span style={{ fontWeight: 400, color: 'var(--primary)', fontSize: '0.78rem', marginLeft: 8 }}>Loading slots…</span>}
+        </label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1.25rem' }}>
+          {AVAILABLE_TIME_SLOTS.map(slot => {
+            const isBooked = bookedSlots.includes(slot);
+            return (
+              <button key={slot} onClick={() => !isBooked && date && setTime(slot)} disabled={isBooked || !date}
+                title={isBooked ? 'Already booked' : !date ? 'Select a date first' : undefined}
+                style={{
+                  padding: '0.4rem 0.85rem', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600,
+                  border: `1.5px solid ${isBooked ? '#E2E8F0' : time === slot ? 'var(--primary)' : 'var(--border)'}`,
+                  background: isBooked ? '#F1F5F9' : time === slot ? 'var(--primary)' : 'var(--surface)',
+                  color: isBooked ? '#94A3B8' : time === slot ? 'white' : !date ? 'var(--foreground-muted)' : 'var(--foreground)',
+                  cursor: (isBooked || !date) ? 'not-allowed' : 'pointer',
+                  opacity: isBooked ? 0.5 : !date ? 0.4 : 1,
+                  transition: 'all 0.15s',
+                }}>
+                {slot}{isBooked ? ' ✗' : ''}
+              </button>
+            );
+          })}
+        </div>
+        {date && bookedSlots.length > 0 && <p style={{ fontSize: '0.73rem', color: 'var(--charcoal)', marginBottom: '1rem', marginTop: '-1rem' }}>✗ = already booked by another patient</p>}
+
+        <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>Reason for Reschedule</label>
+        <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3}
+          placeholder="Provide a brief reason for the patient and desk..."
+          style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1.5rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button onClick={onCancel} style={{ padding: '0.55rem 1.1rem', borderRadius: 8, border: 'none', background: 'var(--surface-muted)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button disabled={!date || !time || !reason || processing}
+            onClick={() => onSubmit(date, time, reason)}
+            style={{ padding: '0.55rem 1.1rem', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 600, cursor: (!date || !time || !reason) ? 'not-allowed' : 'pointer', opacity: (!date || !time || !reason) ? 0.6 : 1 }}>
+            {processing ? 'Submitting…' : 'Submit Proposal'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 const MEDICATIONS = [
   { name: 'Amlodipine',          dosages: ['2.5mg', '5mg', '10mg'] },
@@ -544,6 +631,7 @@ export default function ClinicianPortal() {
   const [appointments, setAppointments]         = useState<any[]>([]);
   const [aptLoading, setAptLoading]             = useState(false);
   const [aptProcessing, setAptProcessing]       = useState<string | null>(null);
+  const [sortApt, setSortApt]                   = useState<'newest' | 'oldest' | 'upcoming' | 'past'>('newest');
 
   const [rescheduleApt, setRescheduleApt] = useState<any>(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
@@ -553,8 +641,12 @@ export default function ClinicianPortal() {
   const fetchAppointments = useCallback(async () => {
     setAptLoading(true);
     try {
-      // Use the logged-in doctor's actual staffId from localStorage, not a role guess
-      const docId = localStorage.getItem('nalamStaffId') || (role === 'emergency' ? 'dr_dhanush' : 'dr_monissha');
+      // Only use nalamStaffId if the stored role is clinician — prevents stale P001 patient ID
+      const storedRole = sessionStorage.getItem('nalamRole') || localStorage.getItem('nalamRole');
+      const docId = storedRole === 'clinician'
+        ? (sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || '')
+        : '';
+      if (!docId) { setAptLoading(false); return; }
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?doctorId=${docId}`);
       if (res.ok) setAppointments(await res.json());
     } catch {} finally { setAptLoading(false); }
@@ -594,9 +686,9 @@ export default function ClinicianPortal() {
       })
       .catch(() => router.push('/'));
 
-    // Read the logged-in doctor's id and clinician role from localStorage
-    const storedStaffId = localStorage.getItem('nalamStaffId') || '';
-    const storedClinicianRole = localStorage.getItem('nalamClinicianRole') as 'specialist' | 'emergency' | 'research' | null;
+    // Read the logged-in doctor's id and clinician role from sessionStorage or localStorage
+    const storedStaffId = sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || '';
+    const storedClinicianRole = (sessionStorage.getItem('nalamClinicianRole') || localStorage.getItem('nalamClinicianRole')) as 'specialist' | 'emergency' | 'research' | null;
     if (storedStaffId) setDoctorId(storedStaffId);
     if (storedClinicianRole) setRole(storedClinicianRole);
 
@@ -769,92 +861,116 @@ export default function ClinicianPortal() {
       {showAppointments && (
         <div className="glass-panel slide-up" style={{ marginBottom: '1.5rem', background: 'rgba(0,82,165,0.03)', border: '1.5px solid rgba(0,82,165,0.15)' }}>
           <div className="flex-between" style={{ marginBottom: '1rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)' }}>📅 My Appointments (Approved & Scheduled)</h3>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)' }}>📅 My Appointments</h3>
             <button onClick={fetchAppointments} className="glass-button" style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>↻ Refresh</button>
           </div>
+
+          {/* Sort Bar */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'center' }}>
+            <ArrowUpDown size={14} color="var(--foreground-muted)" />
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>Sort:</span>
+            {(['newest', 'oldest', 'upcoming', 'past'] as const).map(opt => (
+              <button
+                key={opt}
+                onClick={() => setSortApt(opt)}
+                style={{ padding: '0.3rem 0.75rem', borderRadius: 20, border: `1.5px solid ${sortApt === opt ? 'var(--primary)' : 'var(--border)'}`, background: sortApt === opt ? 'var(--primary)' : 'var(--surface)', color: sortApt === opt ? 'white' : 'var(--foreground)', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', textTransform: 'capitalize' }}
+              >
+                {opt === 'newest' ? 'Newest First' : opt === 'oldest' ? 'Oldest First' : opt === 'upcoming' ? 'Upcoming' : 'Past'}
+              </button>
+            ))}
+          </div>
+
           {aptLoading ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--charcoal)' }}>Loading appointments...</div>
           ) : appointments.length === 0 ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--charcoal)' }}>No appointments routed to you currently.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {appointments.map(apt => (
-                <div key={apt.id} style={{ background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)', padding: '1.25rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: 220 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                      <span style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--deep-blue)' }}>{apt.patientName}</span>
-                      <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: apt.urgency==='Emergency'?'#FFEBEE':apt.urgency==='Urgent'?'#FFF8E1':'#E0F7FA', color: apt.urgency==='Emergency'?'#C62828':apt.urgency==='Urgent'?'#C07A00':'#0097A7', fontWeight: 700 }}>{apt.urgency}</span>
-                      <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: apt.status==='scheduled'?'#E8F5E9':'#EBF3FF', color: apt.status==='scheduled'?'#2E7D32':'#0052A5', fontWeight: 700 }}>{apt.status.toUpperCase()}</span>
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginBottom: '0.75rem' }}>
-                      <strong>Date:</strong> {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}
-                      {apt.time && <> &nbsp;|&nbsp; <strong>Time:</strong> {apt.time}</>}
-                      &nbsp;| <strong>Ref:</strong> {apt.id}
-                    </div>
-                    <div style={{ marginBottom: '0.75rem' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 2 }}>PATIENT REASON</div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--foreground)' }}>{apt.reason}</div>
-                    </div>
-                    {apt.aiSummary && (
-                      <div style={{ marginBottom: '0.75rem' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: 2 }}>AI SUMMARY</div>
-                        <div style={{ fontSize: '0.85rem', padding: '0.5rem', background: 'var(--primary-light)', borderRadius: 6, color: 'var(--deep-blue)' }}>{apt.aiSummary}</div>
+              {(() => {
+                const today = new Date().toISOString().split('T')[0];
+                let arr = [...appointments];
+                if (sortApt === 'newest') arr.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                else if (sortApt === 'oldest') arr.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                else if (sortApt === 'upcoming') arr = arr.filter(a => a.date >= today).sort((a,b) => a.date.localeCompare(b.date));
+                else if (sortApt === 'past') arr = arr.filter(a => a.date < today).sort((a,b) => b.date.localeCompare(a.date));
+
+                if (arr.length === 0) return <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>No {sortApt} appointments.</p>;
+
+                return arr.map(apt => {
+                  const stColors: Record<string, string> = { approved: '#0052A5', scheduled: '#2E7D32', reschedule_accepted: '#2E7D32', rejected: '#C62828', cancelled: '#71717A', reschedule_patient_rejected: '#71717A', pending_reschedule: '#C07A00' };
+                  const stBgs: Record<string, string> = { approved: '#EBF3FF', scheduled: '#E8F5E9', reschedule_accepted: '#E8F5E9', rejected: '#FFEBEE', cancelled: '#F4F4F5', reschedule_patient_rejected: '#F4F4F5', pending_reschedule: '#FFF8E1' };
+                  const stColor = stColors[apt.status] || '#C07A00';
+                  const stBg    = stBgs[apt.status] || '#FFF8E1';
+                  const stLabel = apt.status === 'reschedule_patient_rejected' ? 'RESCHEDULE REJECTED' : apt.status === 'reschedule_accepted' ? 'SCHEDULED' : apt.status.replace('_', ' ').toUpperCase();
+                  const isGreyed = ['reschedule_patient_rejected'].includes(apt.status);
+
+                  return (
+                    <div key={apt.id} style={{ background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)', padding: '1.25rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', opacity: isGreyed ? 0.6 : 1 }}>
+                      <div style={{ flex: 1, minWidth: 220 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                          <span style={{ fontWeight: 800, fontSize: '1.05rem', color: isGreyed ? 'var(--foreground-muted)' : 'var(--deep-blue)' }}>{apt.patientName}</span>
+                          <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: apt.urgency==='Emergency'?'#FFEBEE':apt.urgency==='Urgent'?'#FFF8E1':'#E0F7FA', color: apt.urgency==='Emergency'?'#C62828':apt.urgency==='Urgent'?'#C07A00':'#0097A7', fontWeight: 700 }}>{apt.urgency}</span>
+                          <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: stBg, color: stColor, fontWeight: 700 }}>{stLabel}</span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginBottom: '0.75rem' }}>
+                          <strong>Date:</strong> {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}
+                          {apt.time && <> &nbsp;|&nbsp; <strong>Time:</strong> {apt.time}</>}
+                          &nbsp;| <strong>Ref:</strong> {apt.id}
+                        </div>
+                        <div style={{ marginBottom: '0.75rem' }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 2 }}>PATIENT REASON</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--foreground)' }}>{apt.reason}</div>
+                        </div>
+                        {apt.aiSummary && (
+                          <div style={{ marginBottom: '0.75rem' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: 2 }}>AI SUMMARY</div>
+                            <div style={{ fontSize: '0.85rem', padding: '0.5rem', background: 'var(--primary-light)', borderRadius: 6, color: 'var(--deep-blue)' }}>{apt.aiSummary}</div>
+                          </div>
+                        )}
+                        {apt.vitalsSnapshot && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                            {[['❤️','HR',`${apt.vitalsSnapshot.hr}`,'#FCA5A5'],['🫁','SpO₂',`${apt.vitalsSnapshot.spo2}%`,'#A5D8FF'],['🩸','BP',`${apt.vitalsSnapshot.sys}/${apt.vitalsSnapshot.dia}`,'#C7D2FE']].map(([em,lb,vl,cl]) => (
+                              <span key={lb as string} style={{ padding: '0.2rem 0.5rem', borderRadius: 6, background: `${cl}22`, border: `1px solid ${cl}66`, fontSize: '0.75rem', fontWeight: 700 }}>{lb}: {vl}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {apt.vitalsSnapshot && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                        {[['❤️','HR',`${apt.vitalsSnapshot.hr}`,'#FCA5A5'],['🫁','SpO₂',`${apt.vitalsSnapshot.spo2}%`,'#A5D8FF'],['🩸','BP',`${apt.vitalsSnapshot.sys}/${apt.vitalsSnapshot.dia}`,'#C7D2FE']].map(([em,lb,vl,cl]) => (
-                          <span key={lb as string} style={{ padding: '0.2rem 0.5rem', borderRadius: 6, background: `${cl}22`, border: `1px solid ${cl}66`, fontSize: '0.75rem', fontWeight: 700 }}>{lb}: {vl}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {apt.status === 'pending_reschedule' ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFF8E1', padding: '0.5rem 0.85rem', borderRadius: 8, border: '1px solid #FFE082', color: '#C07A00', fontWeight: 600, fontSize: '0.8rem' }}>
-                      Reschedule proposed. Awaiting desk approval.
-                    </div>
-                  ) : (apt.status === 'approved' || apt.status === 'scheduled') && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
-                      {apt.status === 'approved' && (
-                        <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'scheduled')} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: 'var(--accent-green)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(34,197,94,0.3)', width: '100%' }}>
-                          {aptProcessing === apt.id ? 'Updating…' : '✓ Mark as Scheduled'}
-                        </button>
+                      {apt.status === 'pending_reschedule' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFF8E1', padding: '0.5rem 0.85rem', borderRadius: 8, border: '1px solid #FFE082', color: '#C07A00', fontWeight: 600, fontSize: '0.8rem' }}>
+                          Reschedule proposed. Awaiting patient decision.
+                        </div>
+                      ) : apt.status === 'reschedule_patient_rejected' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F4F4F5', padding: '0.5rem 0.85rem', borderRadius: 8, border: '1px solid #D4D4D8', color: '#71717A', fontWeight: 600, fontSize: '0.8rem' }}>
+                          Patient Rejected Reschedule.
+                        </div>
+                      ) : (apt.status === 'approved' || apt.status === 'scheduled') && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+                          {apt.status === 'approved' && (
+                            <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'scheduled')} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: 'var(--accent-green)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(34,197,94,0.3)', width: '100%' }}>
+                              {aptProcessing === apt.id ? 'Updating…' : '✓ Mark as Scheduled'}
+                            </button>
+                          )}
+                          <button disabled={aptProcessing === apt.id} onClick={() => { setRescheduleApt(apt); setRescheduleDate(''); setRescheduleTime(''); setRescheduleReason(''); }} style={{ padding: '0.5rem 1rem', borderRadius: 8, background: 'var(--surface-muted)', color: 'var(--charcoal)', border: '1px solid var(--border)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', width: '100%' }}>
+                            Propose Reschedule
+                          </button>
+                        </div>
                       )}
-                      <button disabled={aptProcessing === apt.id} onClick={() => { setRescheduleApt(apt); setRescheduleDate(''); setRescheduleTime(''); setRescheduleReason(''); }} style={{ padding: '0.5rem 1rem', borderRadius: 8, background: 'var(--surface-muted)', color: 'var(--charcoal)', border: '1px solid var(--border)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', width: '100%' }}>
-                        Propose Reschedule
-                      </button>
                     </div>
-                  )}
-                </div>
-              ))}
+                  );
+                });
+              })()}
             </div>
           )}
         </div>
       )}
 
-      {/* Reschedule Modal */}
       {rescheduleApt && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999 }}>
-          <div className="glass-panel slide-up" style={{ width: '90%', maxWidth: 400, background: 'white', padding: '1.5rem', borderRadius: 16 }}>
-            <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)' }}>Propose Reschedule</h3>
-            
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>New Date</label>
-            <input type="date" value={rescheduleDate} onChange={e => setRescheduleDate(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1rem', fontFamily: 'inherit' }} />
-
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>New Time</label>
-            <input type="time" value={rescheduleTime} onChange={e => setRescheduleTime(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1rem', fontFamily: 'inherit' }} />
-
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>Reason</label>
-            <textarea value={rescheduleReason} onChange={e => setRescheduleReason(e.target.value)} rows={3} placeholder="Provide a reason for the hospital desk..." style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1.5rem', fontFamily: 'inherit', resize: 'vertical' }} />
-
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button onClick={() => setRescheduleApt(null)} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: 'var(--surface-muted)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              <button disabled={!rescheduleDate || !rescheduleTime || !rescheduleReason || aptProcessing === rescheduleApt.id} onClick={() => handleAptAction(rescheduleApt.id, 'pending_reschedule', { rescheduleDate, rescheduleTime, rescheduleReason })} style={{ padding: '0.5rem 1rem', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 600, cursor: (!rescheduleDate || !rescheduleTime || !rescheduleReason) ? 'not-allowed' : 'pointer', opacity: (!rescheduleDate || !rescheduleTime || !rescheduleReason) ? 0.6 : 1 }}>
-                {aptProcessing === rescheduleApt.id ? 'Submitting...' : 'Submit Proposal'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <RescheduleModal
+          apt={rescheduleApt}
+          processing={aptProcessing === rescheduleApt.id}
+          onCancel={() => setRescheduleApt(null)}
+          onSubmit={(date, time, reason) => handleAptAction(rescheduleApt.id, 'pending_reschedule', { rescheduleDate: date, rescheduleTime: time, rescheduleReason: reason })}
+        />
       )}
 
       {/* Glass Box Panel */}

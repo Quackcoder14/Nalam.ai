@@ -15,8 +15,8 @@ export async function apiFetch(
     headers.set('Content-Type', 'application/json');
   }
 
-  // Fallback: also send the token as a Bearer header if stored in sessionStorage
-  const token = sessionStorage.getItem('nalamToken');
+  // Fallback: also send the token as a Bearer header if stored in sessionStorage or localStorage
+  const token = sessionStorage.getItem('nalamToken') || localStorage.getItem('nalamToken');
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }

@@ -119,6 +119,7 @@ model Appointment {
   created_at                DateTime  @default(now())
   approved_at               DateTime?
   scheduled_at              DateTime?
+  pre_reschedule_status     String?
 
   patient                   Patient   @relation(fields: [patient_id], references: [id])
 

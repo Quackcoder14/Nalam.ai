@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -8,13 +9,15 @@ export default function DeskChat() {
   const router = useRouter();
   const [conversations, setConversations] = useState<any[]>([]);
   const [activePatient, setActivePatient] = useState<any>(null);
-  
+
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isUserScrolledUpRef = useRef(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -48,14 +51,14 @@ export default function DeskChat() {
       if (pRes.ok) {
         const pData = await pRes.json();
         setActivePatient(pData.patient);
-        
+
         // Mark messages as read
         await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ patientId, hospital, role: 'desk' })
         });
-        
+
         await fetchMessages(patientId);
         fetchConversations(); // update badges immediately
       }
@@ -69,10 +72,32 @@ export default function DeskChat() {
   const fetchMessages = async (patientId: string) => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat?patientId=${patientId}&hospital=${encodeURIComponent(hospital)}`);
-      if (res.ok) setMessages(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(data)) return prev;
+          return data;
+        });
+      }
     } catch (e) {
       console.error('Failed to fetch messages', e);
     }
+  };
+
+  const scrollToBottom = (force = false) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    if (force || !isUserScrolledUpRef.current || isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    isUserScrolledUpRef.current = !isNearBottom;
   };
 
   // Poll for active chat messages
@@ -90,13 +115,14 @@ export default function DeskChat() {
   }, [activePatient, hospital]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToBottom();
   }, [messages]);
 
   const handleSend = async (type: string = 'text', content: string = inputText) => {
     if (!activePatient || !content.trim()) return;
 
     setSending(true);
+    isUserScrolledUpRef.current = false;
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat`, {
         method: 'POST',
@@ -228,7 +254,7 @@ export default function DeskChat() {
       </div>
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        
+
         {/* Left Panel: Conversations */}
         <div className="chat-left-panel" style={{ width: 350, display: 'flex', flexDirection: 'column', background: 'var(--surface)', borderRight: '1px solid var(--border)', zIndex: 5 }}>
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -241,8 +267,8 @@ export default function DeskChat() {
           {showNewChat && (
             <div style={{ padding: '1rem', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
               <form onSubmit={startNewChat} style={{ display: 'flex', gap: '0.5rem' }}>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   autoFocus
                   placeholder="Patient email or ID..."
                   value={newChatInput}
@@ -259,10 +285,10 @@ export default function DeskChat() {
               <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--charcoal)', fontSize: '0.9rem' }}>No conversations yet.</div>
             ) : (
               conversations.map(c => (
-                <div 
-                  key={c.patientId} 
+                <div
+                  key={c.patientId}
                   onClick={() => loadPatientChat(c.patientId)}
-                  style={{ 
+                  style={{
                     display: 'flex', alignItems: 'center', padding: '1rem', gap: '1rem', cursor: 'pointer',
                     background: activePatient?.id === c.patientId ? 'var(--primary-light)' : 'var(--surface)',
                     borderBottom: '1px solid var(--border)'
@@ -297,7 +323,7 @@ export default function DeskChat() {
 
         {/* Right Panel: Chat Area */}
         <div className="chat-right-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F8FAFC', position: 'relative' }}>
-          
+
           {!activePatient ? (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--charcoal)', background: 'var(--surface-muted)' }}>
               <MessageSquare size={80} style={{ marginBottom: '1.5rem', opacity: 0.1, color: 'var(--primary)' }} />
@@ -330,7 +356,7 @@ export default function DeskChat() {
               </div>
 
               {/* Messages Area */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 5%', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div ref={scrollContainerRef} onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto', padding: '2rem 5%', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {loading && messages.length === 0 ? (
                   <div style={{ textAlign: 'center', color: 'var(--charcoal)', marginTop: '2rem' }}>Loading messages...</div>
                 ) : messages.length === 0 ? (
@@ -343,7 +369,7 @@ export default function DeskChat() {
                     return (
                       <div key={m.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
                         {!isMe && <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><UserCircle size={16} color="var(--charcoal)" /></div>}
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                           <div style={{
                             padding: '0.75rem 1rem',
@@ -385,14 +411,14 @@ export default function DeskChat() {
 
               {/* Input Area */}
               <div style={{ padding: '1rem', borderTop: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  style={{ display: 'none' }} 
-                  onChange={handleFileChange} 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
                   accept="image/*,.pdf,.doc,.docx"
                 />
-                <button 
+                <button
                   onClick={() => fileInputRef.current?.click()}
                   style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'var(--surface-muted)', color: 'var(--charcoal)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
                 >
@@ -410,7 +436,7 @@ export default function DeskChat() {
                 />
 
                 {inputText.trim() ? (
-                  <button 
+                  <button
                     onClick={() => handleSend()}
                     disabled={sending}
                     style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', background: 'var(--primary)', color: 'white', cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
@@ -418,7 +444,7 @@ export default function DeskChat() {
                     <Send size={18} />
                   </button>
                 ) : (
-                  <button 
+                  <button
                     onClick={toggleRecording}
                     className={isRecording ? 'pulse-glow' : ''}
                     style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', background: isRecording ? '#FEE2E2' : 'var(--surface-muted)', color: isRecording ? '#DC2626' : 'var(--charcoal)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}

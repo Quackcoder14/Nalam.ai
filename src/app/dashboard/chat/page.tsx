@@ -1,13 +1,22 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Send, Mic, Paperclip, Building2, User, UserCircle, StopCircle, Image as ImageIcon, File, X } from 'lucide-react';
 
 const HOSPITALS = ['Apollo Hospitals', 'Fortis Healthcare', 'Nalam.ai General Hospital'];
 
 export default function PatientChat() {
+  return (
+    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading chat...</div>}>
+      <PatientChatInner />
+    </Suspense>
+  );
+}
+
+function PatientChatInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedHospital, setSelectedHospital] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
@@ -15,7 +24,9 @@ export default function PatientChat() {
   const [sending, setSending] = useState(false);
   const [mockProfile, setMockProfile] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isUserScrolledUpRef = useRef(false);
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -26,7 +37,12 @@ export default function PatientChat() {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat?patientId=P001&hospital=${encodeURIComponent(hospital)}`);
       if (res.ok) {
-        setMessages(await res.json());
+        const data = await res.json();
+        setMessages(prev => {
+          // Only update if messages actually changed to avoid unnecessary re-renders
+          if (JSON.stringify(prev) === JSON.stringify(data)) return prev;
+          return data;
+        });
         // Mark as read
         await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread`, {
           method: 'POST',
@@ -39,9 +55,33 @@ export default function PatientChat() {
     }
   };
 
+  const scrollToBottom = (force = false) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    if (force || !isUserScrolledUpRef.current || isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    isUserScrolledUpRef.current = !isNearBottom;
+  };
+
+  useEffect(() => {
+    const h = searchParams.get('hospital');
+    const p = searchParams.get('prefill');
+    if (h) setSelectedHospital(h);
+    if (p) setInputText(p);
+  }, [searchParams]);
+
   useEffect(() => {
     if (!selectedHospital) return;
     setLoading(true);
+    isUserScrolledUpRef.current = false;
     fetchMessages(selectedHospital).finally(() => setLoading(false));
 
     const iv = setInterval(() => fetchMessages(selectedHospital), 3000);
@@ -49,13 +89,14 @@ export default function PatientChat() {
   }, [selectedHospital]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToBottom();
   }, [messages]);
 
   const handleSend = async (type: string = 'text', content: string = inputText) => {
     if (!selectedHospital || !content.trim()) return;
 
     setSending(true);
+    isUserScrolledUpRef.current = false; // always scroll after sending
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat`, {
         method: 'POST',
@@ -154,8 +195,13 @@ export default function PatientChat() {
               </div>
               <div style={{ textAlign: 'center' }}>
                 <h3 style={{ fontSize: '1.25rem', color: 'var(--deep-blue)', marginBottom: '0.2rem' }}>Staff Profile</h3>
-                <p style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.9rem' }}>{mockProfile}</p>
+                <p style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.9rem' }}>{mockProfile === 'Desk Worker' ? 'Desk Worker' : 'Hospital Desk'}</p>
                 <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem', marginTop: '0.5rem' }}>Hospital Desk Representative at {selectedHospital}</p>
+                {mockProfile !== 'Desk Worker' && (
+                  <div style={{ marginTop: '0.5rem', background: 'var(--surface-muted)', padding: '0.2rem 0.5rem', borderRadius: 4, fontSize: '0.75rem', color: 'var(--charcoal)', display: 'inline-block' }}>
+                    Staff ID: {mockProfile}
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
@@ -242,7 +288,7 @@ export default function PatientChat() {
           </div>
 
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#F8FAFC' }}>
+          <div ref={scrollContainerRef} onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#F8FAFC' }}>
             {loading && messages.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--charcoal)', marginTop: '2rem' }}>Loading messages...</div>
             ) : messages.length === 0 ? (

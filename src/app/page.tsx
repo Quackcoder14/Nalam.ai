@@ -60,14 +60,28 @@ export default function HomePage() {
         setLoginError(t('login.invalidCreds'));
         return;
       }
-      // localStorage is purely a UI cache — security decisions use the JWT cookie
+      // Storage for UI cache: use sessionStorage for tab isolation, localStorage as fallback
+      sessionStorage.setItem('nalamRole', data.role);
       localStorage.setItem('nalamRole', data.role);
+      sessionStorage.setItem('nalamPatientId', 'P001');
       localStorage.setItem('nalamPatientId', 'P001');
-      if (data.clinicianRole) localStorage.setItem('nalamClinicianRole', data.clinicianRole);
-      if (data.branch) localStorage.setItem('nalamHdeskBranch', data.branch);
-      if (data.staffId) localStorage.setItem('nalamStaffId', data.staffId);
+      if (data.clinicianRole) {
+        sessionStorage.setItem('nalamClinicianRole', data.clinicianRole);
+        localStorage.setItem('nalamClinicianRole', data.clinicianRole);
+      }
+      if (data.branch) {
+        sessionStorage.setItem('nalamHdeskBranch', data.branch);
+        localStorage.setItem('nalamHdeskBranch', data.branch);
+      }
+      if (data.staffId && data.role !== 'patient') {
+        sessionStorage.setItem('nalamStaffId', data.staffId);
+        localStorage.setItem('nalamStaffId', data.staffId);
+      }
       // Store token in sessionStorage as a Bearer fallback for API calls
-      if (data.token) sessionStorage.setItem('nalamToken', data.token);
+      if (data.token) {
+        sessionStorage.setItem('nalamToken', data.token);
+        localStorage.setItem('nalamToken', data.token);
+      }
 
       if (data.role === 'patient') router.push('/dashboard');
       else if (data.role === 'clinician') router.push('/clinician');

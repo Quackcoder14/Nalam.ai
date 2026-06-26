@@ -93,6 +93,9 @@ export default function PatientDashboard() {
   const [pushLoading, setPushLoading] = useState(false);
   const [demoScenario, setDemoScenario] = useState<string | null>(null);
   const [chatUnread, setChatUnread] = useState(0);
+  const [rescheduleApts, setRescheduleApts] = useState<any[]>([]);
+  const [showReschedulePopup, setShowReschedulePopup] = useState(false);
+  const [hasSeenReschedulePopup, setHasSeenReschedulePopup] = useState(false);
   const anomalyRef = useRef<any>(null);
   const router = useRouter();
 
@@ -172,16 +175,27 @@ export default function PatientDashboard() {
         const ptAlerts = (alData.alerts || []).filter((a: any) => a.patient_id === 'P001');
         setPatientAlerts(ptAlerts);
       }
+      // Check for pending reschedule proposals
+      const aptRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=P001`, { cache: 'no-store' });
+      if (aptRes.ok) {
+        const apts = await aptRes.json();
+        const pending = apts.filter((a: any) => a.status === 'pending_reschedule');
+        setRescheduleApts(pending);
+        if (pending.length > 0 && !hasSeenReschedulePopup) {
+          setShowReschedulePopup(true);
+        }
+      }
     } catch { }
   }, [lang]);
 
   useEffect(() => {
-    const role = localStorage.getItem('nalamRole');
+    const role = sessionStorage.getItem('nalamRole') || localStorage.getItem('nalamRole');
     if (!role) { router.push('/'); return; }
     if (role === 'clinician') { router.push('/clinician'); return; }
     (async () => {
       try {
-        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=P001&lang=${lang}`);
+        const patientId = sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId') || 'P001';
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=${patientId}&lang=${lang}`);
         if (!res.ok) throw new Error(`API Error: ${res.status}`);
         const data = await res.json();
         setPatient(data.patient);
@@ -189,7 +203,7 @@ export default function PatientDashboard() {
         setConsent({ emergency: data.patient.consent_emergency === 'true', specialist: data.patient.consent_specialist === 'true', research: data.patient.consent_research === 'true' });
         const ir = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/intervention`, { method: 'POST', body: JSON.stringify({ patient: data.patient, records: data.records, lang }) });
         if (ir.ok) setIntervention(await ir.json());
-        const ar = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha?patientId=P001`);
+        const ar = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha?patientId=${patientId}`);
         if (ar.ok) setAbha(await ar.json());
       } catch (e) { console.error(e); }
     })();
@@ -215,6 +229,38 @@ export default function PatientDashboard() {
 
   return (
     <div className="container fade-in">
+      {/* ── Reschedule Proposal Notification ── */}
+      {showReschedulePopup && rescheduleApts.length > 0 && !hasSeenReschedulePopup && (
+        <div style={{
+          position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999,
+          background: 'linear-gradient(135deg, #FF8C00, #C07A00)',
+          color: 'white', padding: '1rem 1.25rem', borderRadius: 14,
+          boxShadow: '0 8px 32px rgba(192,122,0,0.4)',
+          maxWidth: 340, animation: 'slide-in-right 0.4s ease',
+          cursor: 'pointer',
+        }} onClick={() => { setShowReschedulePopup(false); setHasSeenReschedulePopup(true); router.push('/appointments/requests'); }}>
+          <style>{`@keyframes slide-in-right { from { opacity:0; transform:translateX(100px) } to { opacity:1; transform:translateX(0) } }`}</style>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <div style={{ fontSize: '1.5rem', flexShrink: 0 }}>📅</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.25rem' }}>Reschedule Proposed</div>
+              <div style={{ fontSize: '0.82rem', opacity: 0.9, lineHeight: 1.4 }}>
+                Your doctor proposed a new time for your appointment with{' '}
+                <strong>{rescheduleApts[0].doctorName}</strong>.
+                Tap to Accept or Reject.
+              </div>
+            </div>
+            <button onClick={(e) => { e.stopPropagation(); setShowReschedulePopup(false); setHasSeenReschedulePopup(true); }}
+              style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '0.85rem', fontWeight: 700 }}>
+              ✕
+            </button>
+          </div>
+          {rescheduleApts.length > 1 && (
+            <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.5rem', paddingLeft: '2.25rem' }}>+{rescheduleApts.length - 1} more reschedule proposal{rescheduleApts.length > 2 ? 's' : ''}</div>
+          )}
+        </div>
+      )}
+
       {/* ── Critical Anomaly Popup ── */}
       {showPopup && (
         <div onClick={explainAnomaly}

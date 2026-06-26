@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
 import { encrypt, decrypt } from '@/lib/crypto';
-import { requireRole, getRoleFromHeader } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { DOCTOR_SCHEDULES } from '@/lib/doctors';
 
 /* ── GET ──────────────────────────────────────────────────────────────────── */
@@ -24,9 +24,9 @@ export async function GET(request: Request) {
       return NextResponse.json(mapRowToApt(row));
     }
 
-    // All for hospital desk — requires hdesk role header to prevent data leaks
+    // All for hospital desk — requires hdesk or clinician role header to prevent data leaks
     if (all === 'true') {
-      const auth = requireRole(request, ['hdesk']);
+      const auth = requireRole(request, ['hdesk', 'clinician']);
       if (!auth.ok) return auth.response;
 
       const rows = await prisma.appointment.findMany({
@@ -36,10 +36,10 @@ export async function GET(request: Request) {
       return NextResponse.json(rows.map(mapRowToApt));
     }
 
-    // By patient — only the patient themselves or a clinician/hdesk may access
+    // By patient — accessible by the patient themselves, clinicians, or hdesk
     if (patientId) {
-      const role = getRoleFromHeader(request);
-      if (!role) return NextResponse.json({ error: 'Forbidden: role header required' }, { status: 403 });
+      const auth = requireRole(request, ['patient', 'clinician', 'hdesk']);
+      if (!auth.ok) return auth.response;
 
       const rows = await prisma.appointment.findMany({
         where: { patient_id: patientId },
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
       const rows = await prisma.appointment.findMany({
         where: {
           doctor_id: doctorId,
-          status: { in: ['approved', 'scheduled'] }
+          status: { in: ['approved', 'scheduled', 'pending_reschedule', 'reschedule_patient_rejected'] }
         },
         include: { patient: true },
         orderBy: { date: 'asc' },
@@ -189,8 +189,8 @@ export async function POST(request: Request) {
 
 /* ── PATCH — update status ─────────────────────────────────────────────────── */
 export async function PATCH(request: Request) {
-  // Only hdesk or clinicians may update appointment status
-  const auth = requireRole(request, ['hdesk', 'clinician']);
+  // Allow hdesk, clinicians, and patients to update status
+  const auth = requireRole(request, ['hdesk', 'clinician', 'patient']);
   if (!auth.ok) return auth.response;
 
   try {
@@ -199,6 +199,12 @@ export async function PATCH(request: Request) {
 
     if (!id || !status) {
       return NextResponse.json({ error: 'id and status required' }, { status: 400 });
+    }
+
+    if (auth.session.role === 'patient') {
+      if (status !== 'reschedule_accepted' && status !== 'reschedule_patient_rejected' && status !== 'cancelled') {
+        return NextResponse.json({ error: 'Patients can only accept, reject, or cancel appointments' }, { status: 403 });
+      }
     }
 
     const updateData: Record<string, unknown> = { status };
@@ -210,37 +216,89 @@ export async function PATCH(request: Request) {
       if (!rescheduleDate || !rescheduleTime || !rescheduleReason) {
         return NextResponse.json({ error: 'reschedule details required' }, { status: 400 });
       }
+      // Save the current status before overwriting so we can revert correctly
+      const existing = await prisma.appointment.findUnique({ where: { id } });
+      if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      updateData.pre_reschedule_status = existing.status;
       updateData.reschedule_proposed_date = rescheduleDate;
       updateData.reschedule_proposed_time = rescheduleTime;
       updateData.reschedule_reason_enc = encrypt(rescheduleReason);
-    } else if (status === 'reschedule_approved') {
-      const existing = await prisma.appointment.findUnique({ where: { id } });
-      if (existing && existing.reschedule_proposed_date && existing.reschedule_proposed_time) {
-        updateData.date = existing.reschedule_proposed_date;
-        updateData.time = existing.reschedule_proposed_time;
-        updateData.status = 'scheduled'; // Promote directly to scheduled
-        updateData.scheduled_at = new Date();
-        updateData.reschedule_proposed_date = null;
-        updateData.reschedule_proposed_time = null;
-        updateData.reschedule_reason_enc = null;
 
-        // Create a notification for the patient
-        await prisma.clinicalAlert.create({
-          data: {
-            patient_id: existing.patient_id,
-            severity: 'info',
-            title: 'Appointment Rescheduled',
-            message: `Your appointment with ${existing.doctor_name} has been rescheduled to ${existing.reschedule_proposed_date} at ${existing.reschedule_proposed_time}.`,
-          }
-        });
-      } else {
+    } else if (status === 'reschedule_accepted') {
+      // Patient accepts the proposed new date/time
+      const existing = await prisma.appointment.findUnique({ where: { id } });
+      if (!existing || !existing.reschedule_proposed_date || !existing.reschedule_proposed_time) {
         return NextResponse.json({ error: 'No reschedule proposal found' }, { status: 400 });
       }
-    } else if (status === 'reschedule_rejected') {
-        updateData.status = 'scheduled'; // Revert to original status
-        updateData.reschedule_proposed_date = null;
-        updateData.reschedule_proposed_time = null;
-        updateData.reschedule_reason_enc = null;
+
+      const proposedDate = existing.reschedule_proposed_date;
+      const proposedTime = existing.reschedule_proposed_time;
+
+      // Conflict check: is this time slot already taken?
+      const overlapping = await prisma.appointment.count({
+        where: {
+          doctor_id: existing.doctor_id,
+          date: proposedDate,
+          time: proposedTime,
+          status: { in: ['approved', 'scheduled'] },
+          id: { not: id }, // exclude self
+        }
+      });
+      if (overlapping > 0) {
+        return NextResponse.json({ error: 'The proposed time slot is no longer available. Please contact the hospital.' }, { status: 409 });
+      }
+
+      // Conflict check: daily limit
+      const dayTotal = await prisma.appointment.count({
+        where: {
+          doctor_id: existing.doctor_id,
+          date: proposedDate,
+          status: { in: ['approved', 'scheduled'] },
+          id: { not: id },
+        }
+      });
+      if (dayTotal >= 5) {
+        return NextResponse.json({ error: 'The proposed date is now fully booked. Please contact the hospital.' }, { status: 409 });
+      }
+
+      updateData.date = proposedDate;
+      updateData.time = proposedTime;
+      updateData.status = 'scheduled';
+      updateData.scheduled_at = new Date();
+      updateData.reschedule_proposed_date = null;
+      updateData.reschedule_proposed_time = null;
+      updateData.reschedule_reason_enc = null;
+      updateData.pre_reschedule_status = null;
+
+      // Notify the patient
+      await prisma.clinicalAlert.create({
+        data: {
+          patient_id: existing.patient_id,
+          severity: 'info',
+          title: 'Appointment Rescheduled & Confirmed',
+          message: `Your appointment with ${existing.doctor_name} has been rescheduled to ${proposedDate} at ${proposedTime} and is now confirmed.`,
+        }
+      });
+
+    } else if (status === 'reschedule_patient_rejected') {
+      // Patient rejects the proposed reschedule — revert to original status
+      const existing = await prisma.appointment.findUnique({ where: { id } });
+      if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      updateData.status = existing.pre_reschedule_status || 'approved'; // safe fallback
+      updateData.reschedule_proposed_date = null;
+      updateData.reschedule_proposed_time = null;
+      updateData.reschedule_reason_enc = null;
+      updateData.pre_reschedule_status = null;
+
+      // Notify the patient that the original schedule stands
+      await prisma.clinicalAlert.create({
+        data: {
+          patient_id: existing.patient_id,
+          severity: 'info',
+          title: 'Reschedule Proposal Rejected',
+          message: `You have rejected the reschedule proposal for your appointment with ${existing.doctor_name}. Your original appointment details remain. Please contact the hospital for further assistance.`,
+        }
+      });
     }
 
     const row = await prisma.appointment.update({
@@ -316,6 +374,7 @@ function mapRowToApt(row: Record<string, unknown> & {
     rescheduleReason: row.reschedule_reason_enc ? decrypt(row.reschedule_reason_enc as string) : null,
     rescheduleProposedDate: row.reschedule_proposed_date,
     rescheduleProposedTime: row.reschedule_proposed_time,
+    preRescheduleStatus: row.pre_reschedule_status,
     createdAt: (row.created_at as Date).toISOString(),
     approvedAt: row.approved_at ? (row.approved_at as Date).toISOString() : null,
     scheduledAt: row.scheduled_at ? (row.scheduled_at as Date).toISOString() : null,

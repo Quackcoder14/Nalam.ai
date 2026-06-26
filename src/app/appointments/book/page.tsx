@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Mic, MicOff, Loader2, Paperclip, X, ChevronRight, CheckCircle, Calendar, Stethoscope, AlertTriangle, FileText, Activity, Heart, Zap, Brain } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
@@ -123,9 +123,51 @@ export default function BookAppointment() {
   const [submitting, setSubmitting]     = useState(false);
   const [vitalsSnap, setVitalsSnap]     = useState({ hr: 72, spo2: 98, resp: 16, temp: 36.6, sys: 120, dia: 80 });
   const [aptId, setAptId]               = useState('');
+  const [bookedSlots, setBookedSlots]   = useState<string[]>([]);
+  const [fullyBookedDates, setFullyBookedDates] = useState<Set<string>>(new Set());
 
   const recognitionRef = useRef<any>(null);
   const fileInputRef   = useRef<HTMLInputElement>(null);
+
+  // Fetch availability when doctor or date changes
+  const fetchAvailability = useCallback(async (doctorId: string, date: string) => {
+    if (!doctorId || !date) return;
+    try {
+      const res = await fetch(`/api/appointments/availability?doctorId=${doctorId}&date=${date}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setBookedSlots(data.bookedSlots || []);
+      }
+    } catch {}
+  }, []);
+
+  // Pre-check fully booked dates when doctor selected
+  const checkFullyBookedDates = useCallback(async (doctorId: string, dates: string[]) => {
+    const fullyBooked = new Set<string>();
+    await Promise.all(dates.map(async (d) => {
+      try {
+        const res = await fetch(`/api/appointments/availability?doctorId=${doctorId}&date=${d}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.fullyBooked) fullyBooked.add(d);
+        }
+      } catch {}
+    }));
+    setFullyBookedDates(fullyBooked);
+  }, []);
+
+  useEffect(() => {
+    if (selectedDoctor && selectedDate) {
+      fetchAvailability(selectedDoctor.id, selectedDate);
+      setTime('');
+    }
+  }, [selectedDoctor, selectedDate, fetchAvailability]);
+
+  useEffect(() => {
+    if (selectedDoctor) {
+      checkFullyBookedDates(selectedDoctor.id, selectedDoctor.availableDates);
+    }
+  }, [selectedDoctor, checkFullyBookedDates]);
 
   // Animate vitals like the dashboard
   useEffect(() => {
@@ -347,20 +389,30 @@ export default function BookAppointment() {
               <Calendar size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />Select Available Date
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {selectedDoctor.availableDates.map(d => (
-                <button
-                  key={d}
-                  onClick={() => setDate(d)}
-                  style={{
-                    padding: '0.5rem 1rem', borderRadius: 10, border: `1.5px solid ${selectedDate === d ? 'var(--primary)' : 'var(--border)'}`,
-                    background: selectedDate === d ? 'var(--primary)' : 'var(--surface)',
-                    color: selectedDate === d ? 'white' : 'var(--foreground)',
-                    fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.18s ease',
-                  }}
-                >
-                  {formatDate(d)}
-                </button>
-              ))}
+              {selectedDoctor.availableDates.map(d => {
+                const isFullyBooked = fullyBookedDates.has(d);
+                return (
+                  <button
+                    key={d}
+                    onClick={() => !isFullyBooked && setDate(d)}
+                    disabled={isFullyBooked}
+                    title={isFullyBooked ? 'Fully booked — no slots available' : undefined}
+                    style={{
+                      padding: '0.5rem 1rem', borderRadius: 10,
+                      border: `1.5px solid ${isFullyBooked ? '#E2E8F0' : selectedDate === d ? 'var(--primary)' : 'var(--border)'}`,
+                      background: isFullyBooked ? '#F1F5F9' : selectedDate === d ? 'var(--primary)' : 'var(--surface)',
+                      color: isFullyBooked ? '#94A3B8' : selectedDate === d ? 'white' : 'var(--foreground)',
+                      fontWeight: 600, fontSize: '0.82rem',
+                      cursor: isFullyBooked ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.18s ease',
+                      textDecoration: isFullyBooked ? 'line-through' : 'none',
+                      opacity: isFullyBooked ? 0.6 : 1,
+                    }}
+                  >
+                    {formatDate(d)}{isFullyBooked ? ' 🚫' : ''}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -368,23 +420,37 @@ export default function BookAppointment() {
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
               <Calendar size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />Select Time
+              {!selectedDate && <span style={{ fontWeight: 400, fontSize: '0.78rem', color: 'var(--charcoal)', marginLeft: 8 }}>— pick a date first</span>}
             </label>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {AVAILABLE_TIME_SLOTS.map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTime(t)}
-                  style={{
-                    padding: '0.5rem 1rem', borderRadius: 10, border: `1.5px solid ${selectedTime === t ? 'var(--primary)' : 'var(--border)'}`,
-                    background: selectedTime === t ? 'var(--primary)' : 'var(--surface)',
-                    color: selectedTime === t ? 'white' : 'var(--foreground)',
-                    fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.18s ease',
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
+              {AVAILABLE_TIME_SLOTS.map(slot => {
+                const isBooked = bookedSlots.includes(slot);
+                return (
+                  <button
+                    key={slot}
+                    onClick={() => !isBooked && selectedDate && setTime(slot)}
+                    disabled={isBooked || !selectedDate}
+                    title={isBooked ? 'This slot is already booked' : !selectedDate ? 'Select a date first' : undefined}
+                    style={{
+                      padding: '0.5rem 1rem', borderRadius: 10,
+                      border: `1.5px solid ${isBooked ? '#E2E8F0' : selectedTime === slot ? 'var(--primary)' : 'var(--border)'}`,
+                      background: isBooked ? '#F1F5F9' : selectedTime === slot ? 'var(--primary)' : 'var(--surface)',
+                      color: isBooked ? '#94A3B8' : selectedTime === slot ? 'white' : !selectedDate ? 'var(--foreground-muted)' : 'var(--foreground)',
+                      fontWeight: 600, fontSize: '0.82rem',
+                      cursor: (isBooked || !selectedDate) ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.18s ease',
+                      opacity: isBooked ? 0.5 : !selectedDate ? 0.4 : 1,
+                      position: 'relative' as const,
+                    }}
+                  >
+                    {slot}{isBooked ? ' ✗' : ''}
+                  </button>
+                );
+              })}
             </div>
+            {selectedDate && bookedSlots.length > 0 && (
+              <p style={{ fontSize: '0.75rem', color: 'var(--charcoal)', marginTop: '0.5rem' }}>✗ = already booked</p>
+            )}
           </div>
 
           {/* Urgency */}

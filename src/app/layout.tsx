@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import ClientNav from './components/ClientNav';
 import { LanguageProvider } from '@/lib/i18n';
@@ -45,7 +46,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
         {/* Prevent FOUC: apply theme before React paints */}
-        <script
+        <Script
+          id="theme-script"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
@@ -64,7 +67,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <main>{children}</main>
         </LanguageProvider>
         {/* Service Worker registration */}
-        <script
+        <Script
+          id="sw-script"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {

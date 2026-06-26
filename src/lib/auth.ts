@@ -27,14 +27,15 @@ function parseCookies(header: string | null): Record<string, string> {
 
 /* ── Verify the JWT from the HttpOnly cookie ──────────────────────────── */
 export function getSessionFromRequest(request: Request): SessionPayload | null {
-  // Primary: read from the standard Cookie request header
-  const cookies = parseCookies(request.headers.get('cookie'));
-  let token = cookies['nalam_token'];
+  // Primary: check Authorization Bearer header (tab-scoped via sessionStorage)
+  // This allows two different roles to work simultaneously in separate browser tabs.
+  const authHeader = request.headers.get('authorization') ?? '';
+  let token: string | null = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-  // Fallback: also check Authorization header (Bearer <token>) for API clients
+  // Fallback: read from the shared HttpOnly cookie
   if (!token) {
-    const auth = request.headers.get('authorization') ?? '';
-    if (auth.startsWith('Bearer ')) token = auth.slice(7);
+    const cookies = parseCookies(request.headers.get('cookie'));
+    token = cookies['nalam_token'] ?? null;
   }
 
   if (!token) return null;

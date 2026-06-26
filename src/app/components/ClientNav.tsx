@@ -24,7 +24,7 @@ export default function ClientNav() {
   }, []);
 
   useEffect(() => {
-    setRole(typeof window !== 'undefined' ? localStorage.getItem('nalamRole') : null);
+    setRole(typeof window !== 'undefined' ? (sessionStorage.getItem('nalamRole') || localStorage.getItem('nalamRole')) : null);
     setDrawerOpen(false); // close drawer on route change
   }, [pathname]);
 
@@ -55,11 +55,18 @@ export default function ClientNav() {
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch (e) { console.error('Logout failed', e); }
     localStorage.removeItem('nalamRole');
+    sessionStorage.removeItem('nalamRole');
     localStorage.removeItem('nalamPatientId');
+    sessionStorage.removeItem('nalamPatientId');
     localStorage.removeItem('nalamClinicianRole');
+    sessionStorage.removeItem('nalamClinicianRole');
     localStorage.removeItem('nalamHdeskBranch');
+    sessionStorage.removeItem('nalamHdeskBranch');
     localStorage.removeItem('nalamStaffId');
+    sessionStorage.removeItem('nalamStaffId');
     sessionStorage.removeItem('nalamToken');
+    localStorage.removeItem('nalamToken');
+    setRole(null);
     setDrawerOpen(false);
     router.push('/');
   };
