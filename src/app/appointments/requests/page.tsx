@@ -119,7 +119,7 @@ function VitalsDisplay({ vitals }: { vitals: any }) {
 
 export default function ViewRequests() {
   const router = useRouter();
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading]           = useState(true);
   const [expanded, setExpanded]         = useState<string | null>(null);
