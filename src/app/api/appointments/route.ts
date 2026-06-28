@@ -225,7 +225,7 @@ export async function PATCH(request: Request) {
       updateData.reschedule_proposed_time = rescheduleTime;
       updateData.reschedule_reason_enc = encrypt(rescheduleReason);
 
-      // 🔔 FCM: notify patient about the reschedule proposal
+      // Notify patient about the reschedule proposal.
       sendPushToUser(existing.patient_id, {
         title: '📅 Reschedule Proposed',
         body: `Dr. ${existing.doctor_name} has proposed a new time for your appointment: ${rescheduleDate} at ${rescheduleTime}.`,
@@ -315,7 +315,7 @@ export async function PATCH(request: Request) {
       include: { patient: true },
     });
 
-    // 🔔 FCM: notify patient when appointment is approved or scheduled
+    // Notify patient when appointment is approved or scheduled.
     if (status === 'approved' || status === 'scheduled') {
       const label = status === 'approved' ? 'Approved ✅' : 'Scheduled 🗓️';
       sendPushToUser(row.patient_id, {

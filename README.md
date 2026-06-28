@@ -24,6 +24,8 @@
 - Give patients granular consent control over who accesses their data
 - Equip clinicians with AI-synthesized context, a longitudinal timeline, and precision medicine simulations
 - Ensure data privacy: all PII/PHI encrypted at rest with AES-256-GCM before MySQL storage
+- Enable real-time communication & critical alerts via integrated Chat and Firebase Cloud Messaging (FCM)
+- Support regional accessibility with robust Internationalization (i18n) for English & Tamil
 
 ---
 
@@ -42,7 +44,11 @@ nalam-ai/
 │   │       ├── audit/          # Zero-trust audit log
 │   │       ├── ocr/            # Groq Vision OCR endpoint
 │   │       ├── clinician/      # Context request + access control
+│   │       ├── chat/           # Chat messaging API for patient-doctor communication
+│   │       ├── fcm/            # Firebase Cloud Messaging for push notifications
 │   │       └── agents/         # AI agent pipeline (biographer, intervention, twin)
+│   ├── lib/                    # Shared utilities
+│   │   └── i18n.tsx            # Internationalization (English/Tamil) dictionaries & context
 │   ├── ml-service/             # Python FastAPI ML service
 │   │   ├── main.py             # Medication effectiveness & intervention endpoints
 │   │   ├── data.ts             # Data access layer (Prisma + CSV fallback)

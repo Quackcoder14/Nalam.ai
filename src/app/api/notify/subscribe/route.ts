@@ -27,8 +27,27 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Push subscribe error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Push subscribe failed' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { endpoint } = await request.json();
+
+    if (!endpoint) {
+      return NextResponse.json({ error: 'endpoint required' }, { status: 400 });
+    }
+
+    await prisma.pushSubscription.deleteMany({
+      where: { endpoint },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    console.error('Push unsubscribe error:', error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Push unsubscribe failed' }, { status: 500 });
   }
 }

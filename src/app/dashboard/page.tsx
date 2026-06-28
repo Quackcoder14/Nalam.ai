@@ -5,7 +5,6 @@ import { Shield, Activity, BellRing, Network, Heart, Clock, Eye, ChevronDown, Ch
 import { useLanguage } from '@/lib/i18n';
 import VoiceTriage from '../components/VoiceTriage';
 import { apiFetch } from '@/lib/apiFetch';
-import { useFCMToken } from '@/lib/useFCMToken';
 import dynamic from 'next/dynamic';
 
 // Dynamically import the Ola Map (maplibre needs the browser)
@@ -18,27 +17,72 @@ const OlaMap = dynamic(() => import('../components/OlaMap'), { ssr: false, loadi
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
 async function subscribePush(patientId: string) {
-  if (!('serviceWorker' in navigator) || !VAPID_PUBLIC) return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window) || !VAPID_PUBLIC) return false;
   try {
-    const reg = await navigator.serviceWorker.ready;
-    const existing = await reg.pushManager.getSubscription();
-    const sub = existing || await reg.pushManager.subscribe({
+    const permission = Notification.permission === 'granted'
+      ? 'granted'
+      : await Notification.requestPermission();
+
+    if (permission !== 'granted') return false;
+
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    const readyReg = await navigator.serviceWorker.ready;
+    const pushReg = readyReg.scope === reg.scope ? readyReg : reg;
+    const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC);
+    let sub = await pushReg.pushManager.getSubscription();
+
+    if (sub && !sameArrayBuffer(sub.options.applicationServerKey, applicationServerKey)) {
+      await sub.unsubscribe();
+      sub = null;
+    }
+
+    sub = sub || await pushReg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC),
+      applicationServerKey,
     });
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/subscribe`, {
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription: sub.toJSON(), patientId, role: 'patient' }),
     });
-    return true;
-  } catch { return false; }
+    return res.ok;
+  } catch (error) {
+    console.warn('[Web Push] Subscription failed:', error);
+    return false;
+  }
+}
+
+async function unsubscribePush() {
+  if (!('serviceWorker' in navigator)) return false;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration('/');
+    const sub = await reg?.pushManager.getSubscription();
+    if (!sub) return true;
+
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/subscribe`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: sub.endpoint }),
+    });
+
+    return await sub.unsubscribe();
+  } catch (error) {
+    console.warn('[Web Push] Unsubscribe failed:', error);
+    return false;
+  }
 }
 
 function urlBase64ToUint8Array(base64: string) {
   const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
   const raw = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+function sameArrayBuffer(left: ArrayBuffer | null, right: Uint8Array) {
+  if (!left || left.byteLength !== right.byteLength) return false;
+  const leftBytes = new Uint8Array(left);
+  return leftBytes.every((value, index) => value === right[index]);
 }
 
 interface ConsentState { emergency: boolean; specialist: boolean; research: boolean; }
@@ -109,27 +153,34 @@ export default function PatientDashboard() {
   const anomalyRef = useRef<any>(null);
   const router = useRouter();
 
-  // FCM Token management — use login username so token matches sendPushToUser lookup
-  const storedUser = typeof window !== 'undefined' ? (localStorage.getItem('nalamPatientId') || 'P001') : null;
-  const { registerFCM } = useFCMToken(storedUser);
-
-
   useEffect(() => { vitalsRef.current = vitals; }, [vitals]);
 
   useEffect(() => {
-    const handleFCM = (e: any) => {
-      const payload = e.detail;
-      const notif = payload.notification || payload.data || {};
-      const newAlert = {
-        id: Math.random().toString(36).substring(7),
-        title: notif.title || 'New Notification',
-        message: notif.body || 'You have a new message.',
-        type: 'info'
-      };
-      setPatientAlerts(prev => [newAlert, ...prev]);
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+
+    navigator.serviceWorker.getRegistration('/').then(async (reg) => {
+      const sub = await reg?.pushManager.getSubscription();
+      setPushEnabled(Notification.permission === 'granted' && Boolean(sub));
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const visibleAlerts = patientAlerts.filter(a => !dismissedPopups.has(a.id)).slice(0, 3);
+    visibleAlerts.forEach((alert) => {
+      if (autoDismissTimers.current[alert.id]) return;
+
+      autoDismissTimers.current[alert.id] = setTimeout(() => {
+        setDismissedPopups(prev => new Set(prev).add(alert.id));
+        delete autoDismissTimers.current[alert.id];
+      }, 5000);
+    });
+  }, [patientAlerts, dismissedPopups]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(autoDismissTimers.current).forEach(clearTimeout);
+      autoDismissTimers.current = {};
     };
-    window.addEventListener('fcm-message', handleFCM);
-    return () => window.removeEventListener('fcm-message', handleFCM);
   }, []);
 
   useEffect(() => {
@@ -156,19 +207,10 @@ export default function PatientDashboard() {
       setAnomaly(data);
       anomalyRef.current = data;
       if (data.is_anomaly && data.severity === 'critical') setShowPopup(true);
-      if (data.is_anomaly && pushEnabled) {
-        let alertTitle = data.severity === 'critical' ? '🚨 Critical Vital Anomaly' : '⚠️ Vital Anomaly Detected';
-        if (lang === 'ta') alertTitle = data.severity === 'critical' ? '🚨 முக்கியமான முக்கிய முரண்பாடு' : '⚠️ முக்கிய முரண்பாடு கண்டறியப்பட்டது';
-        const vSnap = vitalsRef.current;
-        const vitalsTag = ` | hr=${vSnap.hr} spo2=${vSnap.spo2} resp=${vSnap.resp} temp=${vSnap.temp} sys=${vSnap.sys} dia=${vSnap.dia}`;
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/send`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId: 'P001', title: alertTitle, message: (data.flags?.[0]?.message || 'An anomaly was detected in your vitals.') + vitalsTag, severity: data.severity }),
-        });
-      }
+      // Push notifications are sent by /api/anomaly after it confirms an anomaly.
     } catch { }
     finally { setAL(false); }
-  }, [pushEnabled, lang]);
+  }, [lang]);
 
   useEffect(() => {
     if (!demoScenario) {
@@ -262,7 +304,7 @@ export default function PatientDashboard() {
     <div className="container fade-in">
       {/* ── Reschedule Proposal Notification ── */}
       {showReschedulePopup && rescheduleApts.length > 0 && !hasSeenReschedulePopup && (
-        <div style={{
+        <div className="mobile-top-toast" style={{
           position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999,
           background: 'linear-gradient(135deg, #FF8C00, #C07A00)',
           color: 'white', padding: '1rem 1.25rem', borderRadius: 14,
@@ -294,7 +336,7 @@ export default function PatientDashboard() {
 
       {/* ── Critical Anomaly Popup ── */}
       {showPopup && (
-        <div onClick={explainAnomaly}
+        <div className="mobile-top-toast" onClick={explainAnomaly}
           style={{ position: 'fixed', bottom: 80, right: 12, left: 12, zIndex: 9999, background: 'var(--accent-red-bg)', border: '2px solid var(--accent-red)', borderRadius: 14, padding: '0.9rem 1rem', boxShadow: '0 8px 32px rgba(239,68,68,0.3)', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', animation: 'slideUp 0.4s ease', cursor: 'pointer' }}
         >
           <AlertTriangle size={22} color="var(--accent-red)" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -309,18 +351,11 @@ export default function PatientDashboard() {
         </div>
       )}
 
-      {/* ── Notification Popups (Bottom) — auto-dismiss after 5s ── */}
-      <div style={{ position: 'fixed', bottom: 80, right: 12, left: 12, zIndex: 9998, display: 'flex', flexDirection: 'column', gap: '0.5rem', pointerEvents: 'none' }}>
+      {/* ── Notification Popups — auto-dismiss after 5s ── */}
+      <div className="notification-toast-stack" style={{ position: 'fixed', top: 'calc(env(safe-area-inset-top) + 0.75rem)', right: 12, left: 12, zIndex: 9998, display: 'flex', flexDirection: 'column', gap: '0.5rem', pointerEvents: 'none' }}>
         {patientAlerts.filter(a => !dismissedPopups.has(a.id)).slice(0, 3).map(alert => {
-          // Auto-dismiss after 5 seconds
-          if (!autoDismissTimers.current[alert.id]) {
-            autoDismissTimers.current[alert.id] = setTimeout(() => {
-              setDismissedPopups(prev => new Set(prev).add(alert.id));
-              delete autoDismissTimers.current[alert.id];
-            }, 5000);
-          }
           return (
-            <div key={alert.id} style={{ background: '#E0F2FE', borderLeft: '4px solid #0EA5E9', borderRadius: 12, padding: '0.85rem 1rem', boxShadow: '0 8px 32px rgba(14,165,233,0.2)', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', animation: 'slideUp 0.4s ease', pointerEvents: 'auto', position: 'relative', overflow: 'hidden' }}>
+            <div key={alert.id} style={{ background: '#E0F2FE', borderLeft: '4px solid #0EA5E9', borderRadius: 12, padding: '0.85rem 1rem', boxShadow: '0 8px 32px rgba(14,165,233,0.2)', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', animation: 'toastFromTop 0.35s ease', pointerEvents: 'auto', position: 'relative', overflow: 'hidden' }}>
               {/* 5-second countdown bar */}
               <div style={{ position: 'absolute', bottom: 0, left: 0, height: 3, background: '#0EA5E9', borderRadius: '0 0 0 12px', animation: 'shrinkBar 5s linear forwards' }} />
               <style>{`@keyframes shrinkBar { from { width:100% } to { width:0% } }`}</style>
@@ -521,11 +556,24 @@ export default function PatientDashboard() {
               id="push-toggle"
               disabled={pushLoading}
               onClick={async () => {
-                if (pushEnabled) { setPushEnabled(false); return; }
                 setPushLoading(true);
-                // Trigger FCM manual permission request and registration
-                const ok = await registerFCM(true);
-                setPushEnabled(ok); setPushLoading(false);
+                const patientId = localStorage.getItem('nalamPatientId') || 'P001';
+                const ok = pushEnabled ? await unsubscribePush() : await subscribePush(patientId);
+                if (!pushEnabled && ok) {
+                  fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/send`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      patientId,
+                      title: 'Nalam.ai Notifications Enabled',
+                      message: 'You will now receive appointment and health alerts.',
+                      severity: 'info',
+                      url: '/dashboard',
+                    }),
+                  }).catch(() => {});
+                }
+                setPushEnabled(pushEnabled ? !ok : ok);
+                setPushLoading(false);
               }}
               style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.8rem', borderRadius: 8, border: `1px solid ${pushEnabled ? 'var(--accent-green)' : 'var(--border)'}`, background: pushEnabled ? 'var(--accent-green-bg)' : 'var(--surface)', color: pushEnabled ? 'var(--accent-green)' : 'var(--foreground-muted)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: pushLoading ? 0.6 : 1, fontFamily: 'inherit' }}>
               {pushEnabled ? <Bell size={13} /> : <BellOff size={13} />}
@@ -746,7 +794,22 @@ export default function PatientDashboard() {
       <style>{`
         @keyframes slideDown { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
         @keyframes slideUpRight { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes toastFromTop { from { transform: translateY(-16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .notification-toast-stack {
+          max-width: 420px;
+          margin: 0 auto;
+        }
+        @media (max-width: 640px) {
+          .mobile-top-toast {
+            top: calc(env(safe-area-inset-top) + 0.75rem) !important;
+            right: 0.75rem !important;
+            left: 0.75rem !important;
+            bottom: auto !important;
+            max-width: none !important;
+            animation: toastFromTop 0.35s ease !important;
+          }
+        }
       `}</style>
 
       {/* ── AMBULANCE BUTTON ── */}

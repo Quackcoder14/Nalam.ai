@@ -1,7 +1,5 @@
-// nalam.ai Service Worker — Full PWA offline shell + push notifications
-const CACHE = 'nalam-v3';
+const CACHE = 'nalam-v4';
 
-// Pre-cache the full app shell: all routes + assets
 const PRECACHE_URLS = [
   '/',
   '/dashboard',
@@ -17,94 +15,107 @@ const PRECACHE_URLS = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
-  '/favicon.ico',
 ];
 
-// ── Install: cache the full app shell ─────────────────────────
 self.addEventListener('install', function (event) {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(PRECACHE_URLS).catch(() => {}))
+    caches.open(CACHE).then(function (cache) {
+      return cache.addAll(PRECACHE_URLS).catch(function () {});
+    }),
   );
 });
 
-// ── Activate: clear old caches ────────────────────────────────
 self.addEventListener('activate', function (event) {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+    caches.keys().then(function (keys) {
+      return Promise.all(
+        keys.filter(function (key) { return key !== CACHE; }).map(function (key) {
+          return caches.delete(key);
+        }),
+      );
+    }),
   );
   self.clients.claim();
 });
 
-// ── Fetch strategy ────────────────────────────────────────────
 self.addEventListener('fetch', function (event) {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Never cache API calls — always go network for API (Render backend)
   if (url.pathname.startsWith('/api/') || url.hostname.includes('onrender.com')) return;
 
-  // For navigation requests (page loads): Network-first, fallback to cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).then(res => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(event.request, clone));
+      fetch(event.request).then(function (response) {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE).then(function (cache) {
+            cache.put(event.request, clone);
+          });
         }
-        return res;
-      }).catch(() => caches.match(event.request).then(cached => cached || caches.match('/')))
-    );
-    return;
-  }
-
-  // For static assets (_next/static, icons, fonts): Cache-first
-  if (url.pathname.startsWith('/_next/static') || url.pathname.startsWith('/icon') || url.pathname.startsWith('/favicon')) {
-    event.respondWith(
-      caches.match(event.request).then(cached => {
-        if (cached) return cached;
-        return fetch(event.request).then(res => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then(c => c.put(event.request, clone));
-          }
-          return res;
+        return response;
+      }).catch(function () {
+        return caches.match(event.request).then(function (cached) {
+          return cached || caches.match('/');
         });
-      })
+      }),
     );
     return;
   }
 
-  // For everything else from same origin: Network-first, fallback to cache
-  if (url.origin === self.location.origin) {
+  if (
+    url.pathname.startsWith('/_next/static') ||
+    url.pathname.startsWith('/icon') ||
+    url.pathname.startsWith('/favicon')
+  ) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      caches.match(event.request).then(function (cached) {
+        if (cached) return cached;
+        return fetch(event.request).then(function (response) {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE).then(function (cache) {
+              cache.put(event.request, clone);
+            });
+          }
+          return response;
+        });
+      }),
     );
+    return;
+  }
+
+  if (url.origin === self.location.origin) {
+    event.respondWith(fetch(event.request).catch(function () {
+      return caches.match(event.request);
+    }));
   }
 });
 
-// ── Push Notifications ────────────────────────────────────────
 self.addEventListener('push', function (event) {
   let data = {};
   try {
     data = event.data ? event.data.json() : {};
-  } catch (e) {
-    data = { title: 'nalam.ai Alert', body: event.data ? event.data.text() : 'Health notification received.' };
+  } catch (error) {
+    data = {
+      title: 'nalam.ai Alert',
+      body: event.data ? event.data.text() : 'Health notification received.',
+    };
   }
 
-  const title = data.title || '⚠️ nalam.ai Health Alert';
+  const targetUrl = new URL(data.url || '/dashboard', self.location.origin).href;
+  const title = data.title || 'nalam.ai Health Alert';
   const options = {
-    body:    data.body    || 'A health anomaly was detected.',
-    icon:    '/icon-192.png',
-    badge:   '/icon-192.png',
-    tag:     data.severity || 'default',
+    body: data.body || 'A health update is available.',
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
+    tag: data.tag || data.severity || 'nalam-alert',
     renotify: true,
-    data:    { url: data.url || '/dashboard' },
+    data: { url: targetUrl },
     actions: [
-      { action: 'view',    title: 'View Dashboard' },
+      { action: 'view', title: 'View' },
       { action: 'dismiss', title: 'Dismiss' },
     ],
   };
@@ -115,16 +126,18 @@ self.addEventListener('push', function (event) {
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
   if (event.action === 'dismiss') return;
-  const url = event.notification.data?.url || '/dashboard';
+
+  const targetUrl = new URL(event.notification.data?.url || '/dashboard', self.location.origin).href;
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(url);
+        if (new URL(client.url).origin === self.location.origin && 'focus' in client) {
+          client.navigate(targetUrl);
           return client.focus();
         }
       }
-      return clients.openWindow(url);
-    })
+      return clients.openWindow(targetUrl);
+    }),
   );
 });

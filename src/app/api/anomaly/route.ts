@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import Groq from 'groq-sdk';
+import { sendPushToUser } from '@/lib/sendPush';
 
 const ML_URL = process.env.ML_SERVICE_URL || 'http://localhost:8005';
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -79,8 +80,23 @@ export async function POST(request: Request) {
             message: dbMessage, // always English in DB
           }
         });
+
+        const vitalsTag = [
+          body.heart_rate !== undefined ? `hr=${body.heart_rate}` : null,
+          body.spo2 !== undefined ? `spo2=${body.spo2}` : null,
+          body.resp !== undefined ? `resp=${body.resp}` : null,
+          body.temp !== undefined ? `temp=${body.temp}` : null,
+          body.sys !== undefined ? `sys=${body.sys}` : null,
+          body.dia !== undefined ? `dia=${body.dia}` : null,
+        ].filter(Boolean).join(' ');
+
+        await sendPushToUser(patientId, {
+          title: dbTitle,
+          body: vitalsTag ? `${dbMessage} | ${vitalsTag}` : dbMessage,
+          url: '/dashboard',
+        });
       } catch (e) {
-        console.error('Failed to log clinical alert:', e);
+        console.error('Failed to log/send clinical alert:', e);
       }
     }
 
