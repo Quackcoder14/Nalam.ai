@@ -63,8 +63,14 @@ export default function HomePage() {
       // Storage for UI cache: use sessionStorage for tab isolation, localStorage as fallback
       sessionStorage.setItem('nalamRole', data.role);
       localStorage.setItem('nalamRole', data.role);
-      sessionStorage.setItem('nalamPatientId', 'P001');
-      localStorage.setItem('nalamPatientId', 'P001');
+      if (data.role === 'patient') {
+        sessionStorage.setItem('nalamPatientId', data.staffId);
+        localStorage.setItem('nalamPatientId', data.staffId);
+        if (data.patientName) {
+          sessionStorage.setItem('nalamPatientName', data.patientName);
+          localStorage.setItem('nalamPatientName', data.patientName);
+        }
+      }
       if (data.clinicianRole) {
         sessionStorage.setItem('nalamClinicianRole', data.clinicianRole);
         localStorage.setItem('nalamClinicianRole', data.clinicianRole);

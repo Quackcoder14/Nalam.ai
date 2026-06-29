@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { prisma } from '@/lib/prisma';
+import { verifyPassword, decrypt } from '@/lib/crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'nalam-dev-secret-CHANGE-IN-PRODUCTION';
 
@@ -8,10 +10,11 @@ const CREDENTIALS: Record<string, {
   password: string;
   role: 'patient' | 'clinician' | 'hdesk';
   staffId: string;
+  name?: string;
   branch?: string;
   clinicianRole?: string;
 }> = {
-  'karthik@nalam.ai':  { password: '123', role: 'patient',   staffId: 'P001' },
+  'karthik@nalam.ai':  { password: '123', role: 'patient',   staffId: 'P001',              name: 'Karthik' },
   'monissha@nalam.ai': { password: '123', role: 'clinician',  staffId: 'dr_monissha', clinicianRole: 'specialist' },
   'dhanush@nalam.ai':  { password: '123', role: 'clinician',  staffId: 'dr_dhanush',  clinicianRole: 'emergency' },
   'apollo@nalam.ai':   { password: '123', role: 'hdesk',      staffId: 'apollo@nalam.ai',  branch: 'Apollo Hospitals' },
@@ -24,27 +27,55 @@ export async function POST(request: Request) {
     const { username, password, hdeskStaffId } = await request.json();
     const uname = (username ?? '').toLowerCase().trim();
     const cred = CREDENTIALS[uname];
+    
+    let resolvedRole: 'patient' | 'clinician' | 'hdesk' | null = null;
+    let resolvedStaffId = '';
+    let branch = undefined;
+    let clinicianRole = undefined;
+    let patientName: string | null = null;
 
-    if (!cred || cred.password !== password) {
+    if (cred && cred.password === password) {
+      resolvedRole = cred.role;
+      resolvedStaffId = cred.role === 'hdesk' ? (hdeskStaffId || cred.staffId) : cred.staffId;
+      branch = cred.branch;
+      clinicianRole = cred.clinicianRole;
+      if (cred.role === 'patient' && (cred as any).name) patientName = (cred as any).name;
+    } else {
+      // Try querying Patient table
+      const patient = await prisma.patient.findUnique({ where: { login_email: uname } });
+      if (patient && patient.password_hash && verifyPassword(password, patient.password_hash)) {
+        resolvedRole = 'patient';
+        resolvedStaffId = patient.id;
+        patientName = decrypt(patient.name_enc);
+      } else {
+        // Try querying Doctor table
+        const doctor = await prisma.doctor.findUnique({ where: { login_email: uname } });
+        if (doctor && doctor.password_hash && verifyPassword(password, doctor.password_hash)) {
+          resolvedRole = 'clinician';
+          resolvedStaffId = doctor.id;
+        }
+      }
+    }
+
+    if (!resolvedRole) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    const resolvedStaffId = cred.role === 'hdesk' ? (hdeskStaffId || cred.staffId) : cred.staffId;
-
     const token = jwt.sign({
       sub: uname,
-      role: cred.role,
+      role: resolvedRole,
       staffId: resolvedStaffId,
-      ...(cred.branch        ? { branch: cred.branch }              : {}),
-      ...(cred.clinicianRole ? { clinicianRole: cred.clinicianRole } : {}),
+      ...(branch        ? { branch }              : {}),
+      ...(clinicianRole ? { clinicianRole } : {}),
     }, JWT_SECRET, { expiresIn: '8h' });
 
     const res = NextResponse.json({
       success: true,
-      role: cred.role,
+      role: resolvedRole,
       staffId: resolvedStaffId,
-      branch: cred.branch ?? null,
-      clinicianRole: cred.clinicianRole ?? null,
+      branch: branch ?? null,
+      clinicianRole: clinicianRole ?? null,
+      patientName: patientName ?? null,
       token, // also return the raw JWT so clients can use Bearer auth as fallback
     });
 

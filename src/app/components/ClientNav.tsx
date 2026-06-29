@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Heart, LogOut, LayoutDashboard, Stethoscope,
   Search, Moon, Sun, Menu, X, Brain, Calendar,
-  MessageSquare, Building2, Globe, Shield, Network
+  MessageSquare, Building2, Globe, Shield, Network, UserPlus, ClipboardPlus
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -66,6 +66,8 @@ export default function ClientNav() {
     sessionStorage.removeItem('nalamStaffId');
     sessionStorage.removeItem('nalamToken');
     localStorage.removeItem('nalamToken');
+    localStorage.removeItem('nalamPatientName');
+    sessionStorage.removeItem('nalamPatientName');
     setRole(null);
     setDrawerOpen(false);
     router.push('/');
@@ -235,6 +237,12 @@ export default function ClientNav() {
               <>
                 <button className={`drawer-item${isActive('/hospital-desk') ? ' active' : ''}`} onClick={() => nav('/hospital-desk')}>
                   <Building2 size={18} /> {t('nav.hospitalDesk')}
+                </button>
+                <button className={`drawer-item${isActive('/hospital-desk/patients/new') ? ' active' : ''}`} onClick={() => nav('/hospital-desk/patients/new')}>
+                  <UserPlus size={18} /> Add Patient
+                </button>
+                <button className={`drawer-item${isActive('/hospital-desk/doctors/new') ? ' active' : ''}`} onClick={() => nav('/hospital-desk/doctors/new')}>
+                  <ClipboardPlus size={18} /> Add Doctor
                 </button>
                 <button className="drawer-item" onClick={() => nav('/search')}>
                   <Search size={18} /> {t('nav.searchRecords')}

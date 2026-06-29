@@ -1,7 +1,7 @@
 'use client';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Mic, MicOff, Loader2, Paperclip, X, ChevronRight, CheckCircle, Calendar, Stethoscope, AlertTriangle, FileText, Activity, Heart, Zap, Brain } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Loader2, Paperclip, X, ChevronRight, CheckCircle, Calendar, AlertTriangle, FileText, Activity, Brain } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { DOCTOR_SCHEDULES, getNextSlots, AVAILABLE_TIME_SLOTS } from '@/lib/doctors';
 
@@ -34,6 +34,30 @@ const DOCTORS = [
     availableDates: getNextSlots(DOCTOR_SCHEDULES['dr_monissha']),
   },
 ];
+type DoctorOption = typeof DOCTORS[number];
+type RosterDoctor = {
+  id: string;
+  name: string;
+  specialty: string;
+  hospital: string;
+  experience?: string;
+  languages?: string[];
+  slots?: string[];
+  availableDates?: string[];
+};
+type VitalsSnapshot = { hr: number; spo2: number; resp: number; temp: number; sys: number; dia: number };
+type SpeechRecognitionEventLike = { results: { 0: { 0: { transcript: string } } } };
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 
 const URGENCY_OPTIONS = [
   { value: 'Routine',   labelKey: 'book.urgencyRoutine',   color: '#0097A7', bg: '#E0F7FA', descKey: 'book.urgencyRoutineDesc' },
@@ -83,7 +107,7 @@ function StepBar({ current }: { current: number }) {
 }
 
 /* ─── Vitals Snapshot ───────────────────────────────────────────────────── */
-function VitalsDisplay({ vitals }: { vitals: any }) {
+function VitalsDisplay({ vitals }: { vitals: VitalsSnapshot | null }) {
   if (!vitals) return null;
   const items = [
     { label: 'HR',   value: `${vitals.hr} BPM`,           color: '#FCA5A5' },
@@ -110,7 +134,8 @@ export default function BookAppointment() {
   const router = useRouter();
 
   const [step, setStep]                 = useState(0);
-  const [selectedDoctor, setDoctor]     = useState<typeof DOCTORS[0] | null>(null);
+  const [doctors, setDoctors]           = useState<DoctorOption[]>(DOCTORS);
+  const [selectedDoctor, setDoctor]     = useState<DoctorOption | null>(null);
   const [selectedDate, setDate]         = useState('');
   const [selectedTime, setTime]         = useState('');
   const [urgency, setUrgency]           = useState('Routine');
@@ -127,48 +152,76 @@ export default function BookAppointment() {
   const [bookedSlots, setBookedSlots]   = useState<string[]>([]);
   const [fullyBookedDates, setFullyBookedDates] = useState<Set<string>>(new Set());
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const fileInputRef   = useRef<HTMLInputElement>(null);
 
-  // Fetch availability when doctor or date changes
-  const fetchAvailability = useCallback(async (doctorId: string, date: string) => {
-    if (!doctorId || !date) return;
-    try {
-      const res = await fetch(`/api/appointments/availability?doctorId=${doctorId}&date=${date}`, { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        setBookedSlots(data.bookedSlots || []);
-      }
-    } catch {}
+  useEffect(() => {
+    fetch('/api/hospital-desk/doctors', { cache: 'no-store' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data?.doctors?.length) return;
+        setDoctors(data.doctors.map((doc: RosterDoctor, index: number) => {
+          const days = doc.slots?.length ? doc.slots : ['Mon', 'Wed', 'Fri'];
+          const initial = (doc.name || 'Doctor').replace(/^Dr\.?\s*/i, '').charAt(0).toUpperCase() || 'D';
+          return {
+            id: doc.id,
+            name: doc.name,
+            specialty: doc.specialty,
+            hospital: doc.hospital,
+            experience: doc.experience || '',
+            rating: 4.7,
+            avatar: initial,
+            avatarColor: ['#0052A5', '#5C35A1', '#0097A7', '#C07A00'][index % 4],
+            languages: doc.languages || ['Tamil', 'English'],
+            slots: days,
+            availableDates: doc.availableDates?.length ? doc.availableDates : getNextSlots(days),
+          };
+        }));
+      })
+      .catch(() => {});
   }, []);
 
-  // Pre-check fully booked dates when doctor selected
-  const checkFullyBookedDates = useCallback(async (doctorId: string, dates: string[]) => {
-    const fullyBooked = new Set<string>();
-    await Promise.all(dates.map(async (d) => {
+  useEffect(() => {
+    if (!selectedDoctor || !selectedDate) return;
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setTime('');
+    });
+
+    fetch(`/api/appointments/availability?doctorId=${selectedDoctor.id}&date=${selectedDate}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setBookedSlots(data.bookedSlots || []);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDoctor, selectedDate]);
+
+  useEffect(() => {
+    if (!selectedDoctor) return;
+
+    let cancelled = false;
+    Promise.all(selectedDoctor.availableDates.map(async (d) => {
       try {
-        const res = await fetch(`/api/appointments/availability?doctorId=${doctorId}&date=${d}`, { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.fullyBooked) fullyBooked.add(d);
-        }
-      } catch {}
-    }));
-    setFullyBookedDates(fullyBooked);
-  }, []);
+        const res = await fetch(`/api/appointments/availability?doctorId=${selectedDoctor.id}&date=${d}`, { cache: 'no-store' });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.fullyBooked ? d : null;
+      } catch {
+        return null;
+      }
+    })).then((dates) => {
+      if (!cancelled) setFullyBookedDates(new Set(dates.filter((d): d is string => Boolean(d))));
+    });
 
-  useEffect(() => {
-    if (selectedDoctor && selectedDate) {
-      fetchAvailability(selectedDoctor.id, selectedDate);
-      setTime('');
-    }
-  }, [selectedDoctor, selectedDate, fetchAvailability]);
-
-  useEffect(() => {
-    if (selectedDoctor) {
-      checkFullyBookedDates(selectedDoctor.id, selectedDoctor.availableDates);
-    }
-  }, [selectedDoctor, checkFullyBookedDates]);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDoctor]);
 
   // Animate vitals like the dashboard
   useEffect(() => {
@@ -192,14 +245,15 @@ export default function BookAppointment() {
       recognitionRef.current?.stop();
       return;
     }
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const speechWindow = window as Window & { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor };
+    const SR = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
     if (!SR) { alert('Speech recognition not supported. Please use Chrome.'); return; }
     const rec = new SR();
     rec.lang = lang === 'ta' ? 'ta-IN' : 'en-US';
     rec.interimResults = false;
     recognitionRef.current = rec;
     rec.onstart  = () => setIsRecording(true);
-    rec.onresult = (e: any) => { setReason(e.results[0][0].transcript); setIsRecording(false); };
+    rec.onresult = (e: SpeechRecognitionEventLike) => { setReason(e.results[0][0].transcript); setIsRecording(false); };
     rec.onerror  = () => setIsRecording(false);
     rec.onend    = () => setIsRecording(false);
     rec.start();
@@ -256,8 +310,8 @@ export default function BookAppointment() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: 'P001',
-          patientName: 'Arjun Sharma',
+          patientId: sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId') || 'P001',
+          patientName: sessionStorage.getItem('nalamPatientName') || localStorage.getItem('nalamPatientName') || 'Patient',
           doctorId: selectedDoctor.id,
           doctorName: selectedDoctor.name,
           doctorSpecialty: selectedDoctor.specialty,
@@ -325,7 +379,7 @@ export default function BookAppointment() {
         <div className="slide-up">
           <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)', fontSize: '1.1rem' }}>{t('book.chooseDoctor')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-            {DOCTORS.map(doc => (
+            {doctors.map(doc => (
               <button
                 key={doc.id}
                 onClick={() => { setDoctor(doc); setDate(''); setStep(1); }}

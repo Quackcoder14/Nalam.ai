@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Download, Activity, Clock, ChevronDown, X, ShieldCheck, Link2, MessageSquare, ArrowUpDown } from 'lucide-react';
+import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Download, Activity, Clock, ChevronDown, X, ShieldCheck, Link2, MessageSquare, ArrowUpDown, UserPlus, ClipboardPlus } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { apiFetch } from '@/lib/apiFetch';
 
@@ -277,6 +277,12 @@ export default function HospitalDeskPage() {
           <p style={{ color: 'var(--charcoal)', fontSize: '0.95rem' }}>{t('hdesk.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <button onClick={() => router.push('/hospital-desk/patients/new')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary)', color: 'white', borderColor: 'var(--primary)' }}>
+            <UserPlus size={15} /> Add Patient
+          </button>
+          <button onClick={() => router.push('/hospital-desk/doctors/new')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <ClipboardPlus size={15} /> Add Doctor
+          </button>
           <button className="glass-button" onClick={() => router.push('/search')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Search size={15} /> {t('hdesk.searchRecords')}
           </button>

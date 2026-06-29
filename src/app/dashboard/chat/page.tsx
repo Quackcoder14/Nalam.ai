@@ -17,6 +17,8 @@ export default function PatientChat() {
 function PatientChatInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const getPatientId = () =>
+    sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId') || 'P001';
   const [selectedHospital, setSelectedHospital] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
@@ -35,7 +37,7 @@ function PatientChatInner() {
 
   const fetchMessages = async (hospital: string) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat?patientId=P001&hospital=${encodeURIComponent(hospital)}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat?patientId=${getPatientId()}&hospital=${encodeURIComponent(hospital)}`);
       if (res.ok) {
         const data = await res.json();
         setMessages(prev => {
@@ -47,7 +49,7 @@ function PatientChatInner() {
         await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId: 'P001', hospital, role: 'patient' })
+          body: JSON.stringify({ patientId: getPatientId(), hospital, role: 'patient' })
         });
       }
     } catch (e) {
@@ -102,7 +104,7 @@ function PatientChatInner() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patientId: 'P001',
+          patientId: getPatientId(),
           hospital: selectedHospital,
           sender: 'patient',
           type,

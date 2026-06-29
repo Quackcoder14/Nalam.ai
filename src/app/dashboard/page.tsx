@@ -111,6 +111,8 @@ function ConsentToggle({ label, desc, active, onToggle }: { label: string; desc:
 }
 
 export default function PatientDashboard() {
+  const getPatientId = () =>
+    sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId') || 'P001';
   const { t, lang } = useLanguage();
   const [patient, setPatient] = useState<any>(null);
   const [records, setRecords] = useState<any[]>([]);
@@ -200,7 +202,7 @@ export default function PatientDashboard() {
   const checkAnomaly = useCallback(async (currentVitals: typeof vitals) => {
     setAL(true);
     try {
-      const patientId = localStorage.getItem('nalamPatientId') || 'P001';
+      const patientId = getPatientId();
       const payload = { heart_rate: currentVitals.hr, spo2: currentVitals.spo2, resp: currentVitals.resp, temp: currentVitals.temp, sys: currentVitals.sys, dia: currentVitals.dia, lang, patientId };
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/anomaly`, { method: 'POST', body: JSON.stringify(payload) });
       const data = await res.json();
@@ -236,20 +238,20 @@ export default function PatientDashboard() {
 
   const fetchAudit = useCallback(async () => {
     try {
-      const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/audit?patientId=P001`);
+      const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/audit?patientId=${getPatientId()}`);
       if (!r.ok) return;
       const d = await r.json();
       setAuditLog(d.entries || []);
-      const unRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread?patientId=P001&role=patient`);
+      const unRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chat/unread?patientId=${getPatientId()}&role=patient`);
       if (unRes.ok) { const unData = await unRes.json(); setChatUnread(unData.unreadCount || 0); }
       const alRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts?lang=${lang}`);
       if (alRes.ok) {
         const alData = await alRes.json();
-        const ptAlerts = (alData.alerts || []).filter((a: any) => a.patient_id === 'P001');
+        const ptAlerts = (alData.alerts || []).filter((a: any) => a.patient_id === getPatientId());
         setPatientAlerts(ptAlerts);
       }
       // Check for pending reschedule proposals
-      const aptRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=P001`, { cache: 'no-store' });
+      const aptRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=${getPatientId()}`, { cache: 'no-store' });
       if (aptRes.ok) {
         const apts = await aptRes.json();
         const pending = apts.filter((a: any) => a.status === 'pending_reschedule');
@@ -267,7 +269,7 @@ export default function PatientDashboard() {
     if (role === 'clinician') { router.push('/clinician'); return; }
     (async () => {
       try {
-        const patientId = sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId') || 'P001';
+        const patientId = getPatientId();
         const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=${patientId}&lang=${lang}`);
         if (!res.ok) throw new Error(`API Error: ${res.status}`);
         const data = await res.json();
@@ -288,7 +290,7 @@ export default function PatientDashboard() {
   const toggleConsent = async (type: keyof ConsentState) => {
     const next = { ...consent, [type]: !consent[type] };
     setConsent(next);
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: 'P001', ...next }) });
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/consent`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: getPatientId(), ...next }) });
   };
 
   if (!patient) return (
@@ -434,7 +436,7 @@ export default function PatientDashboard() {
                 onClick={async () => {
                   setAbhaSaving(true); setAbhaError(null);
                   try {
-                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: 'P001', abha_id: abhaInput }) });
+                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/abha`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: getPatientId(), abha_id: abhaInput }) });
                     const data = await res.json();
                     if (!res.ok) { setAbhaError(data.error || t('abha.error')); return; }
                     setAbha({ verified: true, masked: data.masked });
@@ -557,7 +559,7 @@ export default function PatientDashboard() {
               disabled={pushLoading}
               onClick={async () => {
                 setPushLoading(true);
-                const patientId = localStorage.getItem('nalamPatientId') || 'P001';
+                const patientId = getPatientId();
                 const ok = pushEnabled ? await unsubscribePush() : await subscribePush(patientId);
                 if (!pushEnabled && ok) {
                   fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/send`, {

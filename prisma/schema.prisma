@@ -14,13 +14,36 @@ datasource db {
 // ─── Patient ─────────────────────────────────────────────────────────────────
 model Patient {
   id                  String          @id
+  login_email         String?         @unique
+  password_hash       String?
   name_enc            String          @db.Text
   dob_enc             String          @db.Text
   gender_enc          String          @db.Text
   contact_enc         String          @db.Text
   mobile_enc          String?         @db.Text
+  email_enc           String?         @db.Text
+  address_enc         String?         @db.Text
+  city_enc            String?         @db.Text
+  district_enc        String?         @db.Text
+  state_enc           String?         @db.Text
+  pincode_enc         String?         @db.Text
+  guardian_name_enc   String?         @db.Text
+  emergency_name_enc  String?         @db.Text
+  emergency_relation_enc String?      @db.Text
+  emergency_phone_enc String?         @db.Text
+  occupation_enc      String?         @db.Text
+  marital_status_enc  String?         @db.Text
+  preferred_language_enc String?      @db.Text
+  insurance_provider_enc String?      @db.Text
+  insurance_policy_enc String?        @db.Text
+  aadhaar_last4_enc   String?         @db.Text
   blood_type_enc      String          @db.Text
   allergies_enc       String          @db.Text
+  chronic_conditions_enc String?      @db.Text
+  current_medications_enc String?     @db.Text
+  past_surgeries_enc  String?         @db.Text
+  family_history_enc  String?         @db.Text
+  lifestyle_notes_enc String?         @db.Text
   consent_emergency   Boolean         @default(false)
   consent_specialist  Boolean         @default(false)
   consent_research    Boolean         @default(false)
@@ -46,12 +69,55 @@ model MedicalRecord {
   diagnosis_enc   String   @db.Text
   notes_enc       String?  @db.Text
   lab_results_enc String?  @db.Text
+  department_enc  String?  @db.Text
+  doctor_name_enc String?  @db.Text
+  medications_enc String?  @db.Text
+  procedures_enc  String?  @db.Text
+  vitals_json_enc String?  @db.Text
+  follow_up_date  String?
+  attachments_json_enc String? @db.Text
   created_at      DateTime @default(now())
 
   patient         Patient  @relation(fields: [patient_id], references: [id])
 
   @@index([patient_id, date])
   @@map("medical_records")
+}
+
+model Doctor {
+  id                    String   @id
+  login_email           String?  @unique
+  password_hash         String?
+  full_name_enc         String   @db.Text
+  gender_enc            String?  @db.Text
+  dob_enc               String?  @db.Text
+  mobile_enc            String?  @db.Text
+  email_enc             String?  @db.Text
+  registration_number   String
+  registration_council  String
+  registration_year     String?
+  qualification_enc     String   @db.Text
+  specialty             String
+  department            String
+  designation           String?
+  hospital              String
+  experience_years      Int?
+  languages_json        String?  @db.Text
+  consultation_modes_json String? @db.Text
+  available_days_json   String?  @db.Text
+  time_slots_json       String?  @db.Text
+  room_number_enc       String?  @db.Text
+  address_enc           String?  @db.Text
+  district              String?
+  state                 String?  @default("Tamil Nadu")
+  pincode               String?
+  status                String   @default("active")
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@unique([registration_council, registration_number])
+  @@index([hospital, specialty, status])
+  @@map("doctors")
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
@@ -144,5 +210,3 @@ model ChatMessage {
   @@index([patient_id, hospital])
   @@map("chat_messages")
 }
-
-// ─── FCM Tokens ──────────────────────────────────────────────────────────────

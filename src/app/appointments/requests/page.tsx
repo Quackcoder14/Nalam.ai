@@ -134,7 +134,8 @@ export default function ViewRequests() {
   const fetchAppointments = useCallback(async (forceRefetch = false) => {
     setLoading(true);
     try {
-      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=P001`, { skipCache: forceRefetch });
+      const patientId = sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId') || 'P001';
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?patientId=${patientId}`, { skipCache: forceRefetch });
       if (res.ok) setAppointments(await res.json());
     } catch {} finally { setLoading(false); }
   }, []);
@@ -145,7 +146,8 @@ export default function ViewRequests() {
     if (!confirm(t('req.cancelRequest') + '?')) return;
     setCancelling(id);
     try {
-      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?id=${id}&patientId=P001`, { method: 'DELETE' });
+    const patientId = sessionStorage.getItem('nalamPatientId') || localStorage.getItem('nalamPatientId') || 'P001';
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments?id=${id}&patientId=${patientId}`, { method: 'DELETE' });
       await fetchAppointments();
     } finally { setCancelling(null); }
   };

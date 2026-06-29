@@ -76,3 +76,17 @@ export function decryptFields<T extends Record<string, any>>(
   }
   return result;
 }
+
+/**
+ * Basic password hashing using SHA-256 for the demo.
+ */
+export function hashPassword(plain: string): string {
+  if (!plain) return '';
+  const crypto = require('crypto');
+  return crypto.createHash('sha256').update(plain).digest('hex');
+}
+
+export function verifyPassword(plain: string, hash: string): boolean {
+  if (!plain || !hash) return false;
+  return hashPassword(plain) === hash;
+}
