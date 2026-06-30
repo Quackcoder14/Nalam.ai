@@ -9,14 +9,19 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const lang = searchParams.get('lang') || 'en';
+    const patientId = searchParams.get('patientId')?.trim();
+    const fast = searchParams.get('fast') === '1';
 
     let alerts = await prisma.clinicalAlert.findMany({
-      where: { is_read: false },
+      where: {
+        is_read: false,
+        ...(patientId ? { patient_id: patientId } : {}),
+      },
       orderBy: { created_at: 'desc' },
-      take: 20
+      take: patientId ? 50 : 20,
     });
 
-    if (lang === 'ta' && alerts.length > 0) {
+    if (lang === 'ta' && !fast && alerts.length > 0) {
       // Use the IDs and updated_at to form a cache key
       const cacheKey = alerts.map(a => `${a.id}`).join(',');
       if (translateCache.has(cacheKey)) {

@@ -26,6 +26,7 @@ export interface WebPushPayload {
   badge?: string;
   severity?: string;
   tag?: string;
+  suppressWhenFocused?: boolean;
 }
 
 export interface WebPushFilter {
@@ -69,6 +70,7 @@ export async function sendWebPushNotifications(
     severity: payload.severity || 'info',
     tag: payload.tag || payload.severity || 'nalam-alert',
     url: payload.url || '/dashboard',
+    suppressWhenFocused: Boolean(payload.suppressWhenFocused),
   });
 
   const results = await Promise.allSettled(

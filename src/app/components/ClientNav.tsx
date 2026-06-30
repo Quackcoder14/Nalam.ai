@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Heart, LogOut, LayoutDashboard, Stethoscope,
   Search, Moon, Sun, Menu, X, Brain, Calendar,
-  MessageSquare, Building2, Globe, Shield, Network, UserPlus, ClipboardPlus
+  MessageSquare, Building2, Globe, Shield, Network, UserPlus, ClipboardPlus, FolderOpen
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -215,6 +215,9 @@ export default function ClientNav() {
                 </button>
                 <button className="drawer-item" onClick={() => nav('/search')}>
                   <Search size={18} /> {t('nav.searchRecords')}
+                </button>
+                <button className={`drawer-item${pathname === '/dashboard/records' ? ' active' : ''}`} onClick={() => nav('/dashboard/records')}>
+                  <FolderOpen size={18} /> My Records
                 </button>
               </>
             )}

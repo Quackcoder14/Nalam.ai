@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Download, Activity, Clock, ChevronDown, X, ShieldCheck, Link2, MessageSquare, ArrowUpDown, UserPlus, ClipboardPlus } from 'lucide-react';
+import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Activity, Clock, ChevronDown, X, ShieldCheck, Link2, MessageSquare, ArrowUpDown, UserPlus, ClipboardPlus } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { apiFetch } from '@/lib/apiFetch';
+import { RecordsOtpModal } from '../components/RecordsOtpModal';
 
 interface OcrResult {
   rawText: string; medications: string[]; diagnoses: string[];
@@ -71,6 +72,7 @@ export default function HospitalDeskPage() {
   const [aptProcessing, setAptProcessing] = useState<string | null>(null);
   const [chatUnread, setChatUnread] = useState(0);
   const [sortApt, setSortApt] = useState<'newest' | 'oldest' | 'upcoming' | 'past'>('newest');
+  const [showRecordsModal, setShowRecordsModal] = useState(false);
 
   const fetchAllAppointments = useCallback(async () => {
     try {
@@ -89,12 +91,6 @@ export default function HospitalDeskPage() {
       await fetchAllAppointments();
       setAptExpanded(null);
     } finally { setAptProcessing(null); }
-  };
-
-  const exportVault = () => {
-    const blob = new Blob([JSON.stringify({ patient: patientData, records: patientRecords, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `nalam_vault_${patientId}.json` });
-    a.click();
   };
 
   const [file, setFile] = useState<File | null>(null);
@@ -225,8 +221,23 @@ export default function HospitalDeskPage() {
         body: JSON.stringify({ patientId, type: 'Document Scan', provider: 'Hospital Desk OCR', diagnosis: result.diagnoses.join(', '), notes: result.structuredSummary || result.rawText.slice(0, 300), labResults: Object.entries(result.labValues).map(([k, v]) => `${k}:${v}`).join(', ') }),
       });
       const data = await res.json();
-      if (data.success) { setImported(true); await loadPatient(); }
-      else setOcrError(`Import failed: ${data.error}`);
+      if (data.success) {
+        setImported(true);
+        await loadPatient();
+        // Also save the scanned document to the patient's records gallery
+        if (preview) {
+          await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/files`, {
+            method: 'POST',
+            body: JSON.stringify({
+              patientId,
+              filename: file?.name || `scan_${Date.now()}.jpg`,
+              fileType: 'image',
+              fileData: preview,
+              source: 'document_scanner',
+            }),
+          });
+        }
+      } else { setOcrError(`Import failed: ${data.error}`); }
     } catch { setOcrError('Import failed — network error.'); }
     finally { setImporting(false); }
   };
@@ -294,11 +305,6 @@ export default function HospitalDeskPage() {
               </span>
             )}
           </button>
-          {patientData && (
-            <button className="glass-button" onClick={exportVault} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderColor: 'var(--powder-blue-dark)' }}>
-              <Download size={15} /> {t('hdesk.exportFHIR')}
-            </button>
-          )}
         </div>
       </div>
 
@@ -341,9 +347,28 @@ export default function HospitalDeskPage() {
               <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)' }}>{t('hdesk.lastVisit')} <strong>{patientRecords[0]?.date || t('hdesk.na')}</strong></div>
               <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)' }}>{t('hdesk.totalRecords')} <strong>{patientRecords.length}</strong></div>
             </div>
+            {/* View Records Button */}
+            <div style={{ width: '100%' }}>
+              <button
+                onClick={() => setShowRecordsModal(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.5rem 1rem', background: 'linear-gradient(135deg,#0052A5,#0073D9)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                🗂️ View Records
+              </button>
+            </div>
           </div>
         )}
       </section>
+
+      {showRecordsModal && patientData && (
+        <RecordsOtpModal
+          patientId={patientId}
+          patientName={patientData.name}
+          requestorId={sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || 'desk'}
+          requestorName={sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk'}
+          onClose={() => setShowRecordsModal(false)}
+        />
+      )}
 
       {/* Active Notifications */}
       <section className="glass-panel slide-up stagger-2" style={{ marginBottom: '1.5rem' }}>

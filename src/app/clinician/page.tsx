@@ -9,6 +9,7 @@ import { useLanguage } from '@/lib/i18n';
 // import { GlassBoxPanel, type GlassBoxEntry } from '../components/GlassBox';
 import { apiFetch } from '@/lib/apiFetch';
 import { AVAILABLE_TIME_SLOTS } from '@/lib/doctors';
+import { RecordsOtpModal } from '../components/RecordsOtpModal';
 
 /* ── Reschedule Modal with live slot availability ────────────────────────── */
 function RescheduleModal({ apt, processing, onCancel, onSubmit }: {
@@ -637,6 +638,7 @@ export default function ClinicianPortal() {
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduleReason, setRescheduleReason] = useState('');
+  const [showRecordsModal, setShowRecordsModal] = useState(false);
 
   const fetchAppointments = useCallback(async () => {
     setAptLoading(true);
@@ -964,6 +966,16 @@ export default function ClinicianPortal() {
         </div>
       )}
 
+      {showRecordsModal && data && (
+        <RecordsOtpModal
+          patientId={patientId}
+          patientName={data.patient.name}
+          requestorId={doctorId}
+          requestorName={role === 'emergency' ? 'Dr. Dhanush (ER)' : 'Dr. Monissha (Cardiology)'}
+          onClose={() => setShowRecordsModal(false)}
+        />
+      )}
+
       {rescheduleApt && (
         <RescheduleModal
           apt={rescheduleApt}
@@ -1035,6 +1047,13 @@ export default function ClinicianPortal() {
                   </div>
                 ))}
               </div>
+              {/* View Records Button */}
+              <button
+                onClick={() => setShowRecordsModal(true)}
+                style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'center', gap: 6, padding: '0.55rem 1rem', background: 'linear-gradient(135deg,#0052A5,#0073D9)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', width: '100%', justifyContent: 'center' }}
+              >
+                🗂️ View Patient Records
+              </button>
             </div>
           )}
         </section>

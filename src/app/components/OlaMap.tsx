@@ -1,9 +1,11 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { LocateFixed, Search } from 'lucide-react';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 const OLA_API_KEY = process.env.NEXT_PUBLIC_OLA_MAPS_API_KEY || '';
 const DEFAULT_CENTER: [number, number] = [80.2512, 13.0604]; // Chennai fallback
+type PlaceType = 'hospital' | 'pharmacy';
 
 interface NearbyPlace {
   place_id: string;
@@ -11,36 +13,103 @@ interface NearbyPlace {
   address: string;
   lat: number;
   lng: number;
-  type: 'hospital' | 'pharmacy';
+  type: PlaceType;
+  phone?: string;
+  hours?: string;
 }
 
-async function fetchNearby(lat: number, lng: number, type: 'hospital' | 'pharmacy'): Promise<NearbyPlace[]> {
+function pickPhone(result: any) {
+  return result?.formatted_phone_number || result?.international_phone_number || result?.phone_number || result?.contact?.phone_number || result?.contact?.phone || null;
+}
+
+function pickHours(result: any) {
+  if (Array.isArray(result?.opening_hours?.weekday_text)) return result.opening_hours.weekday_text.join(', ');
+  if (typeof result?.opening_hours?.open_now === 'boolean') return result.opening_hours.open_now ? 'Open now' : 'Closed now';
+  return result?.business_status || null;
+}
+
+function dedupePlaces(places: NearbyPlace[]) {
+  const seen = new Set<string>();
+  return places.filter((place) => {
+    const key = place.place_id || `${place.name}|${place.address}`.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function fetchNearby(lat: number, lng: number, type: PlaceType): Promise<NearbyPlace[]> {
   try {
-    const searchUrl = `https://api.olamaps.io/places/v1/nearbysearch?location=${lat},${lng}&radius=5000&types=${type}&api_key=${OLA_API_KEY}`;
+    const searchUrl = `https://api.olamaps.io/places/v1/nearbysearch?location=${lat},${lng}&radius=12000&types=${type}&api_key=${OLA_API_KEY}`;
     const searchRes = await fetch(searchUrl);
     const searchData = await searchRes.json();
     if (searchData.status !== 'ok' || !searchData.predictions) return [];
 
     const places = await Promise.all(
-      searchData.predictions.slice(0, 6).map(async (p: any) => {
+      searchData.predictions.slice(0, 20).map(async (p: any) => {
         try {
           const detailUrl = `https://api.olamaps.io/places/v1/details?place_id=${p.place_id}&api_key=${OLA_API_KEY}`;
           const detailRes = await fetch(detailUrl);
           const detailData = await detailRes.json();
           if (detailData.status !== 'ok' || !detailData.result?.geometry?.location) return null;
+          const result = detailData.result;
           return {
             place_id: p.place_id,
-            name: detailData.result.name || p.structured_formatting?.main_text || 'Unknown',
-            address: p.structured_formatting?.secondary_text || p.description || '',
-            lat: detailData.result.geometry.location.lat,
-            lng: detailData.result.geometry.location.lng,
+            name: result.name || p.structured_formatting?.main_text || 'Unknown',
+            address: result.formatted_address || result.vicinity || p.structured_formatting?.secondary_text || p.description || '',
+            lat: result.geometry.location.lat,
+            lng: result.geometry.location.lng,
             type,
+            phone: pickPhone(result) || undefined,
+            hours: pickHours(result) || undefined,
           } as NearbyPlace;
         } catch { return null; }
       })
     );
-    return places.filter(Boolean) as NearbyPlace[];
+    return dedupePlaces(places.filter(Boolean) as NearbyPlace[]);
   } catch { return []; }
+}
+
+async function geocodeLocation(query: string): Promise<{ lat: number; lng: number; label: string } | null> {
+  const cleanQuery = query.trim();
+  if (!cleanQuery) return null;
+
+  try {
+    const geocodeUrl = `https://api.olamaps.io/places/v1/geocode?address=${encodeURIComponent(cleanQuery)}&api_key=${OLA_API_KEY}`;
+    const res = await fetch(geocodeUrl);
+    const data = await res.json();
+    const match = data.geocodingResults?.[0] || data.results?.[0] || data.predictions?.[0];
+    const loc = match?.geometry?.location;
+    if (loc?.lat && loc?.lng) {
+      return { lat: loc.lat, lng: loc.lng, label: match.formatted_address || match.description || cleanQuery };
+    }
+  } catch {}
+
+  try {
+    const autocompleteUrl = `https://api.olamaps.io/places/v1/autocomplete?input=${encodeURIComponent(cleanQuery)}&api_key=${OLA_API_KEY}`;
+    const res = await fetch(autocompleteUrl);
+    const data = await res.json();
+    const first = data.predictions?.[0];
+    if (first?.place_id) {
+      const detailRes = await fetch(`https://api.olamaps.io/places/v1/details?place_id=${first.place_id}&api_key=${OLA_API_KEY}`);
+      const detailData = await detailRes.json();
+      const loc = detailData.result?.geometry?.location;
+      if (loc?.lat && loc?.lng) {
+        return { lat: loc.lat, lng: loc.lng, label: detailData.result.formatted_address || first.description || cleanQuery };
+      }
+    }
+  } catch {}
+
+  try {
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(cleanQuery)}`;
+    const res = await fetch(nominatimUrl);
+    const data = await res.json();
+    if (data?.[0]?.lat && data?.[0]?.lon) {
+      return { lat: Number(data[0].lat), lng: Number(data[0].lon), label: data[0].display_name || cleanQuery };
+    }
+  } catch {}
+
+  return null;
 }
 
 // Popup card rendered inside the map overlay (not MapLibre native popup)
@@ -49,6 +118,12 @@ function PlacePopup({ place, onClose }: { place: NearbyPlace; onClose: () => voi
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (place.phone || place.hours) {
+      setInfo({ phone: place.phone, hours: place.hours });
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     fetch('/api/agents/place-info', {
       method: 'POST',
@@ -59,7 +134,7 @@ function PlacePopup({ place, onClose }: { place: NearbyPlace; onClose: () => voi
       .then(d => setInfo(d))
       .catch(() => setInfo(null))
       .finally(() => setLoading(false));
-  }, [place.place_id]);
+  }, [place]);
 
   const isHospital = place.type === 'hospital';
   const color = isHospital ? '#0052A5' : '#00897B';
@@ -139,8 +214,41 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
   const [status, setStatus] = useState<'locating' | 'loading' | 'ready' | 'error'>('locating');
   const [locationLabel, setLocationLabel] = useState('');
   const [filter, setFilter] = useState<'all' | 'hospital' | 'pharmacy'>('all');
+  const [searchText, setSearchText] = useState('');
+  const [loadingPlaces, setLoadingPlaces] = useState(false);
+  const [mapMessage, setMapMessage] = useState('');
   const placesRef = useRef<NearbyPlace[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<NearbyPlace | null>(null);
+  const originMarkerRef = useRef<any>(null);
+
+  const loadPlacesForLocation = async (lat: number, lng: number, label: string, zoom = 13.5) => {
+    if (!mapRef.current) return;
+    setLoadingPlaces(true);
+    setSelectedPlace(null);
+    setMapMessage('');
+
+    const maplibre = await import('maplibre-gl');
+    const { Marker } = maplibre.default || maplibre;
+
+    mapRef.current.flyTo({ center: [lng, lat], zoom, essential: true });
+
+    if (originMarkerRef.current) originMarkerRef.current.remove();
+    const originEl = document.createElement('div');
+    originEl.style.cssText = `width:18px;height:18px;border-radius:50%;background:#0052A5;border:3px solid white;box-shadow:0 0 0 5px rgba(0,82,165,0.2);flex-shrink:0;`;
+    originMarkerRef.current = new Marker({ element: originEl }).setLngLat([lng, lat]).addTo(mapRef.current);
+
+    const [hospitals, pharmacies] = await Promise.all([
+      fetchNearby(lat, lng, 'hospital'),
+      fetchNearby(lat, lng, 'pharmacy'),
+    ]);
+
+    const allPlaces = dedupePlaces([...hospitals, ...pharmacies]);
+    placesRef.current = allPlaces;
+    setLocationLabel(label);
+    renderMarkers(mapRef.current, allPlaces, filter, Marker, setSelectedPlace);
+    setMapMessage(allPlaces.length ? `${allPlaces.length} places found nearby` : 'No hospitals or pharmacies found here. Try a nearby road, area, or pincode.');
+    setLoadingPlaces(false);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +256,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
     async function init() {
       let userLat = DEFAULT_CENTER[1];
       let userLng = DEFAULT_CENTER[0];
+      let activeLocationLabel = 'Chennai (location unavailable)';
 
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -156,9 +265,10 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
         if (cancelled) return;
         userLat = pos.coords.latitude;
         userLng = pos.coords.longitude;
-        setLocationLabel('Your location');
+        activeLocationLabel = 'Your location';
+        setLocationLabel(activeLocationLabel);
       } catch {
-        setLocationLabel('Chennai (location unavailable)');
+        setLocationLabel(activeLocationLabel);
       }
 
       setStatus('loading');
@@ -166,7 +276,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
 
       const maplibre = await import('maplibre-gl');
       if (cancelled) return;
-      const { Map, NavigationControl, Marker } = maplibre.default || maplibre;
+      const { Map, NavigationControl } = maplibre.default || maplibre;
 
       // Fetch and sanitize style JSON to avoid MapLibre validation errors with Ola's style
       let styleObj: any = `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${OLA_API_KEY}`;
@@ -188,7 +298,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
         center: [userLng, userLat],
         zoom: 14,
         attributionControl: false,
-        transformRequest: (url: string, resourceType?: string) => {
+        transformRequest: (url: string) => {
           if (url.includes('api.olamaps.io') && !url.includes('api_key=')) {
             const sep = url.includes('?') ? '&' : '?';
             return { url: `${url}${sep}api_key=${OLA_API_KEY}` };
@@ -201,26 +311,13 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
       mapRef.current = map;
 
       // User location dot (plain circle, no transform issues)
-      const userEl = document.createElement('div');
-      userEl.style.cssText = `width:18px;height:18px;border-radius:50%;background:#0052A5;border:3px solid white;box-shadow:0 0 0 5px rgba(0,82,165,0.2);flex-shrink:0;`;
-      new Marker({ element: userEl }).setLngLat([userLng, userLat]).addTo(map);
-
       // Close popup when clicking map background
       map.on('click', () => setSelectedPlace(null));
 
       map.on('load', async () => {
         if (cancelled) return;
         setStatus('ready');
-
-        const [hospitals, pharmacies] = await Promise.all([
-          fetchNearby(userLat, userLng, 'hospital'),
-          fetchNearby(userLat, userLng, 'pharmacy'),
-        ]);
-        if (cancelled) return;
-
-        const allPlaces = [...hospitals, ...pharmacies];
-        placesRef.current = allPlaces;
-        renderMarkers(map, allPlaces, 'all', Marker, setSelectedPlace);
+        loadPlacesForLocation(userLat, userLng, activeLocationLabel);
       });
     }
 
@@ -228,6 +325,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
 
     return () => {
       cancelled = true;
+      originMarkerRef.current?.remove();
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -284,8 +382,96 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
     renderMarkers(mapRef.current, placesRef.current, newFilter, Marker, setSelectedPlace);
   };
 
+  const handleManualSearch = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchText.trim();
+    if (!query) return;
+
+    setLoadingPlaces(true);
+    setMapMessage('');
+    const result = await geocodeLocation(query);
+    if (!result) {
+      setLoadingPlaces(false);
+      setMapMessage('Could not find that location. Try adding city or pincode, e.g. "Anna Nagar Chennai" or "625020 Madurai".');
+      return;
+    }
+
+    await loadPlacesForLocation(result.lat, result.lng, result.label);
+  };
+
+  const handleUseCurrentLocation = async () => {
+    setLoadingPlaces(true);
+    setMapMessage('');
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 })
+      );
+      await loadPlacesForLocation(pos.coords.latitude, pos.coords.longitude, 'Your location', 14);
+    } catch {
+      setLoadingPlaces(false);
+      setMapMessage('Location permission is unavailable. Enter an area, town, landmark, or pincode manually.');
+    }
+  };
+
   return (
     <div style={{ position: 'relative', width: '100%' }}>
+      <form onSubmit={handleManualSearch} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '0.45rem', marginBottom: '0.55rem' }}>
+        <input
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search area, pincode, town..."
+          style={{
+            minWidth: 0,
+            padding: '0.55rem 0.7rem',
+            borderRadius: 10,
+            border: '1px solid var(--border, #d8e0ea)',
+            background: 'white',
+            color: '#1f2937',
+            fontFamily: 'inherit',
+            fontSize: '0.82rem',
+            outline: 'none',
+          }}
+        />
+        <button
+          type="submit"
+          disabled={loadingPlaces || !searchText.trim()}
+          title="Search this location"
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            border: 'none',
+            background: searchText.trim() ? '#0052A5' : 'var(--surface-muted, #f1f5f9)',
+            color: searchText.trim() ? 'white' : '#64748b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: searchText.trim() ? 'pointer' : 'not-allowed',
+          }}
+        >
+          <Search size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={handleUseCurrentLocation}
+          disabled={loadingPlaces}
+          title="Use current location"
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            border: '1px solid var(--border, #d8e0ea)',
+            background: 'white',
+            color: '#0052A5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: loadingPlaces ? 'wait' : 'pointer',
+          }}
+        >
+          <LocateFixed size={16} />
+        </button>
+      </form>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
         {(['all', 'hospital', 'pharmacy'] as const).map(f => (
           <button key={f} onClick={() => handleFilter(f)}
@@ -304,15 +490,22 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
         )}
       </div>
 
+      {mapMessage && (
+        <div style={{ marginTop: '-0.25rem', marginBottom: '0.55rem', color: mapMessage.startsWith('No ') || mapMessage.startsWith('Could ') || mapMessage.startsWith('Location ') ? '#B45309' : '#475569', fontSize: '0.74rem', fontWeight: 600 }}>
+          {mapMessage}
+        </div>
+      )}
+
       <div style={{ position: 'relative', width: '100%', height, borderRadius: 16, overflow: 'hidden' }}>
         <div ref={mapContainer} style={{ width: '100%', height: '100%' }} className={className} />
 
         {/* Loading overlay */}
-        {status !== 'ready' && (
+        {(status !== 'ready' || loadingPlaces) && (
           <div style={{
             position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
-            background: '#f1f5f9', borderRadius: 16,
+            background: status === 'ready' ? 'rgba(241,245,249,0.78)' : '#f1f5f9', borderRadius: 16,
+            zIndex: 20,
           }}>
             <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #0052A5', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
             <span style={{ fontSize: '0.82rem', color: '#555', fontWeight: 500 }}>

@@ -52,6 +52,8 @@ export async function POST(request: Request) {
     // Use const since these values are not reassigned
     const dbTitle = data.severity === 'critical' ? '🚨 Critical Vital Anomaly' : '⚠️ Vital Anomaly Detected';
     const dbMessage = data.flags?.[0]?.message || 'An anomaly was detected in your vitals.';
+    let alertForClient = null;
+    let alertCreated = false;
 
     if (lang === 'ta' && Array.isArray(data.flags) && data.flags.length > 0) {
       try {
@@ -71,36 +73,53 @@ export async function POST(request: Request) {
 
     if (data.is_anomaly && (data.severity === 'critical' || data.severity === 'warning')) {
       try {
-        await prisma.clinicalAlert.create({
-          data: {
-            // Use the actual patient ID from the request instead of hardcoded 'P001'
+        const existingAlert = await prisma.clinicalAlert.findFirst({
+          where: {
             patient_id: patientId,
             severity: data.severity,
-            title: dbTitle,   // always English in DB
-            message: dbMessage, // always English in DB
-          }
+            title: dbTitle,
+            message: dbMessage,
+            is_read: false,
+          },
+          orderBy: { created_at: 'desc' },
         });
 
-        const vitalsTag = [
-          body.heart_rate !== undefined ? `hr=${body.heart_rate}` : null,
-          body.spo2 !== undefined ? `spo2=${body.spo2}` : null,
-          body.resp !== undefined ? `resp=${body.resp}` : null,
-          body.temp !== undefined ? `temp=${body.temp}` : null,
-          body.sys !== undefined ? `sys=${body.sys}` : null,
-          body.dia !== undefined ? `dia=${body.dia}` : null,
-        ].filter(Boolean).join(' ');
+        if (existingAlert) {
+          alertForClient = existingAlert;
+        } else {
+          alertForClient = await prisma.clinicalAlert.create({
+            data: {
+              patient_id: patientId,
+              severity: data.severity,
+              title: dbTitle,
+              message: dbMessage,
+            }
+          });
+          alertCreated = true;
+        }
 
-        await sendPushToUser(patientId, {
-          title: dbTitle,
-          body: vitalsTag ? `${dbMessage} | ${vitalsTag}` : dbMessage,
-          url: '/dashboard',
-        });
+        if (body.notifyNative === true && alertCreated) {
+          const vitalsTag = [
+            body.heart_rate !== undefined ? `hr=${body.heart_rate}` : null,
+            body.spo2 !== undefined ? `spo2=${body.spo2}` : null,
+            body.resp !== undefined ? `resp=${body.resp}` : null,
+            body.temp !== undefined ? `temp=${body.temp}` : null,
+            body.sys !== undefined ? `sys=${body.sys}` : null,
+            body.dia !== undefined ? `dia=${body.dia}` : null,
+          ].filter(Boolean).join(' ');
+
+          await sendPushToUser(patientId, {
+            title: dbTitle,
+            body: vitalsTag ? `${dbMessage} | ${vitalsTag}` : dbMessage,
+            url: '/dashboard',
+          });
+        }
       } catch (e) {
-        console.error('Failed to log/send clinical alert:', e);
+        console.error('Failed to log clinical alert:', e);
       }
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({ ...data, alert: alertForClient, alertCreated });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'ML service unavailable';
     console.warn('Anomaly service unavailable:', msg);

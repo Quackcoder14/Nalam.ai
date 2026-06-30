@@ -55,6 +55,8 @@ model Patient {
   auditLogs           AuditLog[]
   appointments        Appointment[]
   messages            ChatMessage[]
+  files               PatientFile[]
+  otpRequests         RecordsOtp[]
 
   @@map("patients")
 }
@@ -209,4 +211,39 @@ model ChatMessage {
 
   @@index([patient_id, hospital])
   @@map("chat_messages")
+}
+
+// ─── Patient Files (Records Gallery) ─────────────────────────────────────────
+model PatientFile {
+  id               String   @id @default(cuid())
+  patient_id       String
+  filename_enc     String   @db.Text
+  file_type        String   // "image" | "pdf" | "document"
+  file_data_enc    String   @db.Text  // base64 encrypted
+  source           String   @default("manual") // "manual" | "document_scanner"
+  uploaded_by      String   // patient_id or staff_id
+  file_size_bytes  Int      @default(0)
+  created_at       DateTime @default(now())
+
+  patient          Patient  @relation(fields: [patient_id], references: [id])
+
+  @@index([patient_id, created_at])
+  @@map("patient_files")
+}
+
+// ─── Records OTP ──────────────────────────────────────────────────────────────
+model RecordsOtp {
+  id            String   @id @default(cuid())
+  patient_id    String
+  otp_hash      String   // SHA-256 hashed OTP
+  requestor_id  String   // clinician or hdesk staff ID
+  requestor_name String  @default("")
+  expires_at    DateTime
+  used          Boolean  @default(false)
+  created_at    DateTime @default(now())
+
+  patient       Patient  @relation(fields: [patient_id], references: [id])
+
+  @@index([patient_id, expires_at])
+  @@map("records_otps")
 }
