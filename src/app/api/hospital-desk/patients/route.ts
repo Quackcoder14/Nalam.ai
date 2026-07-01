@@ -55,8 +55,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Password is required' }, { status: 400 });
     }
 
-    const loginEmail = name.toLowerCase().replace(/\s+/g, '') + '@nalam.ai';
-
     const existing = await prisma.patient.findUnique({ where: { id: patientId } });
     if (existing) {
       return NextResponse.json({ error: `Patient ID ${patientId} already exists` }, { status: 409 });
@@ -68,7 +66,6 @@ export async function POST(request: Request) {
       const patient = await tx.patient.create({
         data: {
           id: patientId,
-          login_email: loginEmail,
           password_hash: hashPassword(password),
           name_enc: encrypt(name),
           dob_enc: encrypt(dob),
@@ -127,7 +124,7 @@ export async function POST(request: Request) {
       return { patient, records: createdRecords };
     });
 
-    return NextResponse.json({ success: true, patientId: created.patient.id, loginEmail, records: created.records.length });
+    return NextResponse.json({ success: true, patientId: created.patient.id, records: created.records.length });
   } catch (error: unknown) {
     console.error('Patient intake failed:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Patient intake failed' }, { status: 500 });
