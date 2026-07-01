@@ -1496,7 +1496,7 @@ export default function ClinicianPortal() {
               </div>
             ) : (
               <div className="fade-in" style={{ whiteSpace: 'pre-wrap', fontSize: '0.93rem', color: 'var(--foreground)', lineHeight: 1.8 }}>
-                {biography}
+                {biography.split('**').map((p: string, i: number) => i % 2 === 1 ? <strong key={i} style={{ color: 'var(--primary)' }}>{p}</strong> : p)}
               </div>
             )}
           </div>

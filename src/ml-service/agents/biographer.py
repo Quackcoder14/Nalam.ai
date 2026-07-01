@@ -43,35 +43,35 @@ def biographer_node(state: NalamState) -> NalamState:
 
     if lang == "ta":
         format_instruction = """
-<span style="color: #0052A5; font-weight: bold;">🏥 முக்கிய நோய்கள் & நோய் கண்டறிதல்</span>
+**🏥 முக்கிய நோய்கள் & நோய் கண்டறிதல்**
 • [புள்ளி விவரம்]
 
-<span style="color: #0052A5; font-weight: bold;">📈 நோய் முன்னேற்றம்</span>
+**📈 நோய் முன்னேற்றம்**
 • [புள்ளி விவரம்]
 
-<span style="color: #0052A5; font-weight: bold;">🔬 முக்கிய ஆய்வக கண்டுபிடிப்புகள்</span>
+**🔬 முக்கிய ஆய்வக கண்டுபிடிப்புகள்**
 • [புள்ளி விவரம்]
 
-<span style="color: #0052A5; font-weight: bold;">⚠️ செயலில் உள்ள மருத்துவ ஆபத்துகள்</span>
+**⚠️ செயலில் உள்ள மருத்துவ ஆபத்துகள்**
 • [புள்ளி விவரம்]
 
-<span style="color: #0052A5; font-weight: bold;">💡 மருத்துவ பரிந்துரைகள்</span>
+**💡 மருத்துவ பரிந்துரைகள்**
 • [புள்ளி விவரம்]"""
     else:
         format_instruction = """
-<span style="color: #0052A5; font-weight: bold;">🏥 Chief Concerns & Diagnoses</span>
+**🏥 Chief Concerns & Diagnoses**
 • [Bullet point]
 
-<span style="color: #0052A5; font-weight: bold;">📈 Disease Progression</span>
+**📈 Disease Progression**
 • [Bullet point]
 
-<span style="color: #0052A5; font-weight: bold;">🔬 Key Laboratory Findings</span>
+**🔬 Key Laboratory Findings**
 • [Bullet point]
 
-<span style="color: #0052A5; font-weight: bold;">⚠️ Active Clinical Risks</span>
+**⚠️ Active Clinical Risks**
 • [Bullet point]
 
-<span style="color: #0052A5; font-weight: bold;">💡 Clinical Recommendations</span>
+**💡 Clinical Recommendations**
 • [Bullet point]"""
 
     prompt = f"""You are a clinical AI biographer synthesising a patient's longitudinal health history for a treating clinician.

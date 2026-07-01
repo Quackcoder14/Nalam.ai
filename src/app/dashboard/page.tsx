@@ -2375,7 +2375,7 @@ export default function PatientDashboard() {
         }
         @media (max-width: 640px) {
           .ambulance-button-mobile {
-            bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 4rem) !important;
+            bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 6.5rem) !important;
             right: 0.75rem !important;
           }
         }
@@ -2598,15 +2598,15 @@ export default function PatientDashboard() {
         style={{
           position: "fixed",
           bottom:
-            "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 4rem)",
+            "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 6.5rem)",
           right: "1.5rem",
-          zIndex: 9000,
+          zIndex: 90,
           background: "linear-gradient(135deg, #ef4444, #dc2626)",
           color: "white",
           border: "none",
           borderRadius: "50%",
-          width: "56px",
-          height: "56px",
+          width: "60px",
+          height: "60px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

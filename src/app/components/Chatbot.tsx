@@ -175,7 +175,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9000,
+            zIndex: 90,
             transition: 'all 0.3s',
           }}
           onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
@@ -202,7 +202,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
             boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
             display: 'flex',
             flexDirection: 'column',
-            zIndex: 9000,
+            zIndex: 90,
             border: '1px solid var(--border)',
             transition: 'all 0.3s ease',
           }}

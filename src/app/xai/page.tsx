@@ -315,9 +315,9 @@ function XAIDashboardInner() {
       <button
         onDoubleClick={() => setShowAmbulanceModal(true)}
         style={{
-          position: 'fixed', bottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem)', right: '1rem', zIndex: 9000,
+          position: 'fixed', bottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem)', right: '1rem', zIndex: 90,
           background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white', border: 'none', borderRadius: '50%',
-          width: '52px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 8px 24px rgba(239, 68, 68, 0.4)', cursor: 'pointer', animation: 'pulseGlow 2s infinite'
         }}
         title="Double Click to Call Ambulance"
