@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Cpu, Stethoscope, AlertTriangle, Activity, Eye, EyeOff, Database, Clock, Lock, Unlock, FlaskConical, FileText, CheckCircle, XCircle, SkipForward, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import WhatsAppButton from '@/app/components/WhatsAppButton';
+import PrescriptionTable from '@/app/components/PrescriptionTable';
+import Chatbot from '@/app/components/Chatbot';
 // import BodyVisualizer from '../components/BodyVisualizer';
 // import BodyVisualizer from '../components/BodyVisualizer';
 // import { GlassBoxPanel, type GlassBoxEntry } from '../components/GlassBox';
@@ -184,9 +187,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 // ─── Medication → Body-Part Effects ─────────────────────────────────────────
-function getMedEffects(medication: string): Record<string, { effect: 'good' | 'bad', short: string }> {
+function getMedEffects(medication: string): Record<string, { effect: 'good' | 'bad' | 'none', short: string }> {
   const m = medication.toLowerCase();
-  const fx: Record<string, { effect: 'good' | 'bad', short: string }> = {};
+  const fx: Record<string, { effect: 'good' | 'bad' | 'none', short: string }> = {};
   if (/lisinopril|ramipril|enalapril|perindopril/.test(m))            { fx.heart = { effect: 'good', short: 'Reduces cardiac strain' }; fx.kidneys = { effect: 'good', short: 'Protects against nephropathy' }; fx.vessels = { effect: 'good', short: 'Dilates blood vessels' }; fx.lungs = { effect: 'bad', short: 'May cause dry cough' }; }
   if (/losartan|valsartan|telmisartan|olmesartan|irbesartan/.test(m)) { fx.heart = { effect: 'good', short: 'Improves heart function' }; fx.kidneys = { effect: 'good', short: 'Reduces kidney damage' }; fx.vessels = { effect: 'good', short: 'Lowers blood pressure' }; }
   if (/amlodipine|nifedipine|diltiazem|verapamil/.test(m))           { fx.heart = { effect: 'good', short: 'Decreases oxygen demand' }; fx.vessels = { effect: 'good', short: 'Relaxes smooth muscle' }; }
@@ -216,15 +219,51 @@ function getBodyPartInfo(part: string, t: any) {
 }
 
 // ─── 3-D Body Visualiser ─────────────────────────────────────────────────────
-function BodyVisualizer({ effects, medication, dosage }: { effects: Record<string, { effect: 'good' | 'bad', short: string }>; medication: string; dosage?: string }) {
+function BodyVisualizer({ effects, medication, dosage, patient, records }: { 
+  effects: Record<string, { effect: 'good' | 'bad' | 'none', short: string }>; 
+  medication: string; 
+  dosage?: string;
+  patient?: any;
+  records?: any[];
+}) {
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
   const [clickedRegion, setClickedRegion] = useState<string | null>(null);
   const [organExplanation, setOrganExplanation] = useState<string | null>(null);
   const [loadingOrgan, setLoadingOrgan] = useState(false);
+  const [loadingEffects, setLoadingEffects] = useState(false);
+  const [aiEffects, setAiEffects] = useState<Record<string, { effect: 'good' | 'bad', short: string }> | null>(null);
   const { t, lang } = useLanguage();
 
-  const getRegionEffect = (id: string) => effects[id]?.effect || null;
-  const getRegionShort = (id: string) => effects[id]?.short || null;
+  // Fetch AI-generated effects when medication changes
+  useEffect(() => {
+    const fetchAiEffects = async () => {
+      if (!medication) return;
+      setLoadingEffects(true);
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/agents/drug-effects`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ medication, dosage, patient, records, lang }),
+        });
+        const data = await res.json();
+        if (data.effects && Object.keys(data.effects).length > 0) {
+          setAiEffects(data.effects);
+        }
+      } catch (e) {
+        console.error('Failed to fetch AI effects:', e);
+      } finally {
+        setLoadingEffects(false);
+      }
+    };
+
+    fetchAiEffects();
+  }, [medication, dosage, patient, records, lang]);
+
+  // Use AI effects if available, otherwise fall back to hardcoded effects
+  const currentEffects = aiEffects || effects;
+
+  const getRegionEffect = (id: string) => currentEffects[id]?.effect || null;
+  const getRegionShort = (id: string) => currentEffects[id]?.short || null;
 
   const fetchOrganDetail = async (organ: string) => {
     if (!medication) return;
@@ -249,7 +288,7 @@ function BodyVisualizer({ effects, medication, dosage }: { effects: Record<strin
   const regionFill = (id: string) => {
     const e = getRegionEffect(id);
     const h = hoveredRegion === id;
-    if (!e) return h ? 'rgba(203,213,225,0.6)' : 'rgba(148,163,184,0.2)';
+    if (!e || e === 'none') return h ? 'rgba(203,213,225,0.6)' : 'rgba(148,163,184,0.2)';
     if (e === 'good') return h ? 'rgba(34,197,94,0.8)' : 'rgba(34,197,94,0.55)';
     return h ? 'rgba(239,68,68,0.8)' : 'rgba(239,68,68,0.55)';
   };
@@ -257,7 +296,7 @@ function BodyVisualizer({ effects, medication, dosage }: { effects: Record<strin
   const regionStroke = (id: string) => {
     const e = getRegionEffect(id);
     const h = hoveredRegion === id;
-    if (!e) return h ? 'rgba(148,163,184,0.9)' : 'rgba(148,163,184,0.5)';
+    if (!e || e === 'none') return h ? 'rgba(148,163,184,0.9)' : 'rgba(148,163,184,0.5)';
     if (e === 'good') return h ? '#4ade80' : '#22c55e';
     return h ? '#f87171' : '#ef4444';
   };
@@ -265,7 +304,7 @@ function BodyVisualizer({ effects, medication, dosage }: { effects: Record<strin
   const hp = (id: string) => {
     const e = getRegionEffect(id);
     const h = hoveredRegion === id;
-    const isAffected = !!e;
+    const isAffected = e && e !== 'none';
     return {
       onMouseEnter: () => setHoveredRegion(id),
       onMouseLeave: () => setHoveredRegion(null),
@@ -291,7 +330,32 @@ function BodyVisualizer({ effects, medication, dosage }: { effects: Record<strin
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', padding: '1rem 0.5rem', width: '100%' }}>
       {/* Mobile: stacked. Desktop: row layout done via flex-wrap */}
       <style>{`@media (min-width: 640px) { .body-viz-row { flex-direction: row !important; gap: 2rem !important; align-items: flex-start !important; } .body-viz-svg { order: -1; } }`}</style>
-      <div className="body-viz-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%' }}>
+      
+      {loadingEffects && (
+        <div style={{ 
+          width: '100%', 
+          padding: '1.5rem', 
+          textAlign: 'center', 
+          background: 'var(--surface-muted)', 
+          borderRadius: 10,
+          border: '1px solid var(--border)'
+        }}>
+          <div style={{ 
+            width: 24, 
+            height: 24, 
+            borderRadius: '50%', 
+            border: '3px solid var(--primary)', 
+            borderTopColor: 'transparent', 
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 0.75rem'
+          }} />
+          <p style={{ fontSize: '0.9rem', color: 'var(--foreground-muted)', margin: 0 }}>
+            Analyzing drug effects with AI...
+          </p>
+        </div>
+      )}
+
+      <div className="body-viz-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', width: '100%', opacity: loadingEffects ? 0.5 : 1, transition: 'opacity 0.3s' }}>
 
       {/* ── Legend & Summary ── */}
       <div style={{ width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -609,7 +673,7 @@ function GlassBoxPanel({ entries }: { entries: GlassBoxEntry[] }) {
 export default function ClinicianPortal() {
   const router = useRouter();
   const { t, lang } = useLanguage();
-  const [patientId, setPatientId]         = useState('P001');
+  const [patientId, setPatientId]         = useState('');
   const [role, setRole]                   = useState<'specialist' | 'emergency' | 'research'>('specialist');
   const [doctorId, setDoctorId]           = useState<string>('');
   const [allPatients, setAllPatients]     = useState<any[]>([]);
@@ -639,6 +703,7 @@ export default function ClinicianPortal() {
   const [rescheduleTime, setRescheduleTime] = useState('');
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [showRecordsModal, setShowRecordsModal] = useState(false);
+  const [showPrescription, setShowPrescription] = useState(false);
 
   const fetchAppointments = useCallback(async () => {
     setAptLoading(true);
@@ -723,6 +788,30 @@ export default function ClinicianPortal() {
     finally { setLoadingContext(false); }
   };
 
+  // Clear chatbot conversation when patient context changes
+  const clearChatbotContext = () => {
+    // This will be called when a new patient context is approved
+    // The chatbot component should handle this by starting a new conversation
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('clearChatbotContext'));
+    }
+  };
+
+  // Notify chatbot of approved patient context
+  const notifyChatbotOfPatientContext = (patientId: string) => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('patientContextApproved', { detail: { patientId } }));
+    }
+  };
+
+  // Call these when patient context is approved
+  useEffect(() => {
+    if (data) {
+      clearChatbotContext();
+      notifyChatbotOfPatientContext(patientId);
+    }
+  }, [data, patientId]);
+
   const runSimulation = async () => {
     if (!data || !medicationInput.trim()) return;
     try {
@@ -764,6 +853,24 @@ export default function ClinicianPortal() {
       console.error(e);
     } finally {
       setLoadingNav(false);
+    }
+  };
+
+  const handlePrescriptionUpload = async (prescription: any) => {
+    try {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/prescriptions`, {
+        method: 'POST',
+        body: JSON.stringify(prescription),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to upload prescription');
+      }
+      alert('Prescription uploaded successfully to patient records!');
+      setShowPrescription(false);
+    } catch (error) {
+      console.error('Prescription upload error:', error);
+      throw error;
     }
   };
 
@@ -825,9 +932,10 @@ export default function ClinicianPortal() {
   ];
 
   return (
-    <div className="container fade-in">
-      {/* Page Header */}
-      <div className="slide-up stagger-1" style={{ marginBottom: '1.25rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+    <>
+      <div className="container fade-in">
+        {/* Page Header */}
+        <div className="slide-up stagger-1" style={{ marginBottom: '1.25rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <h2 style={{ fontSize: '1.35rem', marginBottom: '0.15rem', lineHeight: 1.2 }}>{t('clinician.title')}</h2>
           <p style={{ color: 'var(--accent-teal)', fontSize: '0.82rem' }}>{t('clinician.subtitle')}</p>
@@ -936,6 +1044,17 @@ export default function ClinicianPortal() {
                             ))}
                           </div>
                         )}
+                        {apt.patientMobile && (
+                          <div style={{ marginTop: '0.75rem' }}>
+                            <WhatsAppButton
+                              phoneNumber={apt.patientMobile}
+                              message={t('whatsapp.general')
+                                .replace('{name}', apt.patientName)
+                                .replace('{message}', `Regarding your appointment on ${new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}${apt.time ? ` at ${apt.time}` : ''}. Ref: ${apt.id}`)}
+                              label="Contact Patient"
+                            />
+                          </div>
+                        )}
                       </div>
                       {apt.status === 'pending_reschedule' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFF8E1', padding: '0.5rem 0.85rem', borderRadius: 8, border: '1px solid #FFE082', color: '#C07A00', fontWeight: 600, fontSize: '0.8rem' }}>
@@ -1004,16 +1123,29 @@ export default function ClinicianPortal() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              value={patientId}
-              onChange={e => setPatientId(e.target.value)}
-              placeholder="Enter Patient ID (e.g. P001)"
-              style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '180px', fontFamily: 'inherit' }}
-              onKeyDown={e => { if(e.key === 'Enter') requestContext(); }}
-            />
+            {allPatients.length > 0 ? (
+              <select
+                value={patientId}
+                onChange={e => setPatientId(e.target.value)}
+                style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '180px', fontFamily: 'inherit' }}
+              >
+                <option value="">— Select a patient —</option>
+                {allPatients.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={patientId}
+                onChange={e => setPatientId(e.target.value)}
+                placeholder="Enter Patient ID"
+                style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '180px', fontFamily: 'inherit' }}
+                onKeyDown={e => { if(e.key === 'Enter') requestContext(); }}
+              />
+            )}
 
-            <button className="glass-button" onClick={requestContext} disabled={loadingContext}
+            <button className="glass-button" onClick={requestContext} disabled={loadingContext || !patientId}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
               {loadingContext
                 ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> {t('clinician.requesting')}</>
@@ -1054,6 +1186,42 @@ export default function ClinicianPortal() {
               >
                 🗂️ View Patient Records
               </button>
+
+              {/* Prescription Section */}
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0' }}>
+                <button
+                  onClick={() => setShowPrescription(!showPrescription)}
+                  style={{ 
+                    width: '100%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '0.5rem', 
+                    padding: '0.55rem 1rem', 
+                    background: showPrescription ? '#F1F5F9' : 'linear-gradient(135deg,#0097A7,#00BCD4)', 
+                    color: showPrescription ? '#0052A5' : 'white', 
+                    border: '1px solid #E2E8F0', 
+                    borderRadius: 10, 
+                    fontWeight: 700, 
+                    fontSize: '0.82rem', 
+                    cursor: 'pointer', 
+                    fontFamily: 'inherit' 
+                  }}
+                >
+                  <FileText size={16} />
+                  {showPrescription ? 'Hide Prescription' : 'Write Prescription'}
+                </button>
+
+                {showPrescription && (
+                  <div className="slide-up" style={{ marginTop: '1rem' }}>
+                    <PrescriptionTable
+                      patientId={patientId}
+                      patientName={data?.patient?.name || 'Patient'}
+                      onUploadToRecords={handlePrescriptionUpload}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </section>
@@ -1256,8 +1424,12 @@ export default function ClinicianPortal() {
 
               {simTab === 'visual' && (
                 <div className="slide-up fade-in">
-                  {/* <BodyVisualizer conditions={[]} vitals={data?.patient} /> */}
-                  <span style={{color: 'var(--foreground-muted)'}}>Visualization Unavailable</span>
+                  <BodyVisualizer 
+                    effects={getMedEffects(medicationInput)} 
+                    medication={medicationInput} 
+                    patient={data?.patient}
+                    records={data?.records}
+                  />
                 </div>
               )}
             </>
@@ -1331,5 +1503,9 @@ export default function ClinicianPortal() {
         </section>
       )}
     </div>
+
+    <Chatbot userRole="clinician" />
+    </>
   );
 }
+

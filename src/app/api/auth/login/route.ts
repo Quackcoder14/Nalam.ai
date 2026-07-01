@@ -41,15 +41,15 @@ export async function POST(request: Request) {
       clinicianRole = cred.clinicianRole;
       if (cred.role === 'patient' && (cred as any).name) patientName = (cred as any).name;
     } else {
-      // Try querying Patient table
-      const patient = await prisma.patient.findUnique({ where: { login_email: uname } });
+      // Try querying Patient table by ID (username is now the patient ID)
+      const patient = await prisma.patient.findUnique({ where: { id: uname } });
       if (patient && patient.password_hash && verifyPassword(password, patient.password_hash)) {
         resolvedRole = 'patient';
         resolvedStaffId = patient.id;
         patientName = decrypt(patient.name_enc);
       } else {
-        // Try querying Doctor table
-        const doctor = await prisma.doctor.findUnique({ where: { login_email: uname } });
+        // Try querying Doctor table by ID (username is now the doctor ID)
+        const doctor = await prisma.doctor.findUnique({ where: { id: uname } });
         if (doctor && doctor.password_hash && verifyPassword(password, doctor.password_hash)) {
           resolvedRole = 'clinician';
           resolvedStaffId = doctor.id;

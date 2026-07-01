@@ -48,8 +48,10 @@ export function decrypt(cipherValue: string | null | undefined): string {
       decipher.final(),
     ]);
     return decrypted.toString('utf8');
-  } catch {
-    return '[Decryption Error]';
+  } catch (error) {
+    console.error('Decryption error:', error);
+    // Return original value if decryption fails (may be unencrypted data)
+    return cipherValue;
   }
 }
 

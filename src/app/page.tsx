@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Heart, User, Stethoscope, ChevronRight, Monitor, Globe, ArrowLeft } from 'lucide-react';
 import { useLanguage, type Lang } from '@/lib/i18n';

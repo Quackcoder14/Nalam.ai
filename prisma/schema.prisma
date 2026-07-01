@@ -14,7 +14,6 @@ datasource db {
 // ─── Patient ─────────────────────────────────────────────────────────────────
 model Patient {
   id                  String          @id
-  login_email         String?         @unique
   password_hash       String?
   name_enc            String          @db.Text
   dob_enc             String          @db.Text
@@ -86,9 +85,9 @@ model MedicalRecord {
   @@map("medical_records")
 }
 
+// ─── Doctor ────────────────────────────────────────────────────────────────────
 model Doctor {
   id                    String   @id
-  login_email           String?  @unique
   password_hash         String?
   full_name_enc         String   @db.Text
   gender_enc            String?  @db.Text
@@ -111,7 +110,7 @@ model Doctor {
   room_number_enc       String?  @db.Text
   address_enc           String?  @db.Text
   district              String?
-  state                 String?  @default("Tamil Nadu")
+  state                 String?   @default("Tamil Nadu")
   pincode               String?
   status                String   @default("active")
   created_at            DateTime @default(now())
@@ -246,4 +245,31 @@ model RecordsOtp {
 
   @@index([patient_id, expires_at])
   @@map("records_otps")
+}
+
+// ─── Chatbot Conversations ─────────────────────────────────────────────────────
+model ChatbotConversation {
+  id          String   @id @default(cuid())
+  user_id     String   // patient_id or clinician_id
+  user_role   String   // 'patient' or 'clinician'
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  messages    ChatbotMessage[]
+
+  @@index([user_id, user_role])
+  @@map("chatbot_conversations")
+}
+
+model ChatbotMessage {
+  id              String   @id @default(cuid())
+  conversation_id String
+  role            String   // 'user' or 'assistant'
+  content         String   @db.Text
+  created_at      DateTime @default(now())
+
+  conversation    ChatbotConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id, created_at])
+  @@map("chatbot_messages")
 }

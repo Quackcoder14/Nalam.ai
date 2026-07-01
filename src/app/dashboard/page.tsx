@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import VoiceTriage from "../components/VoiceTriage";
+import WhatsAppButton from "../components/WhatsAppButton";
+import Chatbot from "../components/Chatbot";
 import { apiFetch } from "@/lib/apiFetch";
 import dynamic from "next/dynamic";
 
@@ -729,6 +731,7 @@ export default function PatientDashboard() {
     null;
 
   return (
+    <>
     <div className="container fade-in">
       {/* ── Notifications Modal (bell panel only — no auto popups here) ── */}
       {showNotificationsModal && (
@@ -1674,6 +1677,23 @@ export default function PatientDashboard() {
             </div>
           ))}
         </div>
+        {patient?.mobile && (
+          <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'center' }}>
+            <WhatsAppButton
+              phoneNumber={patient.mobile}
+              message={t('whatsapp.emergency')
+                .replace('{name}', patient.name || 'Patient')
+                .replace('{id}', getPatientId())
+                .replace('{hr}', vitals.hr.toString())
+                .replace('{spo2}', vitals.spo2.toString())
+                .replace('{sys}', vitals.sys.toString())
+                .replace('{dia}', vitals.dia.toString())
+              }
+              label="Share Emergency Vitals"
+              allowRecipientChoice={true}
+            />
+          </div>
+        )}
       </section>
 
       {/* ── VOICE TRIAGE ── */}
@@ -2349,6 +2369,12 @@ export default function PatientDashboard() {
             width: calc(100vw - 1.5rem) !important;
           }
         }
+        @media (max-width: 640px) {
+          .ambulance-button-mobile {
+            bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 4rem) !important;
+            right: 0.75rem !important;
+          }
+        }
       `}</style>
 
       {/* ── Bottom-right slide-in notification (single toast only) ── */}
@@ -2564,11 +2590,12 @@ export default function PatientDashboard() {
       {/* ── AMBULANCE BUTTON ── */}
       <button
         onDoubleClick={() => setShowAmbulanceModal(true)}
+        className="ambulance-button-mobile"
         style={{
           position: "fixed",
           bottom:
-            "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem)",
-          right: "1rem",
+            "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 4rem)",
+          right: "1.5rem",
           zIndex: 9000,
           background: "linear-gradient(135deg, #ef4444, #dc2626)",
           color: "white",
@@ -2709,11 +2736,12 @@ export default function PatientDashboard() {
                       const audio = new Audio("/ringing.mp3");
                       audio.loop = true;
                       audio.play().catch(() => {});
+                      window.location.href = 'tel:100';
                       setTimeout(() => {
                         audio.pause();
                         setCallingAmbulance(false);
                         setShowAmbulanceModal(false);
-                      }, 5000);
+                      }, 1000);
                     }}
                     style={{
                       flex: 1,
@@ -2737,5 +2765,9 @@ export default function PatientDashboard() {
         </div>
       )}
     </div>
+
+    {/* Chatbot */}
+    <Chatbot userRole="patient" />
+    </>
   );
 }

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, AlertTriangle, CheckCircle, Clock, XCircle, ChevronRight, Activity, Paperclip, Trash2, RefreshCw, ArrowUpDown } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import WhatsAppButton from '@/app/components/WhatsAppButton';
 import { apiFetch } from '@/lib/apiFetch';
 
 const STATUS_STEPS = ['pending', 'approved', 'scheduled'];
@@ -387,6 +388,18 @@ export default function ViewRequests() {
                         </div>
                       </div>
                     )}
+
+                    {/* WhatsApp Share Button */}
+                    <div style={{ marginBottom: '1rem' }}>
+                      <WhatsAppButton
+                        phoneNumber={apt.patientMobile || ''}
+                        message={t('whatsapp.appointment')
+                          .replace('{doctor}', apt.doctorName)
+                          .replace('{date}', formatDate(apt.date))
+                          .replace('{time}', apt.time || 'TBD')}
+                        label="Send Appointment Reminder"
+                      />
+                    </div>
 
                     {/* ── Reschedule Proposal Banner (requires patient action) ── */}
                     {apt.status === 'pending_reschedule' && (

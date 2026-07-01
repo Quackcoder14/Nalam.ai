@@ -235,6 +235,15 @@ const translations: Record<Lang, Record<string, string>> = {
     'xai.sendAlert': 'Send alert',
     'xai.whatsappMsg': 'Is everything alright? In case of emergency click on sos button: https://nalam.ai/sos',
 
+    // ── WhatsApp Messages ───────────────────────────────────────────────────────
+    'whatsapp.emergency': '🚨 EMERGENCY ALERT - Patient {name} (ID: {id}) may need immediate attention. Current vitals: HR {hr} BPM, SpO2 {spo2}%, BP {sys}/{dia} mmHg. Please check on them immediately.',
+    'whatsapp.appointment': '📅 APPOINTMENT REMINDER - Your appointment with Dr. {doctor} is scheduled for {date} at {time}. Please arrive 15 minutes early.',
+    'whatsapp.vitalAlert': '⚠️ VITAL ALERT - {name} (ID: {id}) has abnormal vitals detected: {alert}. Please review their health status.',
+    'whatsapp.shareReport': '📋 MEDICAL REPORT - {name} (ID: {id}) has shared their medical report with you. View details on nalam.ai',
+    'whatsapp.general': '🏥 NALAM.AI - Health update for {name}: {message}',
+    'whatsapp.sendVia': 'Send via WhatsApp',
+    'whatsapp.otp': '🔐 Your Nalam.ai verification code is: {code}. Valid for 5 minutes. Do not share this code with anyone.',
+
     // ── Clinician ─────────────────────────────────────────────────────────
     'clinician.title': '🩺 Clinician Portal',
     'clinician.subtitle': 'AI-powered patient memory, digital twin simulations, and precision care',
@@ -704,6 +713,15 @@ const translations: Record<Lang, Record<string, string>> = {
     'xai.influenceScore': 'தாக்க மதிப்பெண்',
     'xai.normalRange': 'இயல்பான வரம்பு',
     'xai.riskDirection': 'ஆபத்து திசை',
+
+    // ── WhatsApp Messages (Tamil) ───────────────────────────────────────────────
+    'whatsapp.emergency': '🚨 அவசரம் விழிப்பூட்டல் - நோயாளி {name} (ID: {id}) க்கு உடனடி கவனிப்பு தேவைப்படலாம். தற்போதைய உயிர்ச்சக்திகள்: HR {hr} BPM, SpO2 {spo2}%, BP {sys}/{dia} mmHg. உடனடியாக அவர்களைச் சந்திக்கவும்.',
+    'whatsapp.appointment': '📅 நியமன நினைவூட்டல் - Dr. {doctor} உடனான உங்கள் நியமனம் {date} அன்று {time} மணிக்கு திட்டமிடப்பட்டுள்ளது. 15 நிமிடங்கள் முன்பு வரவும்.',
+    'whatsapp.vitalAlert': '⚠️ உயிர்ச்சக்தி விழிப்பூட்டல் - {name} (ID: {id}) க்கு அசாதாரண உயிர்ச்சக்திகள் கண்டறியப்பட்டுள்ளன: {alert}. அவர்களின் ஆரோக்கிய நிலையை மதிப்பாய்வு செய்யவும்.',
+    'whatsapp.shareReport': '📋 மருத்துவ அறிக்கை - {name} (ID: {id}) தங்கள் மருத்துவ அறிக்கையை உங்களுடன் பகிர்ந்துள்ளார். விவரங்களை nalam.ai இல் காணவும்',
+    'whatsapp.general': '🏥 NALAM.AI - {name} க்கான ஆரோக்கிய புதுப்பிப்பு: {message}',
+    'whatsapp.sendVia': 'WhatsApp வழியாக அனுப்பவும்',
+    'whatsapp.otp': '🔐 உங்கள் Nalam.ai சரிபார்ப்பு குறியீடு: {code}. 5 நிமிடங்களுக்கு செல்லுபடியாகும். இந்த குறியீட்டை யாருடனும் பகிரவேண்டாம்.',
     'xai.harmful': 'தீங்கு விளைவிக்கும்',
     'xai.protective': 'பாதுகாப்பான',
     'xai.neutral': 'நடுநிலை',

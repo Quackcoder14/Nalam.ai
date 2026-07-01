@@ -48,15 +48,16 @@ function FileIcon({ type, size = 32 }: { type: string; size?: number }) {
 
 function SourceBadge({ source }: { source: string }) {
   const isScanner = source === 'document_scanner';
+  const isPrescription = source === 'clinician';
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
       borderRadius: 20, fontSize: '0.7rem', fontWeight: 700,
-      background: isScanner ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : 'linear-gradient(135deg,#F0FFF4,#C6F6D5)',
-      color: isScanner ? '#0052A5' : '#276749',
-      border: `1px solid ${isScanner ? '#BFDBFE' : '#9AE6B4'}`,
+      background: isScanner ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : isPrescription ? 'linear-gradient(135deg,#FFF5F5,#FED7D7)' : 'linear-gradient(135deg,#F0FFF4,#C6F6D5)',
+      color: isScanner ? '#0052A5' : isPrescription ? '#C53030' : '#276749',
+      border: `1px solid ${isScanner ? '#BFDBFE' : isPrescription ? '#FED7D7' : '#9AE6B4'}`,
     }}>
-      {isScanner ? <><ScanLine size={11} /> Document Scanner</> : <><Upload size={11} /> Manual Upload</>}
+      {isScanner ? <><ScanLine size={11} /> Document Scanner</> : isPrescription ? <><FileText size={11} /> Prescription</> : <><Upload size={11} /> Manual Upload</>}
     </span>
   );
 }
@@ -66,6 +67,7 @@ function FileViewer({ file, onClose, onDelete }: { file: FileWithData; onClose: 
   const [deleting, setDeleting] = useState(false);
   const isImage = file.fileType === 'image' || file.fileData.startsWith('data:image');
   const isPdf = file.fileType === 'pdf' || file.fileData.includes('application/pdf');
+  const isDocument = file.fileType === 'document';
 
   const handleDelete = async () => {
     if (!confirm(`Delete "${file.filename}"? This cannot be undone.`)) return;
@@ -76,6 +78,36 @@ function FileViewer({ file, onClose, onDelete }: { file: FileWithData; onClose: 
       else alert('Failed to delete file.');
     } finally { setDeleting(false); }
   };
+
+  // Get text content for documents (already decrypted from API)
+  const getTextContent = () => {
+    if (!isDocument || !file.fileData) return null;
+    // The API already decrypts the content, so file.fileData is plain text
+    // Only try to decode if it's a data URL (base64 encoded)
+    if (file.fileData.startsWith('data:')) {
+      try {
+        const base64Data = file.fileData.split(',')[1];
+        return atob(base64Data);
+      } catch (e) {
+        console.error('Error decoding base64:', e);
+        return null;
+      }
+    }
+    // Otherwise it's already plain text
+    return file.fileData;
+  };
+
+  const textContent = getTextContent();
+
+  // Debug logging
+  console.log('File viewer debug:', {
+    fileType: file.fileType,
+    isDocument,
+    hasFileData: !!file.fileData,
+    fileDataLength: file.fileData?.length,
+    textContentLength: textContent?.length,
+    textContentPreview: textContent?.substring(0, 100),
+  });
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(6px)' }}>
@@ -117,7 +149,22 @@ function FileViewer({ file, onClose, onDelete }: { file: FileWithData; onClose: 
           {isPdf && (
             <iframe src={file.fileData} title={file.filename} style={{ width: '100%', height: '65vh', border: 'none', borderRadius: 8 }} />
           )}
-          {!isImage && !isPdf && (
+          {isDocument && textContent && (
+            <div style={{ 
+              background: 'white', 
+              padding: '1.5rem', 
+              borderRadius: 8, 
+              fontFamily: 'monospace', 
+              fontSize: '0.9rem', 
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              border: '1px solid #E2E8F0'
+            }}>
+              {textContent}
+            </div>
+          )}
+          {!isImage && !isPdf && !isDocument && (
             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--charcoal)' }}>
               <File size={48} style={{ opacity: 0.4, marginBottom: 12 }} />
               <p>Preview not available for this file type.</p>
