@@ -84,7 +84,6 @@ export async function POST(request: Request) {
     const doctor = await prisma.doctor.create({
       data: {
         id,
-        login_email: loginEmail,
         password_hash: hashPassword(password),
         full_name_enc: encrypt(fullName),
         gender_enc: optionalEnc(body.gender),
