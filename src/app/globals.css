@@ -52,43 +52,43 @@
 
 /* ─── Dark Mode ───────────────────────────────────────────────────────── */
 [data-theme="dark"] {
-  --deep-blue:          #E2EAF8;
+  --deep-blue:          #F0F6FF;
   --powder-blue:        #3B82F6;
   --powder-blue-dark:   #93C5FD;
-  --charcoal:           #94A3B8;
-  --charcoal-light:     #64748B;
+  --charcoal:           #CBD5E1;
+  --charcoal-light:     #94A3B8;
 
   --primary:            #60A5FA;
-  --primary-light:      rgba(96,165,250,0.12);
+  --primary-light:      rgba(96,165,250,0.15);
   --primary-hover:      #93C5FD;
   --accent-orange:      #FB923C;
-  --accent-orange-bg:   rgba(251,146,60,0.12);
+  --accent-orange-bg:   rgba(251,146,60,0.15);
 
   --accent-teal:        #2DD4BF;
-  --accent-teal-bg:     rgba(45,212,191,0.12);
+  --accent-teal-bg:     rgba(45,212,191,0.15);
   --accent-amber:       #FCD34D;
-  --accent-amber-bg:    rgba(252,211,77,0.12);
+  --accent-amber-bg:    rgba(252,211,77,0.15);
   --accent-red:         #F87171;
-  --accent-red-bg:      rgba(248,113,113,0.12);
+  --accent-red-bg:      rgba(248,113,113,0.15);
   --accent-green:       #4ADE80;
-  --accent-green-bg:    rgba(74,222,128,0.12);
+  --accent-green-bg:    rgba(74,222,128,0.15);
   --accent-purple:      #A78BFA;
-  --accent-purple-bg:   rgba(167,139,250,0.12);
+  --accent-purple-bg:   rgba(167,139,250,0.15);
 
   --background:         #0D1117;
   --surface:            #161B22;
-  --surface-muted:      #1C2433;
+  --surface-muted:      #212837;
 
-  --foreground:         #E2EAF8;
-  --foreground-muted:   #94A3B8;
-  --foreground-subtle:  #64748B;
+  --foreground:         #F0F6FF;
+  --foreground-muted:   #CBD5E1;
+  --foreground-subtle:  #94A3B8;
 
-  --border:             #30363D;
-  --glass-bg:           rgba(22,27,34,0.92);
-  --glass-border:       rgba(96,165,250,0.15);
-  --shadow-sm:          0 1px 4px rgba(0,0,0,0.3);
-  --shadow-md:          0 4px 16px rgba(0,0,0,0.4);
-  --shadow-lg:          0 8px 32px rgba(0,0,0,0.5);
+  --border:             #374151;
+  --glass-bg:           rgba(22,27,34,0.95);
+  --glass-border:       rgba(96,165,250,0.2);
+  --shadow-sm:          0 1px 4px rgba(0,0,0,0.4);
+  --shadow-md:          0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:          0 8px 32px rgba(0,0,0,0.6);
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────── */

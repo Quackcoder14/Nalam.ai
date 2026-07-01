@@ -163,8 +163,8 @@ export default function Chatbot({ userRole }: ChatbotProps) {
           className="chatbot-button-mobile"
           style={{
             position: 'fixed',
-            bottom: '24px',
-            right: '24px',
+            bottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1.5rem)',
+            right: '1.5rem',
             width: '60px',
             height: '60px',
             borderRadius: '50%',
@@ -175,7 +175,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 9000,
             transition: 'all 0.3s',
           }}
           onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
@@ -191,8 +191,8 @@ export default function Chatbot({ userRole }: ChatbotProps) {
           className="chatbot-window-mobile"
           style={{
             position: 'fixed',
-            bottom: '24px',
-            right: '24px',
+            bottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1.5rem)',
+            right: '1.5rem',
             width: isExpanded ? '600px' : '400px',
             maxWidth: isExpanded ? 'calc(100vw - 48px)' : 'calc(100vw - 48px)',
             height: isExpanded ? '700px' : '550px',
@@ -202,7 +202,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
             boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
             display: 'flex',
             flexDirection: 'column',
-            zIndex: 1000,
+            zIndex: 9000,
             border: '1px solid var(--border)',
             transition: 'all 0.3s ease',
           }}

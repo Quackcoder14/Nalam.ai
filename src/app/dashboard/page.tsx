@@ -335,6 +335,7 @@ export default function PatientDashboard() {
 
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [showAlertEnablePopup, setShowAlertEnablePopup] = useState(false);
   const [demoScenario, setDemoScenario] = useState<string | null>(null);
   const [chatUnread, setChatUnread] = useState(0);
   const anomalyRef = useRef<any>(null);
@@ -387,6 +388,9 @@ export default function PatientDashboard() {
       .then(async (reg) => {
         const sub = await reg?.pushManager.getSubscription();
         setPushEnabled(Notification.permission === "granted" && Boolean(sub));
+        if (Notification.permission !== "granted" || !sub) {
+          setShowAlertEnablePopup(true);
+        }
       })
       .catch(() => {});
   }, []);
@@ -2761,6 +2765,134 @@ export default function PatientDashboard() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Alert Enable Popup */}
+      {showAlertEnablePopup && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 16,
+              padding: '1.5rem',
+              maxWidth: '400px',
+              width: '90%',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                marginBottom: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: 'var(--primary-light)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </div>
+              <div>
+                <h3
+                  style={{
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    color: 'var(--deep-blue)',
+                    margin: 0,
+                  }}
+                >
+                  Enable Health Alerts
+                </h3>
+                <p
+                  style={{
+                    fontSize: '0.85rem',
+                    color: 'var(--charcoal)',
+                    margin: '0.25rem 0 0',
+                  }}
+                >
+                  Stay informed about your health status
+                </p>
+              </div>
+            </div>
+            <p
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--charcoal)',
+                lineHeight: 1.5,
+                marginBottom: '1.25rem',
+              }}
+            >
+              Enable push notifications to receive important health alerts and reminders about your medical appointments.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => setShowAlertEnablePopup(false)}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: 'var(--surface-muted)',
+                  color: 'var(--charcoal)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                }}
+              >
+                Close
+              </button>
+              <button
+                onClick={async () => {
+                  setPushLoading(true);
+                  const success = await subscribePush(getPatientId());
+                  setPushEnabled(success);
+                  setPushLoading(false);
+                  setShowAlertEnablePopup(false);
+                }}
+                disabled={pushLoading}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: 'var(--primary)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontWeight: 600,
+                  cursor: pushLoading ? 'not-allowed' : 'pointer',
+                  fontSize: '0.9rem',
+                  opacity: pushLoading ? 0.7 : 1,
+                }}
+              >
+                {pushLoading ? 'Enabling...' : 'Enable Alerts'}
+              </button>
+            </div>
           </div>
         </div>
       )}
