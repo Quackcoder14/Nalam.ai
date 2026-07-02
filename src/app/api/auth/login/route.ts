@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       staffId: resolvedStaffId,
       ...(branch        ? { branch }              : {}),
       ...(clinicianRole ? { clinicianRole } : {}),
-    }, JWT_SECRET, { expiresIn: '8h' });
+    }, JWT_SECRET, { expiresIn: '30d' });
 
     const res = NextResponse.json({
       success: true,
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 8, // 8 hours
+      maxAge: 60 * 60 * 24 * 30, // 30 days
       secure: process.env.NODE_ENV === 'production',
     });
 

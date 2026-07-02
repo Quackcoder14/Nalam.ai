@@ -122,6 +122,17 @@ export default function HospitalDeskPage() {
           if (a.severity === 'critical' && !notifiedAlertsRef.current.has(a.id)) {
             setCriticalPopupAlert(a);
             notifiedAlertsRef.current.add(a.id);
+            
+            // Trigger native Windows/desktop notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification(a.title || 'Nalam.ai Alert', {
+                body: a.message || a.title,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                tag: a.id,
+                requireInteraction: true,
+              });
+            }
             break;
           }
         }
@@ -371,16 +382,16 @@ export default function HospitalDeskPage() {
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
           <button onClick={() => router.push('/hospital-desk/patients/new')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary)', color: 'white', borderColor: 'var(--primary)' }}>
-            <UserPlus size={15} /> Add Patient
+            <UserPlus size={15} /> {t('hdesk.addPatient')}
           </button>
           <button onClick={() => router.push('/hospital-desk/doctors/new')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <ClipboardPlus size={15} /> Add Doctor
+            <ClipboardPlus size={15} /> {t('hdesk.addDoctor')}
           </button>
           <button className="glass-button" onClick={() => router.push('/search')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Search size={15} /> {t('hdesk.searchRecords')}
           </button>
           <button onClick={() => router.push('/hospital-desk/chat')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary-light)', color: 'var(--primary)', borderColor: 'var(--primary)', position: 'relative' }}>
-            <MessageSquare size={15} /> Patient Chat
+            <MessageSquare size={15} /> {t('hdesk.patientChat')}
             {chatUnread > 0 && (
               <span style={{ position: 'absolute', top: -6, right: -6, background: 'var(--accent-red)', color: 'white', fontSize: '0.65rem', fontWeight: 800, padding: '0.1rem 0.4rem', borderRadius: 10, border: '2px solid white', animation: 'pulseGlow 2s infinite' }}>
                 {chatUnread}
@@ -435,7 +446,7 @@ export default function HospitalDeskPage() {
                 onClick={() => setShowRecordsModal(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.5rem 1rem', background: 'linear-gradient(135deg,#0052A5,#0073D9)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}
               >
-                🗂️ View Records
+                {t('hdesk.viewRecords')}
               </button>
             </div>
           </div>
@@ -487,7 +498,7 @@ export default function HospitalDeskPage() {
                 <div className="flex-between" style={{ marginBottom: '0.4rem' }}>
                   <div style={{ fontWeight: 700, color: 'var(--deep-blue)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <AlertTriangle size={15} color={a.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)'} />
-                    Patient {a.patient_id}
+                    {t('hdesk.patient')} {a.patient_id}
                   </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>{timeAgo(a.created_at)}</span>
                 </div>
@@ -515,27 +526,27 @@ export default function HospitalDeskPage() {
       {/* General Appointments Module */}
       <section className="glass-panel slide-up stagger-2" style={{ marginBottom: '1.5rem' }}>
         <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>📅 Appointment Requests</h3>
-          <button onClick={fetchAllAppointments} className="glass-button" style={{ fontSize: '0.78rem', padding: '0.3rem 0.7rem' }}>↻ Refresh</button>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>{t('hdesk.appointmentRequests')}</h3>
+          <button onClick={fetchAllAppointments} className="glass-button" style={{ fontSize: '0.78rem', padding: '0.3rem 0.7rem' }}>{t('hdesk.refresh')}</button>
         </div>
         
         {/* Sort Bar */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'center' }}>
           <ArrowUpDown size={14} color="var(--foreground-muted)" />
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>Sort:</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>{t('hdesk.sort')}</span>
           {(['newest', 'oldest', 'upcoming', 'past'] as const).map(opt => (
             <button
               key={opt}
               onClick={() => setSortApt(opt)}
               style={{ padding: '0.3rem 0.75rem', borderRadius: 20, border: `1.5px solid ${sortApt === opt ? 'var(--primary)' : 'var(--border)'}`, background: sortApt === opt ? 'var(--primary)' : 'var(--surface)', color: sortApt === opt ? 'white' : 'var(--foreground)', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', textTransform: 'capitalize' }}
             >
-              {opt === 'newest' ? 'Newest First' : opt === 'oldest' ? 'Oldest First' : opt === 'upcoming' ? 'Upcoming' : 'Past'}
+              {opt === 'newest' ? t('hdesk.newestFirst') : opt === 'oldest' ? t('hdesk.oldestFirst') : opt === 'upcoming' ? t('hdesk.upcoming') : t('hdesk.past')}
             </button>
           ))}
         </div>
 
         {appointments.length === 0 ? (
-          <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>No appointment requests yet.</p>
+          <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>{t('hdesk.noAppointmentRequests')}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             {(() => {
@@ -546,7 +557,7 @@ export default function HospitalDeskPage() {
               else if (sortApt === 'upcoming') arr = arr.filter(a => a.date >= today).sort((a,b) => a.date.localeCompare(b.date));
               else if (sortApt === 'past') arr = arr.filter(a => a.date < today).sort((a,b) => b.date.localeCompare(a.date));
 
-              if (arr.length === 0) return <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>No {sortApt} appointments.</p>;
+              if (arr.length === 0) return <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>{t('hdesk.noSortAppointments').replace('{sortApt}', sortApt)}</p>;
 
               return arr.map(apt => {
                 const urgColors: Record<string, {color:string;bg:string}> = { Routine:{color:'#0097A7',bg:'#E0F7FA'}, Urgent:{color:'#C07A00',bg:'#FFF8E1'}, Emergency:{color:'#C62828',bg:'#FFEBEE'} };
@@ -558,7 +569,7 @@ export default function HospitalDeskPage() {
                 const stColor = stColors[apt.status] || '#C07A00';
                 const stBg    = stBgs[apt.status] || '#FFF8E1';
                 const isGreyed = ['rejected', 'cancelled', 'reschedule_patient_rejected'].includes(apt.status);
-                const stLabel = apt.status === 'reschedule_patient_rejected' ? 'Reschedule Rejected' : apt.status === 'reschedule_accepted' ? 'Scheduled' : apt.status.charAt(0).toUpperCase() + apt.status.slice(1).replace('_', ' ');
+                const stLabel = apt.status === 'reschedule_patient_rejected' ? t('hdesk.rescheduleRejected') : apt.status === 'reschedule_accepted' ? t('hdesk.scheduled') : apt.status.charAt(0).toUpperCase() + apt.status.slice(1).replace('_', ' ');
 
                 const isEx = aptExpanded === apt.id;
               return (
@@ -577,16 +588,16 @@ export default function HospitalDeskPage() {
                   {isEx && (
                     <div style={{ padding: '1.25rem', borderTop: '1px solid var(--border)', background: 'var(--surface)' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>PATIENT</div><div style={{ fontWeight: 700 }}>{apt.patientName} · <span style={{ fontFamily: 'monospace', color: 'var(--primary)', fontSize: '0.85rem' }}>{apt.patientId}</span></div></div>
-                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>DOCTOR</div><div style={{ fontWeight: 700 }}>{apt.doctorName}</div><div style={{ fontSize: '0.78rem', color: 'var(--charcoal)' }}>{apt.doctorSpecialty}</div></div>
-                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>REQUESTED DATE</div><div style={{ fontWeight: 600 }}>{new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</div></div>
-                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>REQUESTED TIME</div><div style={{ fontWeight: 600 }}>{apt.time || <span style={{ color: 'var(--foreground-muted)', fontWeight: 400 }}>Not specified</span>}</div></div>
+                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>{t('hdesk.patientLabel')}</div><div style={{ fontWeight: 700 }}>{apt.patientName} · <span style={{ fontFamily: 'monospace', color: 'var(--primary)', fontSize: '0.85rem' }}>{apt.patientId}</span></div></div>
+                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>{t('hdesk.doctorLabel')}</div><div style={{ fontWeight: 700 }}>{apt.doctorName}</div><div style={{ fontSize: '0.78rem', color: 'var(--charcoal)' }}>{apt.doctorSpecialty}</div></div>
+                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>{t('hdesk.requestedDate')}</div><div style={{ fontWeight: 600 }}>{new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</div></div>
+                        <div><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 3 }}>{t('hdesk.requestedTime')}</div><div style={{ fontWeight: 600 }}>{apt.time || <span style={{ color: 'var(--foreground-muted)', fontWeight: 400 }}>{t('hdesk.notSpecified')}</span>}</div></div>
                       </div>
-                      <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>PATIENT REASON</div><div style={{ fontSize: '0.88rem', lineHeight: 1.6, padding: '0.6rem 0.85rem', background: 'var(--surface-muted)', borderRadius: 8 }}>{apt.reason}</div></div>
-                      <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>AI CLINICAL SUMMARY</div><div style={{ fontSize: '0.85rem', lineHeight: 1.6, padding: '0.6rem 0.85rem', background: 'rgba(0,82,165,0.05)', border: '1px solid rgba(0,82,165,0.15)', borderRadius: 8 }}>{apt.aiSummary || '—'}</div></div>
+                      <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>{t('hdesk.patientReason')}</div><div style={{ fontSize: '0.88rem', lineHeight: 1.6, padding: '0.6rem 0.85rem', background: 'var(--surface-muted)', borderRadius: 8 }}>{apt.reason}</div></div>
+                      <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>{t('hdesk.aiClinicalSummary')}</div><div style={{ fontSize: '0.85rem', lineHeight: 1.6, padding: '0.6rem 0.85rem', background: 'rgba(0,82,165,0.05)', border: '1px solid rgba(0,82,165,0.15)', borderRadius: 8 }}>{apt.aiSummary || '—'}</div></div>
                       {apt.vitalsSnapshot && (
                         <div style={{ marginBottom: '0.75rem' }}>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>⚡ VITALS AT SUBMISSION</div>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>{t('hdesk.vitalsAtSubmission')}</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                             {[['❤️','HR',`${apt.vitalsSnapshot.hr} BPM`,'#FCA5A5'],['🫁','SpO₂',`${apt.vitalsSnapshot.spo2}%`,'#A5D8FF'],['💨','Resp',`${apt.vitalsSnapshot.resp} bpm`,'#86EFAC'],['🌡️','Temp',`${apt.vitalsSnapshot.temp}°C`,'#FDE68A'],['🩸','BP',`${apt.vitalsSnapshot.sys}/${apt.vitalsSnapshot.dia}`,'#C7D2FE']].map(([em,lb,vl,cl]) => (
                               <span key={lb as string} style={{ padding: '0.25rem 0.6rem', borderRadius: 8, background: `${cl}22`, border: `1px solid ${cl}66`, fontSize: '0.77rem', fontWeight: 700 }}>{em} {lb}: {vl}</span>
@@ -595,34 +606,34 @@ export default function HospitalDeskPage() {
                         </div>
                       )}
                       {apt.attachments?.length > 0 && (
-                        <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>ATTACHMENTS</div><div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>{apt.attachments.map((a:any, i:number) => <span key={i} style={{ padding: '0.2rem 0.6rem', borderRadius: 8, background: 'var(--surface-muted)', border: '1px solid var(--border)', fontSize: '0.78rem' }}>{a.type === 'image' ? '🖼' : '📄'} {a.name}</span>)}</div></div>
+                        <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>{t('hdesk.attachments')}</div><div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>{apt.attachments.map((a:any, i:number) => <span key={i} style={{ padding: '0.2rem 0.6rem', borderRadius: 8, background: 'var(--surface-muted)', border: '1px solid var(--border)', fontSize: '0.78rem' }}>{a.type === 'image' ? '🖼' : '📄'} {a.name}</span>)}</div></div>
                       )}
                       {apt.status === 'pending' && (
                         <>
                           <div style={{ marginBottom: '0.75rem' }}>
-                            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: 4 }}>Note to Patient (optional)</label>
-                            <textarea value={aptNote[apt.id] || ''} onChange={e => setAptNote(p => ({...p, [apt.id]: e.target.value}))} rows={2} placeholder="Add a note or instructions for the patient…" style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: 4 }}>{t('hdesk.noteToPatient')}</label>
+                            <textarea value={aptNote[apt.id] || ''} onChange={e => setAptNote(p => ({...p, [apt.id]: e.target.value}))} rows={2} placeholder={t('hdesk.notePlaceholder')} style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                           </div>
                           <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
                             <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'rejected')} style={{ padding: '0.5rem 1.1rem', borderRadius: 8, background: '#FFEBEE', border: '1px solid rgba(198,40,40,0.3)', color: '#C62828', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}>
-                              {aptProcessing === apt.id ? '…' : '✕ Reject'}
+                              {aptProcessing === apt.id ? '…' : t('hdesk.reject')}
                             </button>
                             <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'approved')} style={{ padding: '0.5rem 1.25rem', borderRadius: 8, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(0,82,165,0.25)' }}>
-                              {aptProcessing === apt.id ? '…' : '✓ Approve & Route to Doctor'}
+                              {aptProcessing === apt.id ? '…' : t('hdesk.approveRoute')}
                             </button>
                           </div>
                         </>
                       )}
                       {apt.status === 'pending_reschedule' && (
                         <div style={{ marginBottom: '0.75rem', padding: '1rem', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 8 }}>
-                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C07A00', marginBottom: '0.5rem' }}>DOCTOR PROPOSED RESCHEDULE</div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#C07A00', marginBottom: '0.5rem' }}>{t('hdesk.doctorProposedReschedule')}</div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                            <div><span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>New Date:</span> <span style={{ fontWeight: 600 }}>{apt.rescheduleProposedDate}</span></div>
-                            <div><span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>New Time:</span> <span style={{ fontWeight: 600 }}>{apt.rescheduleProposedTime}</span></div>
+                            <div><span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>{t('hdesk.newDate')}</span> <span style={{ fontWeight: 600 }}>{apt.rescheduleProposedDate}</span></div>
+                            <div><span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>{t('hdesk.newTime')}</span> <span style={{ fontWeight: 600 }}>{apt.rescheduleProposedTime}</span></div>
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--foreground)', marginBottom: '0.75rem' }}><strong>Reason:</strong> {apt.rescheduleReason}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--foreground)', marginBottom: '0.75rem' }}><strong>{t('hdesk.reason')}</strong> {apt.rescheduleReason}</div>
                           <div style={{ display: 'inline-block', padding: '0.4rem 0.8rem', background: '#FFF3E0', color: '#E65100', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700, border: '1px solid #FFE0B2' }}>
-                            ⏳ Awaiting Patient Decision
+                            {t('hdesk.awaitingPatientDecision')}
                           </div>
                         </div>
                       )}
@@ -647,7 +658,7 @@ export default function HospitalDeskPage() {
                   <ScanLine size={16} /> {t('hdesk.recordScanner')}
                 </button>
                 <button onClick={() => setActiveTab('timeline')} className="glass-button" style={{ background: activeTab === 'timeline' ? 'var(--primary)' : 'transparent', color: activeTab === 'timeline' ? 'white' : 'var(--charcoal)', border: activeTab === 'timeline' ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-                  <Activity size={16} /> Patient Timeline
+                  <Activity size={16} /> {t('hdesk.patientTimeline')}
                 </button>
               </div>
 
@@ -703,11 +714,11 @@ export default function HospitalDeskPage() {
                   {mismatchWarning && !imported && (
                     <div style={{ marginTop: '1rem', padding: '1rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#B91C1C', fontWeight: 700, marginBottom: '0.5rem' }}>
-                        <AlertTriangle size={20} /> ⚠️ SCAN WARNING
+                        <AlertTriangle size={20} /> {t('hdesk.scanWarning')}
                       </div>
                       <p style={{ color: '#991B1B', fontSize: '0.9rem', marginBottom: '1rem' }}>{mismatchWarning}</p>
                       <button onClick={() => setMismatchWarning(null)} style={{ padding: '0.5rem 1rem', background: '#DC2626', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-                        Acknowledge & Proceed Anyway
+                        {t('hdesk.acknowledgeProceed')}
                       </button>
                     </div>
                   )}
@@ -716,21 +727,21 @@ export default function HospitalDeskPage() {
                       {/* Doctor dropdown */}
                       <div>
                         <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: '0.4rem' }}>
-                          👨‍⚕️ Doctor (optional)
+                          {t('hdesk.doctorOptional')}
                         </label>
                         <select
                           value={scanDoctor}
                           onChange={e => { setScanDoctor(e.target.value); if (e.target.value !== 'other') setScanDoctorCustom(''); }}
                           style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem' }}
                         >
-                          <option value=''>— Select doctor (if applicable) —</option>
+                          <option value=''>{t('hdesk.selectDoctor')}</option>
                           {getDoctorsForBranch().map(d => <option key={d} value={d}>{d}</option>)}
-                          <option value='other'>Other (type manually)</option>
+                          <option value='other'>{t('hdesk.otherTypeManually')}</option>
                         </select>
                         {scanDoctor === 'other' && (
                           <input
                             type='text'
-                            placeholder='Enter doctor name or appointment reference…'
+                            placeholder={t('hdesk.enterDoctorName')}
                             value={scanDoctorCustom}
                             onChange={e => setScanDoctorCustom(e.target.value)}
                             style={{ marginTop: '0.5rem', width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--primary)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem', boxSizing: 'border-box' }}
@@ -740,13 +751,13 @@ export default function HospitalDeskPage() {
                       {/* Notes field */}
                       <div>
                         <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: '0.4rem' }}>
-                          📝 Additional Notes (optional)
+                          {t('hdesk.additionalNotes')}
                         </label>
                         <textarea
                           value={scanNotes}
                           onChange={e => setScanNotes(e.target.value)}
                           rows={3}
-                          placeholder='Add any additional notes, observations or context for this document…'
+                          placeholder={t('hdesk.notesPlaceholder')}
                           style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem', resize: 'vertical', boxSizing: 'border-box' }}
                         />
                       </div>
@@ -790,8 +801,8 @@ export default function HospitalDeskPage() {
                           <div style={{ fontSize: '0.79rem', color: 'var(--charcoal)', marginBottom: expandedRecord === r.record_id ? '0.4rem' : 0 }}>{r.provider}</div>
                           {expandedRecord === r.record_id && (
                             <div className="fade-in" style={{ background: 'white', borderRadius: 8, padding: '0.75rem', marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                              {r.notes && <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', lineHeight: 1.6 }}><strong>Notes:</strong> {r.notes}</p>}
-                              {r.lab_results && <p style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 600 }}><strong style={{ color: 'var(--charcoal)' }}>Labs:</strong> {r.lab_results}</p>}
+                              {r.notes && <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', lineHeight: 1.6 }}><strong>{t('hdesk.notesLabel')}</strong> {r.notes}</p>}
+                              {r.lab_results && <p style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 600 }}><strong style={{ color: 'var(--charcoal)' }}>{t('hdesk.labsLabel')}</strong> {r.lab_results}</p>}
                             </div>
                           )}
                         </div>

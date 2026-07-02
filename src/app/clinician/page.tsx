@@ -22,6 +22,7 @@ function RescheduleModal({ apt, processing, onCancel, onSubmit }: {
   onCancel: () => void;
   onSubmit: (date: string, time: string, reason: string) => void;
 }) {
+  const { t } = useLanguage();
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [reason, setReason] = useState('');
@@ -47,25 +48,25 @@ function RescheduleModal({ apt, processing, onCancel, onSubmit }: {
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999, padding: '1rem' }}>
       <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 440, background: 'var(--surface)', padding: '1.5rem', borderRadius: 16, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)' }}>📅 Propose Reschedule</h3>
+        <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)' }}>{t("clinician.rescheduleTitle")}</h3>
         <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginBottom: '1.25rem' }}>
-          For: <strong>{apt.patientName}</strong> — original {apt.date} at {apt.time}
+          {t("clinician.rescheduleFor")} <strong>{apt.patientName}</strong> — {t("clinician.rescheduleOriginal")} {apt.date} {t("clinician.rescheduleAt")} {apt.time}
         </p>
 
-        <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>New Date</label>
+        <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>{t("clinician.newDate")}</label>
         <input type="date" min={minDate} value={date} onChange={e => setDate(e.target.value)}
           style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1.25rem', fontFamily: 'inherit', boxSizing: 'border-box' }} />
 
         <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>
-          New Time {!date && <span style={{ fontWeight: 400, color: 'var(--charcoal)', fontSize: '0.78rem' }}>— pick a date first</span>}
-          {loadingSlots && <span style={{ fontWeight: 400, color: 'var(--primary)', fontSize: '0.78rem', marginLeft: 8 }}>Loading slots…</span>}
+          {t("clinician.newTime")} {!date && <span style={{ fontWeight: 400, color: 'var(--charcoal)', fontSize: '0.78rem' }}>{t("clinician.pickDateFirst")}</span>}
+          {loadingSlots && <span style={{ fontWeight: 400, color: 'var(--primary)', fontSize: '0.78rem', marginLeft: 8 }}>{t("clinician.loadingSlots")}</span>}
         </label>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1.25rem' }}>
           {AVAILABLE_TIME_SLOTS.map(slot => {
             const isBooked = bookedSlots.includes(slot);
             return (
               <button key={slot} onClick={() => !isBooked && date && setTime(slot)} disabled={isBooked || !date}
-                title={isBooked ? 'Already booked' : !date ? 'Select a date first' : undefined}
+                title={isBooked ? t("clinician.alreadyBooked") : !date ? t("clinician.selectDateFirst") : undefined}
                 style={{
                   padding: '0.4rem 0.85rem', borderRadius: 8, fontSize: '0.8rem', fontWeight: 600,
                   border: `1.5px solid ${isBooked ? '#E2E8F0' : time === slot ? 'var(--primary)' : 'var(--border)'}`,
@@ -80,19 +81,19 @@ function RescheduleModal({ apt, processing, onCancel, onSubmit }: {
             );
           })}
         </div>
-        {date && bookedSlots.length > 0 && <p style={{ fontSize: '0.73rem', color: 'var(--charcoal)', marginBottom: '1rem', marginTop: '-1rem' }}>✗ = already booked by another patient</p>}
+        {date && bookedSlots.length > 0 && <p style={{ fontSize: '0.73rem', color: 'var(--charcoal)', marginBottom: '1rem', marginTop: '-1rem' }}>{t("clinician.bookedByAnother")}</p>}
 
-        <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>Reason for Reschedule</label>
+        <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>{t("clinician.rescheduleReason")}</label>
         <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3}
-          placeholder="Provide a brief reason for the patient and desk..."
+          placeholder={t("clinician.rescheduleReasonPlaceholder")}
           style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', marginBottom: '1.5rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
 
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button onClick={onCancel} style={{ padding: '0.55rem 1.1rem', borderRadius: 8, border: 'none', background: 'var(--surface-muted)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={onCancel} style={{ padding: '0.55rem 1.1rem', borderRadius: 8, border: 'none', background: 'var(--surface-muted)', fontWeight: 600, cursor: 'pointer' }}>{t("clinician.cancel")}</button>
           <button disabled={!date || !time || !reason || processing}
             onClick={() => onSubmit(date, time, reason)}
             style={{ padding: '0.55rem 1.1rem', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 600, cursor: (!date || !time || !reason) ? 'not-allowed' : 'pointer', opacity: (!date || !time || !reason) ? 0.6 : 1 }}>
-            {processing ? 'Submitting…' : 'Submit Proposal'}
+            {processing ? t("clinician.submitting") : t("clinician.submitProposal")}
           </button>
         </div>
       </div>
@@ -351,7 +352,7 @@ function BodyVisualizer({ effects, medication, dosage, patient, records }: {
             margin: '0 auto 0.75rem'
           }} />
           <p style={{ fontSize: '0.9rem', color: 'var(--foreground-muted)', margin: 0 }}>
-            Analyzing drug effects with AI...
+            {t("clinician.analyzingDrugEffects")}
           </p>
         </div>
       )}
@@ -395,7 +396,7 @@ function BodyVisualizer({ effects, medication, dosage, patient, records }: {
               {loadingOrgan ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--charcoal)', fontSize: '0.85rem' }}>
                   <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                  AI is analysing...
+                  {t("clinician.aiAnalyzing")}
                 </div>
               ) : organExplanation ? (
                 <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.6 }}>
@@ -770,7 +771,9 @@ export default function ClinicianPortal() {
       .then(r => r.json())
       .then(d => { if (d.patients) setAllPatients(d.patients); })
       .catch(() => {});
-  }, []);
+      
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const requestContext = async () => {
     setError(null); setData(null); setSimulation(null); setGlassBoxLogs([]); setBiography('');
@@ -856,7 +859,7 @@ export default function ClinicianPortal() {
         method: 'POST',
         body: JSON.stringify({ patientId })
       });
-      alert('Session saved to patient records successfully.');
+      alert(t('clinician.sessionSaved'));
       setData(null);
       setPatientId('');
       setPatientSearchInput('');
@@ -869,7 +872,7 @@ export default function ClinicianPortal() {
       setLoadingNav(false);
       clearChatbotContext();
     } catch (e) {
-      alert('Failed to save session.');
+      alert(t('clinician.sessionSaveFailed'));
     } finally {
       setSavingSession(false);
     }
@@ -944,6 +947,7 @@ export default function ClinicianPortal() {
   };
 
   const handlePrescriptionUpload = async (prescription: any) => {
+    const { t } = useLanguage();
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/prescriptions`, {
         method: 'POST',
@@ -953,7 +957,7 @@ export default function ClinicianPortal() {
         const error = await res.json();
         throw new Error(error.error || 'Failed to upload prescription');
       }
-      alert('Prescription uploaded successfully to patient records!');
+      alert(t('clinician.prescriptionUploaded'));
       setShowPrescription(false);
     } catch (error) {
       console.error('Prescription upload error:', error);
@@ -1046,7 +1050,7 @@ export default function ClinicianPortal() {
           onClick={() => { setShowAppointments(p => !p); if (!showAppointments) fetchAppointments(); }}
           style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: showAppointments ? 'var(--primary)' : 'var(--surface)', color: showAppointments ? 'white' : 'var(--primary)', fontSize: '0.8rem' }}
         >
-          <Clock size={14} /> {showAppointments ? 'Hide Apts' : 'Appointments'}
+          <Clock size={14} /> {showAppointments ? t('clinician.hideApts') : t('clinician.appointments')}
           {appointments.length > 0 && !showAppointments && (
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-orange)' }} />
           )}
@@ -1058,29 +1062,29 @@ export default function ClinicianPortal() {
       {showAppointments && (
         <div className="glass-panel slide-up" style={{ marginBottom: '1.5rem', background: 'rgba(0,82,165,0.03)', border: '1.5px solid rgba(0,82,165,0.15)' }}>
           <div className="flex-between" style={{ marginBottom: '1rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)' }}>📅 My Appointments</h3>
-            <button onClick={fetchAppointments} className="glass-button" style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>↻ Refresh</button>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)' }}>{t('clinician.myAppointments')}</h3>
+            <button onClick={fetchAppointments} className="glass-button" style={{ padding: '0.3rem 0.7rem', fontSize: '0.78rem' }}>{t('clinician.refresh')}</button>
           </div>
 
           {/* Sort Bar */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem', alignItems: 'center' }}>
             <ArrowUpDown size={14} color="var(--foreground-muted)" />
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>Sort:</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>{t('clinician.sort')}</span>
             {(['newest', 'oldest', 'upcoming', 'past'] as const).map(opt => (
               <button
                 key={opt}
                 onClick={() => setSortApt(opt)}
                 style={{ padding: '0.3rem 0.75rem', borderRadius: 20, border: `1.5px solid ${sortApt === opt ? 'var(--primary)' : 'var(--border)'}`, background: sortApt === opt ? 'var(--primary)' : 'var(--surface)', color: sortApt === opt ? 'white' : 'var(--foreground)', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', textTransform: 'capitalize' }}
               >
-                {opt === 'newest' ? 'Newest First' : opt === 'oldest' ? 'Oldest First' : opt === 'upcoming' ? 'Upcoming' : 'Past'}
+                {opt === 'newest' ? t('clinician.newestFirst') : opt === 'oldest' ? t('clinician.oldestFirst') : opt === 'upcoming' ? t('clinician.upcoming') : t('clinician.past')}
               </button>
             ))}
           </div>
 
           {aptLoading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--charcoal)' }}>Loading appointments...</div>
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--charcoal)' }}>{t('clinician.loadingAppointments')}</div>
           ) : appointments.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--charcoal)' }}>No appointments routed to you currently.</div>
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--charcoal)' }}>{t('clinician.noAppointments')}</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {(() => {
@@ -1091,7 +1095,7 @@ export default function ClinicianPortal() {
                 else if (sortApt === 'upcoming') arr = arr.filter(a => a.date >= today).sort((a,b) => a.date.localeCompare(b.date));
                 else if (sortApt === 'past') arr = arr.filter(a => a.date < today).sort((a,b) => b.date.localeCompare(a.date));
 
-                if (arr.length === 0) return <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>No {sortApt} appointments.</p>;
+                if (arr.length === 0) return <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>{t('clinician.noSortAppointments').replace('{sortApt}', sortApt)}</p>;
 
                 return arr.map(apt => {
                   const stColors: Record<string, string> = { approved: '#0052A5', scheduled: '#2E7D32', reschedule_accepted: '#2E7D32', rejected: '#C62828', cancelled: '#71717A', reschedule_patient_rejected: '#71717A', pending_reschedule: '#C07A00' };
@@ -1110,17 +1114,17 @@ export default function ClinicianPortal() {
                           <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: stBg, color: stColor, fontWeight: 700 }}>{stLabel}</span>
                         </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginBottom: '0.75rem' }}>
-                          <strong>Date:</strong> {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}
-                          {apt.time && <> &nbsp;|&nbsp; <strong>Time:</strong> {apt.time}</>}
-                          &nbsp;| <strong>Ref:</strong> {apt.id}
+                          <strong>{t('clinician.date')}</strong> {new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}
+                          {apt.time && <> &nbsp;|&nbsp; <strong>{t('clinician.time')}</strong> {apt.time}</>}
+                          &nbsp;| <strong>{t('clinician.ref')}</strong> {apt.id}
                         </div>
                         <div style={{ marginBottom: '0.75rem' }}>
-                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 2 }}>PATIENT REASON</div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 2 }}>{t('clinician.patientReason')}</div>
                           <div style={{ fontSize: '0.85rem', color: 'var(--foreground)' }}>{apt.reason}</div>
                         </div>
                         {apt.aiSummary && (
                           <div style={{ marginBottom: '0.75rem' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: 2 }}>AI SUMMARY</div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: 2 }}>{t('clinician.aiSummary')}</div>
                             <div style={{ fontSize: '0.85rem', padding: '0.5rem', background: 'var(--primary-light)', borderRadius: 6, color: 'var(--deep-blue)' }}>{apt.aiSummary}</div>
                           </div>
                         )}
@@ -1138,28 +1142,28 @@ export default function ClinicianPortal() {
                               message={t('whatsapp.general')
                                 .replace('{name}', apt.patientName)
                                 .replace('{message}', `Regarding your appointment on ${new Date(apt.date+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})}${apt.time ? ` at ${apt.time}` : ''}. Ref: ${apt.id}`)}
-                              label="Contact Patient"
+                              label={t('clinician.contactPatient')}
                             />
                           </div>
                         )}
                       </div>
                       {apt.status === 'pending_reschedule' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#FFF8E1', padding: '0.5rem 0.85rem', borderRadius: 8, border: '1px solid #FFE082', color: '#C07A00', fontWeight: 600, fontSize: '0.8rem' }}>
-                          Reschedule proposed. Awaiting patient decision.
+                          {t('clinician.rescheduleProposed')}
                         </div>
                       ) : apt.status === 'reschedule_patient_rejected' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F4F4F5', padding: '0.5rem 0.85rem', borderRadius: 8, border: '1px solid #D4D4D8', color: '#71717A', fontWeight: 600, fontSize: '0.8rem' }}>
-                          Patient Rejected Reschedule.
+                          {t('clinician.patientRejectedReschedule')}
                         </div>
                       ) : (apt.status === 'approved' || apt.status === 'scheduled') && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
                           {apt.status === 'approved' && (
                             <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'scheduled')} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: 'var(--accent-green)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(34,197,94,0.3)', width: '100%' }}>
-                              {aptProcessing === apt.id ? 'Updating…' : '✓ Mark as Scheduled'}
+                              {aptProcessing === apt.id ? t('clinician.updating') : t('clinician.markScheduled')}
                             </button>
                           )}
                           <button disabled={aptProcessing === apt.id} onClick={() => { setRescheduleApt(apt); setRescheduleDate(''); setRescheduleTime(''); setRescheduleReason(''); }} style={{ padding: '0.5rem 1rem', borderRadius: 8, background: 'var(--surface-muted)', color: 'var(--charcoal)', border: '1px solid var(--border)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', width: '100%' }}>
-                            Propose Reschedule
+                            {t('clinician.proposeReschedule')}
                           </button>
                         </div>
                       )}
@@ -1273,7 +1277,7 @@ export default function ClinicianPortal() {
                 onClick={() => setShowRecordsModal(true)}
                 style={{ marginTop: '0.85rem', display: 'flex', alignItems: 'center', gap: 6, padding: '0.55rem 1rem', background: 'linear-gradient(135deg,#0052A5,#0073D9)', color: 'white', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', width: '100%', justifyContent: 'center' }}
               >
-                🗂️ View Patient Records
+                {t('clinician.viewPatientRecords')}
               </button>
 
               {/* Prescription Section */}
@@ -1298,7 +1302,7 @@ export default function ClinicianPortal() {
                   }}
                 >
                   <FileText size={16} />
-                  {showPrescription ? 'Hide Prescription' : 'Write Prescription'}
+                  {showPrescription ? t('clinician.hidePrescription') : t('clinician.writePrescription')}
                 </button>
 
                 {showPrescription && (
@@ -1334,7 +1338,7 @@ export default function ClinicianPortal() {
                     fontFamily: 'inherit'
                   }}
                 >
-                  {savingSession ? 'Saving...' : '💾 Save & Close Session'}
+                  {savingSession ? t('clinician.saving') : t('clinician.saveCloseSession')}
                 </button>
               </div>
             </div>

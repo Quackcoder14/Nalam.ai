@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, X, Send, Phone, AlertTriangle, Loader2, Type, Plus, Minus } from 'lucide-react';
+import { MessageCircle, X, Send, Phone, AlertTriangle, Loader2, Type, Plus, Minus, Mic, MicOff } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
+import { useLanguage } from '@/lib/i18n';
 
 type Message = {
   role: 'user' | 'assistant';
@@ -16,6 +17,7 @@ type ChatbotProps = {
 };
 
 export default function Chatbot({ userRole }: ChatbotProps) {
+  const { t, lang } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -27,6 +29,8 @@ export default function Chatbot({ userRole }: ChatbotProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [approvedPatientId, setApprovedPatientId] = useState<string | null>(null);
   const [textSize, setTextSize] = useState<'small' | 'medium' | 'large'>('medium');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recognition, setRecognition] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -59,19 +63,19 @@ export default function Chatbot({ userRole }: ChatbotProps) {
         } else {
           // Send greeting message
           const greeting = userRole === 'clinician'
-            ? 'Hello! I\'m your medical AI assistant. I can help you with medical knowledge, patient data (when context is approved), and your calendar. How can I assist you today?'
-            : 'Hello! I\'m your medical AI assistant. I can help answer your health questions and provide general medical information. How can I help you today?';
+            ? t('chatbot.greetingClinician')
+            : t('chatbot.greetingPatient');
           setMessages([{ role: 'assistant', content: greeting }]);
         }
       }
     } catch (e) {
       console.error('Failed to load conversation:', e);
       const greeting = userRole === 'clinician'
-        ? 'Hello! I\'m your medical AI assistant. I can help you with medical knowledge, patient data (when context is approved), and your calendar. How can I assist you today?'
-        : 'Hello! I\'m your medical AI assistant. I can help answer your health questions and provide general medical information. How can I help you today?';
+        ? t('chatbot.greetingClinician')
+        : t('chatbot.greetingPatient');
       setMessages([{ role: 'assistant', content: greeting }]);
     }
-  }, [userRole]);
+  }, [userRole, t]);
 
   useEffect(() => {
     scrollToBottom();
@@ -92,7 +96,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
         setConversationId(null);
         setMessages([]);
         setApprovedPatientId(null);
-        const greeting = 'Hello! I\'m your medical AI assistant. I can help answer your health questions and provide general medical information. How can I help you today?';
+        const greeting = t('chatbot.greetingPatient');
         setMessages([{ role: 'assistant', content: greeting }]);
       }
     };
@@ -112,13 +116,13 @@ export default function Chatbot({ userRole }: ChatbotProps) {
         setConversationId(null);
         setMessages([{
           role: 'assistant',
-          content: `Patient Context Approved: Patient ID: ${patientId}. I now have access to this patient's information. How can I help you with this patient?`
+          content: t('chatbot.patientContextApproved').replace('{patientId}', patientId)
         }]);
       } else {
         setConversationId(null); // Start new conversation for new patient
         setMessages([{
           role: 'assistant',
-          content: `Patient Context Approved: Patient ID: ${patientId}. I now have access to this patient's information. How can I help you with this patient?`
+          content: t('chatbot.patientContextApproved').replace('{patientId}', patientId)
         }]);
       }
     };
@@ -130,7 +134,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
       window.removeEventListener('clearChatbotContext', handleClearContext);
       window.removeEventListener('patientContextApproved', handlePatientContextApproved as EventListener);
     };
-  }, [userRole, conversationId, generalConversationId, loadConversation]);
+  }, [userRole, conversationId, generalConversationId, loadConversation, t]);
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -167,7 +171,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
       console.error('Failed to send message:', e);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Sorry, I encountered an error. Please try again.' 
+        content: t('chatbot.error')
       }]);
     } finally {
       setLoading(false);
@@ -189,6 +193,49 @@ export default function Chatbot({ userRole }: ChatbotProps) {
     // This would integrate with WhatsApp
     const message = encodeURIComponent('EMERGENCY: I need immediate help. Please contact me urgently.');
     window.open(`https://wa.me/?text=${message}`, '_blank');
+  };
+
+  // Voice recognition setup
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition();
+        rec.continuous = false;
+        rec.interimResults = false;
+        rec.lang = lang === 'ta' ? 'ta-IN' : 'en-US';
+        
+        rec.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          setInput(transcript);
+          setIsRecording(false);
+        };
+        
+        rec.onerror = () => {
+          setIsRecording(false);
+        };
+        
+        rec.onend = () => {
+          setIsRecording(false);
+        };
+        
+        setRecognition(rec);
+      }
+    }
+  }, [lang]);
+
+  const startRecording = () => {
+    if (recognition && !isRecording) {
+      setIsRecording(true);
+      recognition.start();
+    }
+  };
+
+  const stopRecording = () => {
+    if (recognition && isRecording) {
+      recognition.stop();
+      setIsRecording(false);
+    }
   };
 
   return (
@@ -273,10 +320,10 @@ export default function Chatbot({ userRole }: ChatbotProps) {
               </div>
               <div>
                 <div style={{ color: 'white', fontWeight: 700, fontSize: '1rem' }}>
-                  Medical Assistant
+                  {t('chatbot.title')}
                 </div>
                 <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem' }}>
-                  {userRole === 'clinician' ? 'Clinician Support' : 'Patient Support'}
+                  {userRole === 'clinician' ? t('chatbot.clinicianSupport') : t('chatbot.patientSupport')}
                 </div>
               </div>
             </div>
@@ -289,7 +336,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
                       // Reload with patient context
                       setMessages([{
                         role: 'assistant',
-                        content: `Patient Context Approved: Patient ID: ${approvedPatientId}. I now have access to this patient's information. How can I help you with this patient?`
+                        content: t('chatbot.patientContextApproved').replace('{patientId}', approvedPatientId)
                       }]);
                     } else {
                       // Reload general conversation
@@ -306,7 +353,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
-                  title="Refresh Chat"
+                  title={t('chatbot.refresh')}
                 >
                   <Loader2 size={18} color="white" />
                 </button>
@@ -328,7 +375,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
-                title="Change Text Size"
+                title={t('chatbot.changeTextSize')}
               >
                 <Type size={18} color="white" />
               </button>
@@ -344,7 +391,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
-                title={isExpanded ? 'Collapse' : 'Expand'}
+                title={isExpanded ? t('chatbot.collapse') : t('chatbot.expand')}
               >
                 {isExpanded ? (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
@@ -421,7 +468,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
                 }}
               >
                 <Loader2 size={16} className="spin" />
-                <span>Thinking...</span>
+                <span>{t('chatbot.thinking')}</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -439,7 +486,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <AlertTriangle size={16} color="#ef4444" />
                 <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '0.9rem' }}>
-                  Emergency Detected
+                  {t('chatbot.emergencyDetected')}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -463,7 +510,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
                     }}
                   >
                     <Phone size={16} />
-                    Call Ambulance
+                    {t('chatbot.callAmbulance')}
                   </button>
                 )}
                 {emergencyActions.includes('alert_family') && (
@@ -486,7 +533,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
                     }}
                   >
                     <MessageCircle size={16} />
-                    Alert Family
+                    {t('chatbot.alertFamily')}
                   </button>
                 )}
               </div>
@@ -507,7 +554,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
+              placeholder={t('chatbot.typeMessage')}
               disabled={loading}
               style={{
                 flex: 1,
@@ -520,6 +567,27 @@ export default function Chatbot({ userRole }: ChatbotProps) {
                 outline: 'none',
               }}
             />
+            {recognition && (
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={loading}
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: isRecording ? '#ef4444' : 'var(--surface-muted)',
+                  border: 'none',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s',
+                }}
+                title={isRecording ? t('chatbot.stopRecording') : t('chatbot.voiceInput')}
+              >
+                {isRecording ? <MicOff size={20} color="white" /> : <Mic size={20} color="var(--foreground-muted)" />}
+              </button>
+            )}
             <button
               onClick={sendMessage}
               disabled={loading || !input.trim()}

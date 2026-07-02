@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     // Deliver OTP as a special in-app alert to the patient's dashboard
     const formatted = `${otp.slice(0, 3)} ${otp.slice(3)}`;
-    await prisma.clinicalAlert.create({
+    const alert = await prisma.clinicalAlert.create({
       data: {
         patient_id: patientId,
         severity: 'otp',
@@ -55,6 +55,24 @@ export async function POST(request: Request) {
         message: `${requestorName} is requesting access to your medical records.\n\nYour OTP is: ${formatted}\n\nThis code is valid for 2 minutes. Do not share it unless you trust this person.`,
       },
     });
+
+    // Trigger push notification for OTP alert
+    try {
+      const { sendWebPushNotifications } = await import('@/lib/webPush');
+      await sendWebPushNotifications(
+        { patientId, role: 'patient' },
+        {
+          title: `Records Access Request`,
+          body: `${requestorName} is requesting access. Your OTP is: ${formatted}`,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: alert.id,
+          severity: 'otp',
+        }
+      );
+    } catch (pushErr) {
+      console.error('[Records OTP] Failed to send push notification:', pushErr);
+    }
 
     return NextResponse.json({ success: true, otpId: otpRecord.id });
   }

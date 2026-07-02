@@ -457,6 +457,17 @@ export default function PatientDashboard() {
       return next;
     });
     setAlertsReady(true);
+
+    // Trigger native Windows/desktop notification
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(alert.title || "Nalam.ai Alert", {
+        body: alert.message || alert.title,
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        tag: alert.id,
+        requireInteraction: alert.severity === "critical" || alert.severity === "otp",
+      });
+    }
   }, []);
 
   const checkAnomaly = useCallback(
@@ -792,7 +803,7 @@ export default function PatientDashboard() {
                   margin: 0,
                 }}
               >
-                <Bell size={20} color="var(--primary)" /> Notifications
+                <Bell size={20} color="var(--primary)" /> {t("dashboard.notifications")}
               </h3>
               <button
                 onClick={() => setShowNotificationsModal(false)}
@@ -824,7 +835,7 @@ export default function PatientDashboard() {
                     padding: "2rem 0",
                   }}
                 >
-                  No new notifications
+                  {t("dashboard.noNewNotifications")}
                 </div>
               ) : (
                 patientAlerts.map((alert) => {
@@ -896,7 +907,7 @@ export default function PatientDashboard() {
                           fontWeight: 600,
                         }}
                       >
-                        Clear
+                        {t("dashboard.clear")}
                       </button>
                     </div>
                   );
@@ -1295,7 +1306,7 @@ export default function PatientDashboard() {
               </div>
               <button
                 onClick={() => {
-                  if (confirm("Unlink ABHA ID?"))
+                  if (confirm(t("dashboard.unlinkAbha")))
                     setAbha({ verified: false, masked: null });
                 }}
                 style={{
@@ -1309,7 +1320,7 @@ export default function PatientDashboard() {
                   cursor: "pointer",
                 }}
               >
-                Unlink
+                {t("dashboard.unlink")}
               </button>
             </div>
           ) : (
@@ -1351,7 +1362,7 @@ export default function PatientDashboard() {
               flexShrink: 0,
             }}
           >
-            <MessageSquare size={13} /> Chat
+            <MessageSquare size={13} /> {t("dashboard.chat")}
             {chatUnread > 0 && (
               <span
                 style={{
@@ -1380,7 +1391,7 @@ export default function PatientDashboard() {
               flexShrink: 0,
             }}
           >
-            <Calendar size={13} /> Book Appt
+            <Calendar size={13} /> {t("dashboard.bookAppt")}
           </button>
           <button
             className="glass-button"
@@ -1392,7 +1403,7 @@ export default function PatientDashboard() {
               flexShrink: 0,
             }}
           >
-            <Brain size={13} /> AI Insights
+            <Brain size={13} /> {t("dashboard.aiInsights")}
           </button>
           <button
             className="glass-button"
@@ -1404,7 +1415,7 @@ export default function PatientDashboard() {
               flexShrink: 0,
             }}
           >
-            <ClipboardList size={13} /> Requests
+            <ClipboardList size={13} /> {t("dashboard.requests")}
           </button>
           <button
             className="glass-button"
@@ -1428,7 +1439,7 @@ export default function PatientDashboard() {
                   : "var(--foreground)",
             }}
           >
-            <Bell size={13} /> Notifications
+            <Bell size={13} /> {t("dashboard.notifications")}
             {patientAlerts.length > 0 && (
               <span
                 style={{
@@ -1456,7 +1467,7 @@ export default function PatientDashboard() {
               flexShrink: 0,
             }}
           >
-            <MoreHorizontal size={13} /> More
+            <MoreHorizontal size={13} /> {t("dashboard.more")}
           </button>
         </div>
 
@@ -1507,7 +1518,7 @@ export default function PatientDashboard() {
               ) : (
                 <Network size={13} />
               )}
-              {fhirLoading ? "Downloading…" : t("dashboard.exportFHIR")}
+              {fhirLoading ? t("dashboard.downloading") : t("dashboard.exportFHIR")}
             </button>
             <button
               className="glass-button"
@@ -1570,7 +1581,7 @@ export default function PatientDashboard() {
               }}
             >
               {pushEnabled ? <Bell size={13} /> : <BellOff size={13} />}
-              {pushEnabled ? "Alerts On" : "Enable Alerts"}
+              {pushEnabled ? t("dashboard.alertsOn") : t("dashboard.enableAlerts")}
             </button>
           </div>
         )}
@@ -1629,7 +1640,7 @@ export default function PatientDashboard() {
               pulse: false,
             },
             {
-              label: "Resp",
+              label: t("dashboard.resp"),
               value: `${vitals.resp}`,
               unit: "bpm",
               color: "#86EFAC",
@@ -1637,7 +1648,7 @@ export default function PatientDashboard() {
               pulse: false,
             },
             {
-              label: "Temp",
+              label: t("dashboard.temp"),
               value: `${vitals.temp}`,
               unit: "°C",
               color: "#FDE68A",
@@ -1645,7 +1656,7 @@ export default function PatientDashboard() {
               pulse: false,
             },
             {
-              label: "BP",
+              label: t("dashboard.bp"),
               value: `${vitals.sys}/${vitals.dia}`,
               unit: "mmHg",
               color: "#C7D2FE",
@@ -1702,7 +1713,7 @@ export default function PatientDashboard() {
                 .replace('{sys}', vitals.sys.toString())
                 .replace('{dia}', vitals.dia.toString())
               }
-              label="Share Emergency Vitals"
+              label={t("dashboard.shareEmergencyVitals")}
               allowRecipientChoice={true}
             />
           </div>
@@ -1748,7 +1759,7 @@ export default function PatientDashboard() {
                 color: "var(--deep-blue)",
               }}
             >
-              Book an Appointment
+              {t("dashboard.bookAppointment")}
             </h3>
             <p
               style={{
@@ -1758,7 +1769,7 @@ export default function PatientDashboard() {
                 marginBottom: "0.75rem",
               }}
             >
-              Consult with Dr. Dhanush or Dr. Monissha. Vitals auto-attached.
+              {t("dashboard.bookAppointmentDesc")}
             </p>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
@@ -1771,7 +1782,7 @@ export default function PatientDashboard() {
                   fontSize: "0.8rem",
                 }}
               >
-                <ClipboardList size={13} /> My Requests
+                <ClipboardList size={13} /> {t("dashboard.myRequests")}
               </button>
               <button
                 onClick={() => router.push("/appointments/book")}
@@ -1790,7 +1801,7 @@ export default function PatientDashboard() {
                   boxShadow: "0 4px 12px rgba(0,82,165,0.28)",
                 }}
               >
-                <Calendar size={14} /> Book Now
+                <Calendar size={14} /> {t("dashboard.bookNow")}
               </button>
             </div>
           </div>
@@ -2339,7 +2350,7 @@ export default function PatientDashboard() {
               fontSize: "0.95rem",
             }}
           >
-            <MapPin size={17} color="#0052A5" /> Nearby Hospitals
+            <MapPin size={17} color="#0052A5" /> {t("dashboard.nearbyHospitals")}
           </h3>
           <span
             className="badge"
@@ -2352,7 +2363,7 @@ export default function PatientDashboard() {
               borderRadius: 6,
             }}
           >
-            Tamil Nadu
+            {t("dashboard.tamilNadu")}
           </span>
         </div>
         <OlaMap height="340px" />
@@ -2364,7 +2375,7 @@ export default function PatientDashboard() {
             textAlign: "center",
           }}
         >
-          Click any marker to see hospital details
+          {t("dashboard.clickMarker")}
         </p>
       </section>
 

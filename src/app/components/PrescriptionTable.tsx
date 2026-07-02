@@ -146,9 +146,9 @@ export default function PrescriptionTable({ patientId, patientName, onUploadToRe
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: 'clamp(0.9rem, 2vw, 1rem)' }}>
           <FileText size={18} color="#0052A5" /> Prescription
         </h4>
         <button
@@ -166,6 +166,7 @@ export default function PrescriptionTable({ patientId, patientName, onUploadToRe
             fontSize: '0.85rem',
             fontWeight: 600,
             cursor: 'pointer',
+            whiteSpace: 'nowrap',
           }}
         >
           <Plus size={16} /> Add Medication
@@ -184,33 +185,21 @@ export default function PrescriptionTable({ patientId, patientName, onUploadToRe
           No medications added. Click "Add Medication" to start.
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: '0.85rem',
-            background: 'white',
-            borderRadius: 8,
-            overflow: 'hidden',
-            border: '1px solid #E2E8F0',
-          }}>
-            <thead>
-              <tr style={{ background: '#F1F5F9', borderBottom: '2px solid #E2E8F0' }}>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, color: '#1A2B4A' }}>Medication Name</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, color: '#1A2B4A' }}>Dosage</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, color: '#1A2B4A' }}>Qty</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, color: '#1A2B4A' }}>Days</th>
-                <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 600, color: '#1A2B4A' }}>Morning</th>
-                <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 600, color: '#1A2B4A' }}>Afternoon</th>
-                <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 600, color: '#1A2B4A' }}>Night</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600, color: '#1A2B4A' }}>Instructions</th>
-                <th style={{ padding: '0.75rem', width: '40px' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                  <td style={{ padding: '0.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {items.map((item) => (
+            <div key={item.id} style={{
+              background: 'white',
+              border: '1px solid #E2E8F0',
+              borderRadius: 8,
+              padding: '1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.25rem' }}>Medication Name</label>
                     <input
                       type="text"
                       value={item.name}
@@ -225,8 +214,9 @@ export default function PrescriptionTable({ patientId, patientName, onUploadToRe
                         boxSizing: 'border-box',
                       }}
                     />
-                  </td>
-                  <td style={{ padding: '0.5rem' }}>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.25rem' }}>Dosage</label>
                     <input
                       type="text"
                       value={item.dosage}
@@ -241,99 +231,111 @@ export default function PrescriptionTable({ patientId, patientName, onUploadToRe
                         boxSizing: 'border-box',
                       }}
                     />
-                  </td>
-                  <td style={{ padding: '0.5rem' }}>
-                    <input
-                      type="text"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
-                      placeholder="Qty"
-                      style={{
-                        width: '100%',
-                        padding: '0.4rem 0.5rem',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: 4,
-                        fontSize: '0.8rem',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </td>
-                  <td style={{ padding: '0.5rem' }}>
-                    <input
-                      type="text"
-                      value={item.days}
-                      onChange={(e) => updateItem(item.id, 'days', e.target.value)}
-                      placeholder="Days"
-                      style={{
-                        width: '100%',
-                        padding: '0.4rem 0.5rem',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: 4,
-                        fontSize: '0.8rem',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </td>
-                  <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.25rem' }}>Qty</label>
+                      <input
+                        type="text"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(item.id, 'quantity', e.target.value)}
+                        placeholder="Qty"
+                        style={{
+                          width: '100%',
+                          padding: '0.4rem 0.5rem',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: 4,
+                          fontSize: '0.8rem',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.25rem' }}>Days</label>
+                      <input
+                        type="text"
+                        value={item.days}
+                        onChange={(e) => updateItem(item.id, 'days', e.target.value)}
+                        placeholder="Days"
+                        style={{
+                          width: '100%',
+                          padding: '0.4rem 0.5rem',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: 4,
+                          fontSize: '0.8rem',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeItem(item.id)}
+                  style={{
+                    padding: '0.3rem',
+                    background: '#FEF2F2',
+                    border: '1px solid #FECACA',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    color: '#DC2626',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.25rem' }}>Schedule</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#4A5568', minWidth: 70 }}>Morning:</span>
                     <TimingToggle
                       enabled={item.morning.enabled}
                       timing={item.morning.timing}
                       onToggle={() => updateTiming(item.id, 'morning', 'enabled', !item.morning.enabled)}
                       onTimingChange={(timing) => updateTiming(item.id, 'morning', 'timing', timing)}
                     />
-                  </td>
-                  <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#4A5568', minWidth: 70 }}>Afternoon:</span>
                     <TimingToggle
                       enabled={item.afternoon.enabled}
                       timing={item.afternoon.timing}
                       onToggle={() => updateTiming(item.id, 'afternoon', 'enabled', !item.afternoon.enabled)}
                       onTimingChange={(timing) => updateTiming(item.id, 'afternoon', 'timing', timing)}
                     />
-                  </td>
-                  <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#4A5568', minWidth: 70 }}>Night:</span>
                     <TimingToggle
                       enabled={item.night.enabled}
                       timing={item.night.timing}
                       onToggle={() => updateTiming(item.id, 'night', 'enabled', !item.night.enabled)}
                       onTimingChange={(timing) => updateTiming(item.id, 'night', 'timing', timing)}
                     />
-                  </td>
-                  <td style={{ padding: '0.5rem' }}>
-                    <input
-                      type="text"
-                      value={item.instructions}
-                      onChange={(e) => updateItem(item.id, 'instructions', e.target.value)}
-                      placeholder="Instructions"
-                      style={{
-                        width: '100%',
-                        padding: '0.4rem 0.5rem',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: 4,
-                        fontSize: '0.8rem',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </td>
-                  <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.id)}
-                      style={{
-                        padding: '0.3rem',
-                        background: '#FEF2F2',
-                        border: '1px solid #FECACA',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        color: '#DC2626',
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.25rem' }}>Instructions</label>
+                <input
+                  type="text"
+                  value={item.instructions}
+                  onChange={(e) => updateItem(item.id, 'instructions', e.target.value)}
+                  placeholder="Instructions"
+                  style={{
+                    width: '100%',
+                    padding: '0.4rem 0.5rem',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 4,
+                    fontSize: '0.8rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

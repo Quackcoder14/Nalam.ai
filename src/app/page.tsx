@@ -39,10 +39,16 @@ export default function HomePage() {
 
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
+  const [showLoadingAnimation, setShowLoadingAnimation] = useState(false);
 
   const handleLogin = async (role: 'patient' | 'clinician' | 'hdesk') => {
     setLoginError(null);
     setLoginLoading(true);
+    setShowLoadingAnimation(true);
+    
+    // Show loading animation for 1 second before proceeding
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -96,6 +102,7 @@ export default function HomePage() {
       setLoginError('Network error — please try again.');
     } finally {
       setLoginLoading(false);
+      setShowLoadingAnimation(false);
     }
   };
 
@@ -333,8 +340,8 @@ export default function HomePage() {
                 onMouseOver={e => { if (!loginLoading) e.currentTarget.style.opacity = '0.9'; }}
                 onMouseOut={e => { if (!loginLoading) e.currentTarget.style.opacity = '1'; }}
               >
-                {loginLoading ? (
-                  <><div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> {t('login.signingIn') || 'Signing in…'}</>
+                {showLoadingAnimation ? (
+                  <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                 ) : t('login.signIn')}
               </button>
             </div>
