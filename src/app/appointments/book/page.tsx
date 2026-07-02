@@ -20,6 +20,9 @@ type RosterDoctor = {
   languages?: string[];
   slots?: string[];
   availableDates?: string[];
+  avatar?: string;
+  avatarColor?: string;
+  rating?: number;
 };
 type VitalsSnapshot = { hr: number; spo2: number; resp: number; temp: number; sys: number; dia: number };
 type SpeechRecognitionEventLike = { results: { 0: { 0: { transcript: string } } } };
@@ -186,7 +189,7 @@ export default function BookAppointment() {
     if (!selectedDoctor) return;
 
     let cancelled = false;
-    Promise.all(selectedDoctor.availableDates.map(async (d) => {
+    Promise.all((selectedDoctor.availableDates || []).map(async (d) => {
       try {
         const res = await fetch(`/api/appointments/availability?doctorId=${selectedDoctor.id}&date=${d}`, { cache: 'no-store' });
         if (!res.ok) return null;
@@ -439,10 +442,10 @@ export default function BookAppointment() {
                     {doc.experience} {t('book.experience')}
                   </span>
                   <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'var(--surface-muted)', color: 'var(--charcoal)', fontWeight: 500 }}>
-                    🗣 {doc.languages.join(' · ')}
+                    🗣 {(doc.languages || []).join(' · ')}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--foreground-muted)', marginBottom: '0.5rem', fontWeight: 500 }}>{t('book.available')} {doc.slots.join(' · ')}</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--foreground-muted)', marginBottom: '0.5rem', fontWeight: 500 }}>{t('book.available')} {(doc.slots || []).join(' · ')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end', color: 'var(--primary)', fontWeight: 700, fontSize: '0.88rem' }}>
                   {t('book.select')} <ChevronRight size={16} />
                 </div>
@@ -476,7 +479,7 @@ export default function BookAppointment() {
               <Calendar size={15} style={{ marginRight: 6, verticalAlign: 'middle' }} />{t('book.selectDate')}
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {selectedDoctor.availableDates.map(d => {
+              {(selectedDoctor.availableDates || []).map(d => {
                 const isFullyBooked = fullyBookedDates.has(d);
                 return (
                   <button

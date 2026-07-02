@@ -95,12 +95,14 @@ export default function NewDoctorPage() {
   const [error, setError] = useState('');
   const [created, setCreated] = useState('');
   const [createdEmail, setCreatedEmail] = useState('');
+  const [hasStoredHospital, setHasStoredHospital] = useState(false);
 
   // Get hospital from session/storage
   useEffect(() => {
     const hospital = sessionStorage.getItem('hospitalName') || localStorage.getItem('hospitalName');
     if (hospital) {
       setForm(prev => ({ ...prev, hospital }));
+      setHasStoredHospital(true);
     }
   }, []);
 
@@ -190,13 +192,13 @@ export default function NewDoctorPage() {
                 value={form.hospital} 
                 onChange={e => update('hospital', e.target.value)} 
                 placeholder="Apollo Hospitals, Chennai" 
-                readOnly={!!(sessionStorage.getItem('hospitalName') || localStorage.getItem('hospitalName'))}
+                readOnly={hasStoredHospital}
                 style={{
                   ...inputStyle,
-                  backgroundColor: (sessionStorage.getItem('hospitalName') || localStorage.getItem('hospitalName')) ? 'var(--surface-muted)' : 'var(--surface)'
+                  backgroundColor: hasStoredHospital ? 'var(--surface-muted)' : 'var(--surface)'
                 }}
               />
-              {(sessionStorage.getItem('hospitalName') || localStorage.getItem('hospitalName')) && (
+              {hasStoredHospital && (
                 <small style={{color: 'var(--charcoal)', fontSize: '0.75rem', marginTop: 4, display: 'block'}}>Auto-filled from hospital desk session</small>
               )}
             </Field>
