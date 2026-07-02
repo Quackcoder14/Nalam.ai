@@ -11,14 +11,15 @@ export async function GET(request: Request) {
     const lang = searchParams.get('lang') || 'en';
     const patientId = searchParams.get('patientId')?.trim();
     const fast = searchParams.get('fast') === '1';
+    const past = searchParams.get('past') === '1';
 
     let alerts = await prisma.clinicalAlert.findMany({
       where: {
-        is_read: false,
+        is_read: past ? true : false,
         ...(patientId ? { patient_id: patientId } : {}),
       },
       orderBy: { created_at: 'desc' },
-      take: patientId ? 50 : 20,
+      take: past ? 50 : (patientId ? 50 : 20),
     });
 
     if (lang === 'ta' && !fast && alerts.length > 0) {

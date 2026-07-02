@@ -1,7 +1,7 @@
 // src/lib/crypto.ts
 // AES-256-GCM authenticated encryption for PHI/PII fields
 // Each encrypted value is stored as: iv_hex:authTag_hex:ciphertext_hex
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const KEY_HEX = process.env.ENCRYPTION_KEY;
@@ -84,8 +84,7 @@ export function decryptFields<T extends Record<string, any>>(
  */
 export function hashPassword(plain: string): string {
   if (!plain) return '';
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(plain).digest('hex');
+  return createHash('sha256').update(plain).digest('hex');
 }
 
 export function verifyPassword(plain: string, hash: string): boolean {

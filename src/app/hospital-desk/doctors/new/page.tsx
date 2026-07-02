@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BadgeCheck, Building2, CalendarDays, CheckCircle, GraduationCap, Languages, Stethoscope, UserRound } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
@@ -96,6 +96,14 @@ export default function NewDoctorPage() {
   const [created, setCreated] = useState('');
   const [createdEmail, setCreatedEmail] = useState('');
 
+  // Get hospital from session/storage
+  useEffect(() => {
+    const hospital = sessionStorage.getItem('hospitalName') || localStorage.getItem('hospitalName');
+    if (hospital) {
+      setForm(prev => ({ ...prev, hospital }));
+    }
+  }, []);
+
   const update = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }));
 
   const submit = async (event: React.FormEvent) => {
@@ -176,7 +184,22 @@ export default function NewDoctorPage() {
         <section className="glass-panel">
           <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--deep-blue)', marginBottom: '1rem' }}><Building2 size={18} /> Hospital Assignment</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem' }}>
-            <Field label="Hospital / branch" required><input style={inputStyle} required value={form.hospital} onChange={e => update('hospital', e.target.value)} placeholder="Apollo Hospitals, Chennai" /></Field>
+            <Field label="Hospital / branch" required>
+              <input 
+                required 
+                value={form.hospital} 
+                onChange={e => update('hospital', e.target.value)} 
+                placeholder="Apollo Hospitals, Chennai" 
+                readOnly={!!(sessionStorage.getItem('hospitalName') || localStorage.getItem('hospitalName'))}
+                style={{
+                  ...inputStyle,
+                  backgroundColor: (sessionStorage.getItem('hospitalName') || localStorage.getItem('hospitalName')) ? 'var(--surface-muted)' : 'var(--surface)'
+                }}
+              />
+              {(sessionStorage.getItem('hospitalName') || localStorage.getItem('hospitalName')) && (
+                <small style={{color: 'var(--charcoal)', fontSize: '0.75rem', marginTop: 4, display: 'block'}}>Auto-filled from hospital desk session</small>
+              )}
+            </Field>
             <Field label="Room / OP number"><input style={inputStyle} value={form.roomNumber} onChange={e => update('roomNumber', e.target.value)} /></Field>
             <Field label="Address"><input style={inputStyle} value={form.address} onChange={e => update('address', e.target.value)} /></Field>
             <Field label="District"><input style={inputStyle} value={form.district} onChange={e => update('district', e.target.value)} /></Field>

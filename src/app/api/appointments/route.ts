@@ -30,7 +30,12 @@ export async function GET(request: Request) {
       const auth = requireRole(request, ['hdesk', 'clinician']);
       if (!auth.ok) return auth.response;
 
+      // Filter by hospital if session has hospital info (for hospital desk isolation)
+      const hospital = auth.session.branch;
+      const whereClause = hospital ? { hospital } : {};
+
       const rows = await prisma.appointment.findMany({
+        where: whereClause,
         include: { patient: true },
         orderBy: { created_at: 'desc' },
       });

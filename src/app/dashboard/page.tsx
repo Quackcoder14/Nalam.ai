@@ -31,6 +31,7 @@ import { useLanguage } from "@/lib/i18n";
 import VoiceTriage from "../components/VoiceTriage";
 import WhatsAppButton from "../components/WhatsAppButton";
 import Chatbot from "../components/Chatbot";
+import PastNotifications from "../components/PastNotifications";
 import { apiFetch } from "@/lib/apiFetch";
 import dynamic from "next/dynamic";
 
@@ -336,6 +337,7 @@ export default function PatientDashboard() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [showAlertEnablePopup, setShowAlertEnablePopup] = useState(false);
+  const [showPastNotifications, setShowPastNotifications] = useState(false);
   const [demoScenario, setDemoScenario] = useState<string | null>(null);
   const [chatUnread, setChatUnread] = useState(0);
   const anomalyRef = useRef<any>(null);
@@ -393,6 +395,13 @@ export default function PatientDashboard() {
         }
       })
       .catch(() => {});
+  }, []);
+
+  // Listen for custom event to open Past Notifications modal
+  useEffect(() => {
+    const handleOpenPastNotifications = () => setShowPastNotifications(true);
+    window.addEventListener('openPastNotifications', handleOpenPastNotifications);
+    return () => window.removeEventListener('openPastNotifications', handleOpenPastNotifications);
   }, []);
 
   useEffect(() => {
@@ -2896,6 +2905,15 @@ export default function PatientDashboard() {
           </div>
         </div>
       )}
+
+      {/* Past Notifications Modal */}
+      <PastNotifications
+        isOpen={showPastNotifications}
+        onClose={() => setShowPastNotifications(false)}
+        patientId={getPatientId()}
+        isHospitalDesk={false}
+      />
+
     </div>
 
     {/* Chatbot */}

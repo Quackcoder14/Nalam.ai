@@ -5,36 +5,12 @@ import { ArrowLeft, Mic, MicOff, Loader2, Paperclip, X, ChevronRight, CheckCircl
 import { useLanguage } from '@/lib/i18n';
 import { DOCTOR_SCHEDULES, getNextSlots, AVAILABLE_TIME_SLOTS } from '@/lib/doctors';
 
-/* ─── Doctor Roster ─────────────────────────────────────────────────────── */
-const DOCTORS = [
-  {
-    id: 'dr_dhanush',
-    name: 'Dr. Dhanush',
-    specialty: 'Cardiology',
-    hospital: 'Apollo Hospitals, Chennai',
-    experience: '8 years',
-    rating: 4.9,
-    avatar: 'D',
-    avatarColor: '#0052A5',
-    languages: ['English', 'Tamil'],
-    slots: DOCTOR_SCHEDULES['dr_dhanush'],
-    availableDates: getNextSlots(DOCTOR_SCHEDULES['dr_dhanush']),
-  },
-  {
-    id: 'dr_monissha',
-    name: 'Dr. Monissha',
-    specialty: 'General Medicine',
-    hospital: 'Apollo Hospitals, Chennai',
-    experience: '6 years',
-    rating: 4.8,
-    avatar: 'M',
-    avatarColor: '#5C35A1',
-    languages: ['English', 'Tamil'],
-    slots: DOCTOR_SCHEDULES['dr_monissha'],
-    availableDates: getNextSlots(DOCTOR_SCHEDULES['dr_monissha']),
-  },
+const HOSPITALS = [
+  { id: 'Apollo Hospital', name: 'Apollo Hospital', color: '#0052A5' },
+  { id: 'Kauvery Hospital', name: 'Kauvery Hospital', color: '#5C35A1' },
+  { id: 'Govt Hospital', name: 'Govt Hospital', color: '#0097A7' },
 ];
-type DoctorOption = typeof DOCTORS[number];
+
 type RosterDoctor = {
   id: string;
   name: string;
@@ -75,7 +51,7 @@ function formatDate(dateStr: string): string {
 /* ─── Status Step Bar ───────────────────────────────────────────────────── */
 function StepBar({ current }: { current: number }) {
   const { t } = useLanguage();
-  const steps = [t('book.stepDoctor'), t('book.stepDate'), t('book.stepSummary'), t('book.stepReview')];
+  const steps = [t('book.stepHospital'), t('book.stepDoctor'), t('book.stepDate'), t('book.stepSummary'), t('book.stepReview')];
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: '2.5rem' }}>
@@ -134,8 +110,9 @@ export default function BookAppointment() {
   const router = useRouter();
 
   const [step, setStep]                 = useState(0);
-  const [doctors, setDoctors]           = useState<DoctorOption[]>(DOCTORS);
-  const [selectedDoctor, setDoctor]     = useState<DoctorOption | null>(null);
+  const [selectedHospital, setHospital] = useState<string | null>(null);
+  const [doctors, setDoctors]           = useState<RosterDoctor[]>([]);
+  const [selectedDoctor, setDoctor]     = useState<RosterDoctor | null>(null);
   const [selectedDate, setDate]         = useState('');
   const [selectedTime, setTime]         = useState('');
   const [urgency, setUrgency]           = useState('Routine');
@@ -156,11 +133,14 @@ export default function BookAppointment() {
   const fileInputRef   = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!selectedHospital) return;
     fetch('/api/hospital-desk/doctors', { cache: 'no-store' })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (!data?.doctors?.length) return;
-        setDoctors(data.doctors.map((doc: RosterDoctor, index: number) => {
+        const filteredDoctors = data.doctors
+          .filter((doc: RosterDoctor) => doc.hospital === selectedHospital)
+          .map((doc: RosterDoctor, index: number) => {
           const days = doc.slots?.length ? doc.slots : ['Mon', 'Wed', 'Fri'];
           const initial = (doc.name || 'Doctor').replace(/^Dr\.?\s*/i, '').charAt(0).toUpperCase() || 'D';
           return {
@@ -174,12 +154,13 @@ export default function BookAppointment() {
             avatarColor: ['#0052A5', '#5C35A1', '#0097A7', '#C07A00'][index % 4],
             languages: doc.languages || ['Tamil', 'English'],
             slots: days,
-            availableDates: doc.availableDates?.length ? doc.availableDates : getNextSlots(days),
+            availableDates: doc.availableDates || getNextSlots(days),
           };
-        }));
+        });
+        setDoctors(filteredDoctors);
       })
       .catch(() => {});
-  }, []);
+  }, [selectedHospital]);
 
   useEffect(() => {
     if (!selectedDoctor || !selectedDate) return;
@@ -303,7 +284,7 @@ export default function BookAppointment() {
 
   /* ── Submit ────────────────────────────────────────── */
   const handleSubmit = async () => {
-    if (!selectedDoctor || !selectedDate || !selectedTime || !reason) return;
+    if (!selectedDoctor || !selectedDate || !selectedTime || !reason || !selectedHospital) return;
     setSubmitting(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
@@ -315,7 +296,7 @@ export default function BookAppointment() {
           doctorId: selectedDoctor.id,
           doctorName: selectedDoctor.name,
           doctorSpecialty: selectedDoctor.specialty,
-          hospital: 'Apollo Hospitals',
+          hospital: selectedHospital,
           date: selectedDate,
           time: selectedTime,
           reason,
@@ -374,15 +355,63 @@ export default function BookAppointment() {
 
       <StepBar current={step} />
 
-      {/* ── STEP 0: Select Doctor ── */}
+      {/* ── STEP 0: Select Hospital ── */}
       {step === 0 && (
         <div className="slide-up">
+          <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)', fontSize: '1.1rem' }}>{t('book.chooseHospital')}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            {HOSPITALS.map(hospital => (
+              <button
+                key={hospital.id}
+                onClick={() => { setHospital(hospital.id); setDoctor(null); setDate(''); setStep(1); }}
+                style={{
+                  textAlign: 'left', cursor: 'pointer', padding: '1.5rem',
+                  borderRadius: 16, border: `2px solid ${selectedHospital === hospital.id ? 'var(--primary)' : 'var(--border)'}`,
+                  background: 'var(--surface)', transition: 'all 0.2s ease',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-md)')}
+                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'var(--shadow-sm)')}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ width: 54, height: 54, borderRadius: '50%', background: hospital.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1.2rem', flexShrink: 0 }}>
+                    {hospital.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--deep-blue)' }}>{hospital.name}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--charcoal)', marginTop: 2 }}>{t('book.selectHospitalDesc')}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end', color: 'var(--primary)', fontWeight: 700, fontSize: '0.88rem', marginTop: '0.75rem' }}>
+                  {t('book.select')} <ChevronRight size={16} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 1: Select Doctor ── */}
+      {step === 1 && selectedHospital && (
+        <div className="slide-up">
+          {/* Hospital recap */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 10, background: 'var(--primary-light)', border: '1px solid rgba(0,82,165,0.2)', marginBottom: '1.5rem' }}>
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: HOSPITALS.find(h => h.id === selectedHospital)?.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1rem', flexShrink: 0 }}>
+              {selectedHospital.charAt(0)}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--deep-blue)' }}>{selectedHospital}</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--charcoal)' }}>{t('book.selectedHospital')}</div>
+            </div>
+            <button onClick={() => { setHospital(null); setStep(0); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: 600 }}>Change</button>
+          </div>
+
           <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)', fontSize: '1.1rem' }}>{t('book.chooseDoctor')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
             {doctors.map(doc => (
               <button
                 key={doc.id}
-                onClick={() => { setDoctor(doc); setDate(''); setStep(1); }}
+                onClick={() => { setDoctor(doc); setDate(''); setStep(2); }}
                 style={{
                   textAlign: 'left', cursor: 'pointer', padding: '1.5rem',
                   borderRadius: 16, border: `2px solid ${selectedDoctor?.id === doc.id ? 'var(--primary)' : 'var(--border)'}`,
@@ -420,11 +449,14 @@ export default function BookAppointment() {
               </button>
             ))}
           </div>
+          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between', marginTop: '1.5rem' }}>
+            <button onClick={() => setStep(0)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>{t('book.back')}</button>
+          </div>
         </div>
       )}
 
-      {/* ── STEP 1: Date & Reason ── */}
-      {step === 1 && selectedDoctor && (
+      {/* ── STEP 2: Date & Reason ── */}
+      {step === 2 && selectedDoctor && (
         <div className="slide-up">
           {/* Doctor recap */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 10, background: 'var(--primary-light)', border: '1px solid rgba(0,82,165,0.2)', marginBottom: '1.5rem' }}>
@@ -581,10 +613,10 @@ export default function BookAppointment() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between' }}>
-            <button onClick={() => setStep(0)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>{t('book.back')}</button>
+            <button onClick={() => setStep(1)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>{t('book.back')}</button>
             <button
               disabled={!selectedDate || !selectedTime || !reason.trim()}
-              onClick={() => { setStep(2); generateSummary(); }}
+              onClick={() => { setStep(3); generateSummary(); }}
               style={{ padding: '0.65rem 1.25rem', borderRadius: 10, background: !selectedDate || !selectedTime || !reason.trim() ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: !selectedDate || !selectedTime || !reason.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, justifyContent: 'center' }}
             >
               {t('book.nextSummary')}
@@ -593,8 +625,8 @@ export default function BookAppointment() {
         </div>
       )}
 
-      {/* ── STEP 2: AI Summary + Attachments ── */}
-      {step === 2 && (
+      {/* ── STEP 3: AI Summary + Attachments ── */}
+      {step === 3 && (
         <div className="slide-up">
           <h3 style={{ marginBottom: '0.5rem', color: 'var(--deep-blue)' }}>{t('book.aiSummaryTitle')}</h3>
           <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>{t('book.aiSummaryDesc')}</p>
@@ -647,10 +679,10 @@ export default function BookAppointment() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between' }}>
-            <button onClick={() => setStep(1)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>← Back</button>
+            <button onClick={() => setStep(2)} className="glass-button" style={{ padding: '0.65rem 1rem' }}>← Back</button>
             <button
               disabled={summaryLoading}
-              onClick={() => setStep(3)}
+              onClick={() => setStep(4)}
               style={{ padding: '0.65rem 1.25rem', borderRadius: 10, background: summaryLoading ? 'var(--border)' : 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: summaryLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, justifyContent: 'center' }}
             >
               {t('book.reviewSubmit')}
@@ -659,8 +691,8 @@ export default function BookAppointment() {
         </div>
       )}
 
-      {/* ── STEP 3: Review & Submit ── */}
-      {step === 3 && selectedDoctor && (
+      {/* ── STEP 4: Review & Submit ── */}
+      {step === 4 && selectedDoctor && (
         <div className="slide-up">
           <h3 style={{ marginBottom: '0.5rem', color: 'var(--deep-blue)' }}>{t('book.reviewTitle')}</h3>
           <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>{t('book.reviewDesc')}</p>
@@ -708,7 +740,7 @@ export default function BookAppointment() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            <button onClick={() => setStep(2)} className="glass-button" style={{ padding: '0.75rem 1.25rem' }}>{t('book.back')}</button>
+            <button onClick={() => setStep(3)} className="glass-button" style={{ padding: '0.75rem 1.25rem' }}>{t('book.back')}</button>
             <button
               disabled={submitting}
               onClick={handleSubmit}

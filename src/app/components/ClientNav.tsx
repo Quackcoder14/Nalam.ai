@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Heart, LogOut, LayoutDashboard, Stethoscope,
   Search, Moon, Sun, Menu, X, Brain, Calendar,
-  MessageSquare, Building2, Globe, Shield, Network, UserPlus, ClipboardPlus, FolderOpen
+  MessageSquare, Building2, Globe, Shield, Network, UserPlus, ClipboardPlus, FolderOpen, CalendarDays, Bell
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -217,7 +217,10 @@ export default function ClientNav() {
                   <Search size={18} /> {t('nav.searchRecords')}
                 </button>
                 <button className={`drawer-item${pathname === '/dashboard/records' ? ' active' : ''}`} onClick={() => nav('/dashboard/records')}>
-                  <FolderOpen size={18} /> My Records
+                  <FolderOpen size={18} /> {t('nav.myRecords')}
+                </button>
+                <button className="drawer-item" onClick={() => { setDrawerOpen(false); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('openPastNotifications')); }}>
+                  <Bell size={18} /> {t('nav.pastNotifications')}
                 </button>
               </>
             )}
@@ -241,14 +244,20 @@ export default function ClientNav() {
                 <button className={`drawer-item${isActive('/hospital-desk') ? ' active' : ''}`} onClick={() => nav('/hospital-desk')}>
                   <Building2 size={18} /> {t('nav.hospitalDesk')}
                 </button>
+                <button className={`drawer-item${isActive('/hospital-desk/calendar') ? ' active' : ''}`} onClick={() => nav('/hospital-desk/calendar')}>
+                  <CalendarDays size={18} /> {t('nav.doctorsCalendar')}
+                </button>
                 <button className={`drawer-item${isActive('/hospital-desk/patients/new') ? ' active' : ''}`} onClick={() => nav('/hospital-desk/patients/new')}>
-                  <UserPlus size={18} /> Add Patient
+                  <UserPlus size={18} /> {t('nav.addPatient')}
                 </button>
                 <button className={`drawer-item${isActive('/hospital-desk/doctors/new') ? ' active' : ''}`} onClick={() => nav('/hospital-desk/doctors/new')}>
-                  <ClipboardPlus size={18} /> Add Doctor
+                  <ClipboardPlus size={18} /> {t('nav.addDoctor')}
                 </button>
                 <button className="drawer-item" onClick={() => nav('/search')}>
                   <Search size={18} /> {t('nav.searchRecords')}
+                </button>
+                <button className="drawer-item" onClick={() => { setDrawerOpen(false); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('openPastNotifications')); }}>
+                  <Bell size={18} /> {t('nav.pastNotifications')}
                 </button>
               </>
             )}

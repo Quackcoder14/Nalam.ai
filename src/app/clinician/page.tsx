@@ -674,6 +674,8 @@ export default function ClinicianPortal() {
   const router = useRouter();
   const { t, lang } = useLanguage();
   const [patientId, setPatientId]         = useState('');
+  const [patientSearchInput, setPatientSearchInput] = useState('');
+  const [patientSearchError, setPatientSearchError] = useState<string | null>(null);
   const [role, setRole]                   = useState<'specialist' | 'emergency' | 'research'>('specialist');
   const [doctorId, setDoctorId]           = useState<string>('');
   const [allPatients, setAllPatients]     = useState<any[]>([]);
@@ -767,10 +769,36 @@ export default function ClinicianPortal() {
 
   const requestContext = async () => {
     setError(null); setData(null); setSimulation(null); setGlassBoxLogs([]); setBiography('');
+    setPatientSearchError(null);
+    
+    if (!patientSearchInput.trim()) {
+      setPatientSearchError(t('clinician.enterPatientId'));
+      return;
+    }
+    
     setLoadingContext(true);
     const clinicianName = role === 'emergency' ? 'Dr. Dhanush (ER Attending)' : role === 'research' ? 'BioPharm Research Lab' : 'Dr. Monissha (Cardiology)';
+    
     try {
-      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`);
+      // First validate patient exists
+      const validateRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=${patientSearchInput}`);
+      if (!validateRes.ok) {
+        const errorData = await validateRes.json();
+        setPatientSearchError(errorData.error || t('clinician.patientNotFound'));
+        setLoadingContext(false);
+        return;
+      }
+      
+      const validateData = await validateRes.json();
+      if (!validateData.patient) {
+        setPatientSearchError(t('clinician.patientNotFound'));
+        setLoadingContext(false);
+        return;
+      }
+      
+      // Patient exists, proceed with context request
+      setPatientId(patientSearchInput);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${patientSearchInput}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`);
       const result = await res.json();
       if (!res.ok) { setError(result.error); }
       else {
@@ -1123,35 +1151,28 @@ export default function ClinicianPortal() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            {allPatients.length > 0 ? (
-              <select
-                value={patientId}
-                onChange={e => setPatientId(e.target.value)}
-                style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '180px', fontFamily: 'inherit' }}
-              >
-                <option value="">— Select a patient —</option>
-                {allPatients.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={patientId}
-                onChange={e => setPatientId(e.target.value)}
-                placeholder="Enter Patient ID"
-                style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '180px', fontFamily: 'inherit' }}
-                onKeyDown={e => { if(e.key === 'Enter') requestContext(); }}
-              />
-            )}
+            <input
+              type="text"
+              value={patientSearchInput}
+              onChange={e => setPatientSearchInput(e.target.value)}
+              placeholder={t('clinician.enterPatientIdPlaceholder')}
+              style={{ flex: 1, padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', color: 'var(--foreground)', outline: 'none', minWidth: '180px', fontFamily: 'inherit' }}
+              onKeyDown={e => { if(e.key === 'Enter') requestContext(); }}
+            />
 
-            <button className="glass-button" onClick={requestContext} disabled={loadingContext || !patientId}
+            <button className="glass-button" onClick={requestContext} disabled={loadingContext || !patientSearchInput.trim()}
               style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}>
               {loadingContext
                 ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--primary)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} /> {t('clinician.requesting')}</>
                 : t('clinician.requestAccess')}
             </button>
           </div>
+
+          {patientSearchError && (
+            <div className="fade-in" style={{ padding: '1rem', background: 'rgba(239,68,68,0.1)', borderLeft: '4px solid var(--accent-red)', borderRadius: 8, color: 'var(--accent-red)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <AlertTriangle size={16} /> {patientSearchError}
+            </div>
+          )}
 
           {error && (
             <div className="fade-in" style={{ padding: '1rem', background: 'rgba(239,68,68,0.1)', borderLeft: '4px solid var(--accent-red)', borderRadius: 8, color: 'var(--accent-red)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

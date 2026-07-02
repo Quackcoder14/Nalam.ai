@@ -5,6 +5,7 @@ import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertT
 import { useLanguage } from '@/lib/i18n';
 import { apiFetch } from '@/lib/apiFetch';
 import { RecordsOtpModal } from '../components/RecordsOtpModal';
+import PastNotifications from '../components/PastNotifications';
 
 interface OcrResult {
   rawText: string; medications: string[]; diagnoses: string[];
@@ -73,6 +74,7 @@ export default function HospitalDeskPage() {
   const [chatUnread, setChatUnread] = useState(0);
   const [sortApt, setSortApt] = useState<'newest' | 'oldest' | 'upcoming' | 'past'>('newest');
   const [showRecordsModal, setShowRecordsModal] = useState(false);
+  const [showPastNotifications, setShowPastNotifications] = useState(false);
 
   const fetchAllAppointments = useCallback(async () => {
     try {
@@ -148,6 +150,13 @@ export default function HospitalDeskPage() {
     fetchAllAppointments();
     return () => clearInterval(iv);
   }, [router, fetchAlerts, fetchAllAppointments]);
+
+  // Listen for custom event to open Past Notifications modal
+  useEffect(() => {
+    const handleOpenPastNotifications = () => setShowPastNotifications(true);
+    window.addEventListener('openPastNotifications', handleOpenPastNotifications);
+    return () => window.removeEventListener('openPastNotifications', handleOpenPastNotifications);
+  }, []);
 
   const loadPatient = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -685,6 +694,14 @@ export default function HospitalDeskPage() {
           )}
         </div>
       </div>
+
+      {/* Past Notifications Modal */}
+      <PastNotifications
+        isOpen={showPastNotifications}
+        onClose={() => setShowPastNotifications(false)}
+        isHospitalDesk={true}
+      />
+
       <style>{`
         @keyframes slideUpRight { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes spin { to { transform: rotate(360deg); } }

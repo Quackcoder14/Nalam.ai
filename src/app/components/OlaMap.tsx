@@ -5,7 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 const OLA_API_KEY = process.env.NEXT_PUBLIC_OLA_MAPS_API_KEY || '';
 const DEFAULT_CENTER: [number, number] = [80.2512, 13.0604]; // Chennai fallback
-type PlaceType = 'hospital' | 'pharmacy';
+type PlaceType = 'hospital' | 'pharmacy' | 'clinic' | 'doctor' | 'health' | 'medical_store';
 
 interface NearbyPlace {
   place_id: string;
@@ -137,7 +137,13 @@ function PlacePopup({ place, onClose }: { place: NearbyPlace; onClose: () => voi
   }, [place]);
 
   const isHospital = place.type === 'hospital';
-  const color = isHospital ? '#0052A5' : '#00897B';
+  const isClinic = place.type === 'clinic' || place.type === 'doctor';
+  const isPharmacy = place.type === 'pharmacy' || place.type === 'medical_store';
+  let color = '#0052A5';
+  let icon = '🏥';
+  if (isPharmacy) { color = '#00897B'; icon = '💊'; }
+  else if (isClinic) { color = '#7C3AED'; icon = '🩺'; }
+  else if (place.type === 'health') { color = '#C07A00'; icon = '🏥'; }
 
   return (
     <div
@@ -154,7 +160,7 @@ function PlacePopup({ place, onClose }: { place: NearbyPlace; onClose: () => voi
     >
       <style>{`@keyframes slideUpCard { from { transform:translateY(20px); opacity:0 } to { transform:translateY(0); opacity:1 } }`}</style>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-        <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>{isHospital ? '🏥' : '💊'}</span>
+        <span style={{ fontSize: '1.6rem', flexShrink: 0 }}>{icon}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800, fontSize: '1rem', color, marginBottom: '0.2rem', lineHeight: 1.3 }}>{place.name}</div>
           {place.address && (
@@ -213,7 +219,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
   const markersRef = useRef<any[]>([]);
   const [status, setStatus] = useState<'locating' | 'loading' | 'ready' | 'error'>('locating');
   const [locationLabel, setLocationLabel] = useState('');
-  const [filter, setFilter] = useState<'all' | 'hospital' | 'pharmacy'>('all');
+  const [filter, setFilter] = useState<'all' | 'hospital' | 'pharmacy' | 'clinic' | 'doctor' | 'health'>('all');
   const [searchText, setSearchText] = useState('');
   const [loadingPlaces, setLoadingPlaces] = useState(false);
   const [mapMessage, setMapMessage] = useState('');
@@ -237,12 +243,16 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
     originEl.style.cssText = `width:18px;height:18px;border-radius:50%;background:#0052A5;border:3px solid white;box-shadow:0 0 0 5px rgba(0,82,165,0.2);flex-shrink:0;`;
     originMarkerRef.current = new Marker({ element: originEl }).setLngLat([lng, lat]).addTo(mapRef.current);
 
-    const [hospitals, pharmacies] = await Promise.all([
+    const [hospitals, pharmacies, clinics, doctors, health, medicalStores] = await Promise.all([
       fetchNearby(lat, lng, 'hospital'),
       fetchNearby(lat, lng, 'pharmacy'),
+      fetchNearby(lat, lng, 'clinic'),
+      fetchNearby(lat, lng, 'doctor'),
+      fetchNearby(lat, lng, 'health'),
+      fetchNearby(lat, lng, 'medical_store'),
     ]);
 
-    const allPlaces = dedupePlaces([...hospitals, ...pharmacies]);
+    const allPlaces = dedupePlaces([...hospitals, ...pharmacies, ...clinics, ...doctors, ...health, ...medicalStores]);
     placesRef.current = allPlaces;
     setLocationLabel(label);
     renderMarkers(mapRef.current, allPlaces, filter, Marker, setSelectedPlace);
@@ -332,6 +342,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
   }, []);
 
   function renderMarkers(map: any, places: NearbyPlace[], filterType: string, Marker: any, onSelect: (p: NearbyPlace) => void) {
+    if (!map) return;
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
@@ -339,7 +350,15 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
 
     filtered.forEach(place => {
       const isHospital = place.type === 'hospital';
-      const color = isHospital ? '#0052A5' : '#00897B';
+      const isClinic = place.type === 'clinic' || place.type === 'doctor';
+      const isPharmacy = place.type === 'pharmacy' || place.type === 'medical_store';
+      const isHealth = place.type === 'health';
+      
+      let color = '#0052A5';
+      let icon = '🏥';
+      if (isPharmacy) { color = '#00897B'; icon = '💊'; }
+      else if (isClinic) { color = '#7C3AED'; icon = '🩺'; }
+      else if (isHealth) { color = '#C07A00'; icon = '🏥'; }
 
       // Wrapper keeps the MapLibre anchor at bottom-center; inner div handles visual rotation
       const wrapper = document.createElement('div');
@@ -354,10 +373,10 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
         transition:box-shadow 0.2s,filter 0.2s;
         pointer-events:none;
       `;
-      const icon = document.createElement('span');
-      icon.style.cssText = `transform:rotate(45deg);font-size:14px;line-height:1;pointer-events:none;`;
-      icon.textContent = isHospital ? '🏥' : '💊';
-      pin.appendChild(icon);
+      const iconEl = document.createElement('span');
+      iconEl.style.cssText = `transform:rotate(45deg);font-size:14px;line-height:1;pointer-events:none;`;
+      iconEl.textContent = icon;
+      pin.appendChild(iconEl);
       wrapper.appendChild(pin);
 
       // Hover brightens the pin without touching the transform
@@ -365,15 +384,19 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
       wrapper.onmouseleave = () => { pin.style.filter = ''; pin.style.boxShadow = `0 3px 10px ${color}77`; };
       wrapper.onclick = (e) => { e.stopPropagation(); onSelect(place); };
 
-      const marker = new Marker({ element: wrapper, anchor: 'bottom' })
-        .setLngLat([place.lng, place.lat])
-        .addTo(map);
+      try {
+        const marker = new Marker({ element: wrapper, anchor: 'bottom' })
+          .setLngLat([place.lng, place.lat])
+          .addTo(map);
 
-      markersRef.current.push(marker);
+        markersRef.current.push(marker);
+      } catch (err) {
+        console.error('Error adding marker:', err);
+      }
     });
   }
 
-  const handleFilter = async (newFilter: 'all' | 'hospital' | 'pharmacy') => {
+  const handleFilter = async (newFilter: 'all' | 'hospital' | 'pharmacy' | 'clinic' | 'doctor' | 'health') => {
     setFilter(newFilter);
     setSelectedPlace(null);
     if (!mapRef.current || placesRef.current.length === 0) return;
@@ -473,18 +496,36 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
         </button>
       </form>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
-        {(['all', 'hospital', 'pharmacy'] as const).map(f => (
-          <button key={f} onClick={() => handleFilter(f)}
-            style={{
-              padding: '0.3rem 0.75rem', borderRadius: 20, border: 'none', cursor: 'pointer',
-              fontWeight: 600, fontSize: '0.75rem', fontFamily: 'inherit',
-              background: filter === f ? (f === 'pharmacy' ? '#00897B' : '#0052A5') : 'var(--surface-muted, #f1f5f9)',
-              color: filter === f ? 'white' : '#555',
-              transition: 'all 0.2s',
-            }}>
-            {f === 'all' ? '🗺 All' : f === 'hospital' ? '🏥 Hospitals' : '💊 Pharmacies'}
-          </button>
-        ))}
+        {(['all', 'hospital', 'pharmacy', 'clinic', 'doctor', 'health'] as const).map(f => {
+          const colors: Record<string, { bg: string; text: string }> = {
+            all: { bg: '#0052A5', text: 'white' },
+            hospital: { bg: '#0052A5', text: 'white' },
+            pharmacy: { bg: '#00897B', text: 'white' },
+            clinic: { bg: '#7C3AED', text: 'white' },
+            doctor: { bg: '#7C3AED', text: 'white' },
+            health: { bg: '#C07A00', text: 'white' },
+          };
+          const labels: Record<string, string> = {
+            all: '🗺 All',
+            hospital: '🏥 Hospitals',
+            pharmacy: '💊 Pharmacies',
+            clinic: '🩺 Clinics',
+            doctor: '👨‍⚕️ Doctors',
+            health: '🏥 Health',
+          };
+          return (
+            <button key={f} onClick={() => handleFilter(f)}
+              style={{
+                padding: '0.3rem 0.75rem', borderRadius: 20, border: 'none', cursor: 'pointer',
+                fontWeight: 600, fontSize: '0.75rem', fontFamily: 'inherit',
+                background: filter === f ? colors[f].bg : 'var(--surface-muted, #f1f5f9)',
+                color: filter === f ? 'white' : '#555',
+                transition: 'all 0.2s',
+              }}>
+              {labels[f]}
+            </button>
+          );
+        })}
         {locationLabel && (
           <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#888' }}>📍 {locationLabel}</span>
         )}

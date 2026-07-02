@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { encrypt } from '../src/lib/crypto';
+import { encrypt, hashPassword } from '../src/lib/crypto';
 
 const prisma = new PrismaClient();
 
@@ -364,6 +364,267 @@ const patients = [
     consent_specialist: true,
     consent_research: false,
     abha_id_enc: '91-0123-4567-8901',
+  },
+];
+
+// Sample doctors data - 3 doctors per hospital
+const doctors = [
+  // Apollo Hospital
+  {
+    id: 'dr_arun',
+    password_hash: hashPassword('doctor123'),
+    full_name_enc: 'Dr. Arun Prakash',
+    gender_enc: 'Male',
+    dob_enc: '1979-04-12',
+    mobile_enc: '9876543236',
+    email_enc: 'arun.prakash@apollo.com',
+    registration_number: 'TNMC34567',
+    registration_council: 'Tamil Nadu Medical Council',
+    registration_year: '2007',
+    qualification_enc: 'MBBS, MD (Neurology)',
+    specialty: 'Neurology',
+    department: 'Neurology',
+    designation: 'Senior Neurologist',
+    hospital: 'Apollo Hospital',
+    experience_years: 17,
+    languages_json: JSON.stringify(['Tamil', 'English', 'Telugu']),
+    consultation_modes_json: JSON.stringify(['In-person', 'Teleconsult']),
+    available_days_json: JSON.stringify(['Mon', 'Wed', 'Fri']),
+    time_slots_json: JSON.stringify(['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM']),
+    room_number_enc: 'NEU-101',
+    address_enc: '67, OMR Road, Perungudi, Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600096',
+    status: 'active',
+  },
+  {
+    id: 'dr_kavitha',
+    password_hash: hashPassword('doctor123'),
+    full_name_enc: 'Dr. Kavitha Sundaram',
+    gender_enc: 'Female',
+    dob_enc: '1984-09-22',
+    mobile_enc: '9876543237',
+    email_enc: 'kavitha.sundaram@apollo.com',
+    registration_number: 'TNMC34568',
+    registration_council: 'Tamil Nadu Medical Council',
+    registration_year: '2013',
+    qualification_enc: 'MBBS, MD (Gynecology)',
+    specialty: 'Gynecology',
+    department: 'Gynecology',
+    designation: 'Senior Gynecologist',
+    hospital: 'Apollo Hospital',
+    experience_years: 11,
+    languages_json: JSON.stringify(['Tamil', 'English']),
+    consultation_modes_json: JSON.stringify(['In-person', 'Teleconsult']),
+    available_days_json: JSON.stringify(['Tue', 'Thu', 'Sat']),
+    time_slots_json: JSON.stringify(['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM', '04:00 PM']),
+    room_number_enc: 'GYN-201',
+    address_enc: '34, Kodambakkam High Road, Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600024',
+    status: 'active',
+  },
+  {
+    id: 'dr_suresh',
+    password_hash: hashPassword('doctor123'),
+    full_name_enc: 'Dr. Suresh Babu',
+    gender_enc: 'Male',
+    dob_enc: '1976-06-30',
+    mobile_enc: '9876543238',
+    email_enc: 'suresh.babu@apollo.com',
+    registration_number: 'TNMC34569',
+    registration_council: 'Tamil Nadu Medical Council',
+    registration_year: '2005',
+    qualification_enc: 'MBBS, MS (Ophthalmology)',
+    specialty: 'Ophthalmology',
+    department: 'Ophthalmology',
+    designation: 'Senior Ophthalmologist',
+    hospital: 'Apollo Hospital',
+    experience_years: 19,
+    languages_json: JSON.stringify(['Tamil', 'English', 'Kannada']),
+    consultation_modes_json: JSON.stringify(['In-person']),
+    available_days_json: JSON.stringify(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']),
+    time_slots_json: JSON.stringify(['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '02:00 PM', '03:00 PM']),
+    room_number_enc: 'OPHT-301',
+    address_enc: '12, sterling Road, Nungambakkam, Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600034',
+    status: 'active',
+  },
+
+  // Kauvery Hospital
+  {
+    id: 'dr_venkat',
+    password_hash: hashPassword('doctor123'),
+    full_name_enc: 'Dr. Venkat Subramanian',
+    gender_enc: 'Male',
+    dob_enc: '1978-12-10',
+    mobile_enc: '9876543232',
+    email_enc: 'venkat.subramanian@kauvery.com',
+    registration_number: 'TNMC12347',
+    registration_council: 'Tamil Nadu Medical Council',
+    registration_year: '2006',
+    qualification_enc: 'MBBS, MD (General Medicine)',
+    specialty: 'General Medicine',
+    department: 'General Medicine',
+    designation: 'Senior Physician',
+    hospital: 'Kauvery Hospital',
+    experience_years: 18,
+    languages_json: JSON.stringify(['Tamil', 'English', 'Telugu']),
+    consultation_modes_json: JSON.stringify(['In-person']),
+    available_days_json: JSON.stringify(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']),
+    time_slots_json: JSON.stringify(['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '02:00 PM', '03:00 PM']),
+    room_number_enc: 'GM-301',
+    address_enc: '78, Mount Road, Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600002',
+    status: 'active',
+  },
+  {
+    id: 'dr_priya',
+    password_hash: hashPassword('doctor123'),
+    full_name_enc: 'Dr. Priya Lakshmanan',
+    gender_enc: 'Female',
+    dob_enc: '1985-03-25',
+    mobile_enc: '9876543233',
+    email_enc: 'priya.lakshmanan@kauvery.com',
+    registration_number: 'TNMC23456',
+    registration_council: 'Tamil Nadu Medical Council',
+    registration_year: '2012',
+    qualification_enc: 'MBBS, MD (Pediatrics)',
+    specialty: 'Pediatrics',
+    department: 'Pediatrics',
+    designation: 'Senior Pediatrician',
+    hospital: 'Kauvery Hospital',
+    experience_years: 12,
+    languages_json: JSON.stringify(['Tamil', 'English']),
+    consultation_modes_json: JSON.stringify(['In-person', 'Teleconsult']),
+    available_days_json: JSON.stringify(['Mon', 'Wed', 'Fri']),
+    time_slots_json: JSON.stringify(['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM']),
+    room_number_enc: 'PED-101',
+    address_enc: '56, Beach Road, Besant Nagar, Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600090',
+    status: 'active',
+  },
+  {
+    id: 'dr_ramesh',
+    password_hash: hashPassword('doctor123'),
+    full_name_enc: 'Dr. Ramesh Krishnan',
+    gender_enc: 'Male',
+    dob_enc: '1980-07-18',
+    mobile_enc: '9876543234',
+    email_enc: 'ramesh.krishnan@kauvery.com',
+    registration_number: 'TNMC23457',
+    registration_council: 'Tamil Nadu Medical Council',
+    registration_year: '2008',
+    qualification_enc: 'MBBS, MS (Orthopedics)',
+    specialty: 'Orthopedics',
+    department: 'Orthopedics',
+    designation: 'Senior Orthopedic Surgeon',
+    hospital: 'Kauvery Hospital',
+    experience_years: 16,
+    languages_json: JSON.stringify(['Tamil', 'English', 'Malayalam']),
+    consultation_modes_json: JSON.stringify(['In-person']),
+    available_days_json: JSON.stringify(['Tue', 'Thu', 'Sat']),
+    time_slots_json: JSON.stringify(['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM', '04:00 PM']),
+    room_number_enc: 'ORT-201',
+    address_enc: '89, LIC Colony, Adyar, Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600020',
+    status: 'active',
+  },
+
+  // Govt Hospital
+  {
+    id: 'dr_dhanush',
+    password_hash: hashPassword('doctor123'),
+    full_name_enc: 'Dr. Dhanush',
+    gender_enc: 'Male',
+    dob_enc: '1980-05-15',
+    mobile_enc: '9876543230',
+    email_enc: 'dhanush@govt.gov.in',
+    registration_number: 'TNMC12345',
+    registration_council: 'Tamil Nadu Medical Council',
+    registration_year: '2008',
+    qualification_enc: 'MBBS, MD (Emergency Medicine)',
+    specialty: 'Emergency Medicine',
+    department: 'Emergency',
+    designation: 'Senior Emergency Physician',
+    hospital: 'Govt Hospital',
+    experience_years: 16,
+    languages_json: JSON.stringify(['Tamil', 'English', 'Hindi']),
+    consultation_modes_json: JSON.stringify(['In-person', 'Teleconsult']),
+    available_days_json: JSON.stringify(['Mon', 'Wed', 'Fri']),
+    time_slots_json: JSON.stringify(['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM', '04:00 PM']),
+    room_number_enc: 'ER-101',
+    address_enc: '123, Gandhi Street, T. Nagar, Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600017',
+    status: 'active',
+  },
+  {
+    id: 'dr_monissha',
+    password_hash: hashPassword('doctor123'),
+    full_name_enc: 'Dr. Monissha',
+    gender_enc: 'Female',
+    dob_enc: '1982-08-20',
+    mobile_enc: '9876543231',
+    email_enc: 'monissha@govt.gov.in',
+    registration_number: 'TNMC12346',
+    registration_council: 'Tamil Nadu Medical Council',
+    registration_year: '2010',
+    qualification_enc: 'MBBS, MD (Cardiology)',
+    specialty: 'Cardiology',
+    department: 'Cardiology',
+    designation: 'Senior Cardiologist',
+    hospital: 'Govt Hospital',
+    experience_years: 14,
+    languages_json: JSON.stringify(['Tamil', 'English']),
+    consultation_modes_json: JSON.stringify(['In-person', 'Teleconsult']),
+    available_days_json: JSON.stringify(['Tue', 'Thu', 'Sat']),
+    time_slots_json: JSON.stringify(['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM']),
+    room_number_enc: 'CARD-201',
+    address_enc: '45, Nehru Road, Anna Nagar, Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600040',
+    status: 'active',
+  },
+  {
+    id: 'dr_anita',
+    password_hash: hashPassword('doctor123'),
+    full_name_enc: 'Dr. Anita Desai',
+    gender_enc: 'Female',
+    dob_enc: '1983-11-05',
+    mobile_enc: '9876543235',
+    email_enc: 'anita.desai@govt.gov.in',
+    registration_number: 'TNMC23458',
+    registration_council: 'Tamil Nadu Medical Council',
+    registration_year: '2011',
+    qualification_enc: 'MBBS, MD (Dermatology)',
+    specialty: 'Dermatology',
+    department: 'Dermatology',
+    designation: 'Senior Dermatologist',
+    hospital: 'Govt Hospital',
+    experience_years: 13,
+    languages_json: JSON.stringify(['Tamil', 'English', 'Hindi']),
+    consultation_modes_json: JSON.stringify(['In-person', 'Teleconsult']),
+    available_days_json: JSON.stringify(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']),
+    time_slots_json: JSON.stringify(['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '02:00 PM']),
+    room_number_enc: 'DERM-301',
+    address_enc: '23, Velachery Main Road, Chennai',
+    district: 'Chennai',
+    state: 'Tamil Nadu',
+    pincode: '600042',
+    status: 'active',
   },
 ];
 
@@ -1085,8 +1346,18 @@ async function main() {
 
   // Clear existing data
   console.log('🧹 Clearing existing data...');
+  await prisma.auditLog.deleteMany();
+  await prisma.clinicalAlert.deleteMany();
+  await prisma.appointment.deleteMany();
+  await prisma.chatMessage.deleteMany();
+  await prisma.patientFile.deleteMany();
+  await prisma.recordsOtp.deleteMany();
+  await prisma.chatbotMessage.deleteMany();
+  await prisma.chatbotConversation.deleteMany();
+  await prisma.pushSubscription.deleteMany();
   await prisma.medicalRecord.deleteMany();
   await prisma.patient.deleteMany();
+  await prisma.doctor.deleteMany();
 
   // Insert patients
   console.log('👥 Inserting patients...');
@@ -1095,6 +1366,15 @@ async function main() {
       data: patient,
     });
     console.log(`  ✅ Created patient: ${patient.id} - ${patient.name_enc}`);
+  }
+
+  // Insert doctors
+  console.log('👨‍⚕️ Inserting doctors...');
+  for (const doctor of doctors) {
+    await prisma.doctor.create({
+      data: doctor,
+    });
+    console.log(`  ✅ Created doctor: ${doctor.id} - ${doctor.full_name_enc} (${doctor.hospital})`);
   }
 
   // Insert medical records
@@ -1107,7 +1387,7 @@ async function main() {
   }
 
   console.log('✨ Seed completed successfully!');
-  console.log(`📊 Summary: ${patients.length} patients, ${medicalRecords.length} medical records`);
+  console.log(`📊 Summary: ${patients.length} patients, ${doctors.length} doctors, ${medicalRecords.length} medical records`);
 }
 
 main()

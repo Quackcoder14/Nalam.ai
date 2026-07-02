@@ -1,6 +1,16 @@
 export const DOCTOR_SCHEDULES: Record<string, string[]> = {
+  // Apollo Hospital
+  dr_arun: ['Mon', 'Wed', 'Fri'],
+  dr_kavitha: ['Tue', 'Thu', 'Sat'],
+  dr_suresh: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+  // Kauvery Hospital
+  dr_venkat: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+  dr_priya: ['Mon', 'Wed', 'Fri'],
+  dr_ramesh: ['Tue', 'Thu', 'Sat'],
+  // Govt Hospital
   dr_dhanush: ['Mon', 'Wed', 'Fri'],
   dr_monissha: ['Tue', 'Thu', 'Sat'],
+  dr_anita: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
 };
 
 export function getNextSlots(days: string[]): string[] {

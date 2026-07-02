@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Send, Mic, Paperclip, Building2, User, UserCircle, StopCircle, Image as ImageIcon, File, X } from 'lucide-react';
 
-const HOSPITALS = ['Apollo Hospitals', 'Fortis Healthcare', 'Nalam.ai General Hospital'];
+const HOSPITALS = ['Apollo Hospital', 'Kauvery Hospital', 'Govt Hospital'];
 
 export default function PatientChat() {
   return (

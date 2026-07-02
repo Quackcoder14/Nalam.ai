@@ -2,12 +2,15 @@
   "name": "nalam",
   "version": "0.1.0",
   "private": true,
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",

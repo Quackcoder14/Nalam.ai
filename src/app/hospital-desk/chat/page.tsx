@@ -28,7 +28,7 @@ export default function DeskChat() {
   const [newChatInput, setNewChatInput] = useState('');
   const [showMockProfile, setShowMockProfile] = useState(false);
 
-  const hospital = 'Apollo Hospitals'; // Hardcoded for MVP
+  const hospital = sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Apollo Hospital';
 
   const fetchConversations = useCallback(async () => {
     try {

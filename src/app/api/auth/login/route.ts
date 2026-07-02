@@ -17,9 +17,20 @@ const CREDENTIALS: Record<string, {
   'karthik@nalam.ai':  { password: '123', role: 'patient',   staffId: 'P001',              name: 'Karthik' },
   'monissha@nalam.ai': { password: '123', role: 'clinician',  staffId: 'dr_monissha', clinicianRole: 'specialist' },
   'dhanush@nalam.ai':  { password: '123', role: 'clinician',  staffId: 'dr_dhanush',  clinicianRole: 'emergency' },
-  'apollo@nalam.ai':   { password: '123', role: 'hdesk',      staffId: 'apollo@nalam.ai',  branch: 'Apollo Hospitals' },
-  'fortis@nalam.ai':   { password: '123', role: 'hdesk',      staffId: 'fortis@nalam.ai',  branch: 'Fortis Healthcare' },
-  'manipal@nalam.ai':  { password: '123', role: 'hdesk',      staffId: 'manipal@nalam.ai', branch: 'Manipal Hospitals' },
+  // Apollo Hospital doctors
+  'arun@nalam.ai':     { password: '123', role: 'clinician',  staffId: 'dr_arun',     clinicianRole: 'specialist' },
+  'kavitha@nalam.ai':  { password: '123', role: 'clinician',  staffId: 'dr_kavitha',  clinicianRole: 'specialist' },
+  'suresh@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_suresh',   clinicianRole: 'specialist' },
+  // Kauvery Hospital doctors
+  'venkat@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_venkat',   clinicianRole: 'specialist' },
+  'priya@nalam.ai':    { password: '123', role: 'clinician',  staffId: 'dr_priya',    clinicianRole: 'specialist' },
+  'ramesh@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_ramesh',   clinicianRole: 'specialist' },
+  // Govt Hospital doctors
+  'anita@nalam.ai':    { password: '123', role: 'clinician',  staffId: 'dr_anita',    clinicianRole: 'specialist' },
+  // Hospital desk logins
+  'apollo@nalam.ai':   { password: '123', role: 'hdesk',      staffId: 'apollo@nalam.ai',  branch: 'Apollo Hospital' },
+  'kauvery@nalam.ai':  { password: '123', role: 'hdesk',      staffId: 'kauvery@nalam.ai', branch: 'Kauvery Hospital' },
+  'govt@nalam.ai':     { password: '123', role: 'hdesk',      staffId: 'govt@nalam.ai',    branch: 'Govt Hospital' },
 };
 
 export async function POST(request: Request) {

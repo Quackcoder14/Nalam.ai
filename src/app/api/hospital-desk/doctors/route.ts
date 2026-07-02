@@ -32,16 +32,22 @@ function mapDoctor(row: Doctor) {
     experience: row.experience_years ? `${row.experience_years} years` : '',
     languages: row.languages_json ? JSON.parse(row.languages_json) : ['Tamil', 'English'],
     slots: days,
-    availableDates: getNextSlots(days),
     timeSlots: row.time_slots_json ? JSON.parse(row.time_slots_json) : [],
     status: row.status,
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const auth = requireRole(request, ['hdesk', 'clinician', 'patient']);
+    if (!auth.ok) return auth.response;
+
+    // Filter by hospital if session has hospital info (for hospital desk isolation)
+    const hospital = auth.session.branch;
+    const whereClause = hospital ? { hospital, status: 'active' } : { status: 'active' };
+
     const rows = await prisma.doctor.findMany({
-      where: { status: 'active' },
+      where: whereClause,
       orderBy: [{ hospital: 'asc' }, { specialty: 'asc' }, { created_at: 'desc' }],
     });
     return NextResponse.json({ doctors: rows.map(mapDoctor) });

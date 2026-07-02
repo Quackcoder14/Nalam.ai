@@ -408,6 +408,9 @@ export default function ViewRequests() {
                           <AlertTriangle size={16} color="#7C3AED" />
                           <span style={{ fontWeight: 800, color: '#7C3AED', fontSize: '0.85rem' }}>{t('req.rescheduleProposed')}</span>
                         </div>
+                        <div style={{ fontSize: '0.88rem', color: '#4C1D95', marginBottom: '0.35rem', fontWeight: 700 }}>
+                          {t('req.proposedBy')}: {apt.doctorName}
+                        </div>
                         <div style={{ fontSize: '0.88rem', color: '#4C1D95', marginBottom: '0.35rem' }}>
                           <strong>{t('req.newDate')}</strong> {apt.rescheduleProposedDate ? formatDate(apt.rescheduleProposedDate) : '—'}
                           {apt.rescheduleProposedTime && <> &nbsp;{t('req.at')}&nbsp; <strong>{apt.rescheduleProposedTime}</strong></>}
