@@ -21,6 +21,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [generalConversationId, setGeneralConversationId] = useState<string | null>(null); // For clinician's general chat
   const [isEmergency, setIsEmergency] = useState(false);
   const [emergencyActions, setEmergencyActions] = useState<string[] | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -32,50 +33,26 @@ export default function Chatbot({ userRole }: ChatbotProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  // Handle context clear event (when patient context changes)
-  useEffect(() => {
-    const handleClearContext = () => {
-      setConversationId(null);
-      setMessages([]);
-      setApprovedPatientId(null);
-      const greeting = userRole === 'clinician'
-        ? 'Context cleared. I\'m ready to help with a new patient context. How can I assist you?'
-        : 'Hello! I\'m your medical AI assistant. I can help answer your health questions and provide general medical information. How can I help you today?';
-      setMessages([{ role: 'assistant', content: greeting }]);
-    };
-
-    const handlePatientContextApproved = (event: CustomEvent) => {
-      const { patientId } = event.detail;
-      setApprovedPatientId(patientId);
-      setConversationId(null); // Start new conversation for new patient
-      setMessages([{
-        role: 'assistant',
-        content: `Patient Context Approved: Patient ID: ${patientId}. I now have access to this patient's information. How can I help you with this patient?`
-      }]);
-    };
-
-    window.addEventListener('clearChatbotContext', handleClearContext);
-    window.addEventListener('patientContextApproved', handlePatientContextApproved as EventListener);
-
-    return () => {
-      window.removeEventListener('clearChatbotContext', handleClearContext);
-      window.removeEventListener('patientContextApproved', handlePatientContextApproved as EventListener);
-    };
-  }, [userRole]);
-
-  const loadConversation = useCallback(async () => {
+  const loadConversation = useCallback(async (loadGeneral = false) => {
     try {
       const res = await apiFetch('/api/chatbot');
       if (res.ok) {
         const data = await res.json();
         if (data.conversations && data.conversations.length > 0) {
-          const latestConversation = data.conversations[0];
-          setConversationId(latestConversation.id);
-          setMessages(latestConversation.messages.map((m: { role: string; content: string }) => ({
+          // For clinicians, if loading general, find the conversation without patient context
+          // Otherwise, use the latest conversation
+          let targetConversation;
+          if (userRole === 'clinician' && loadGeneral) {
+            // Try to find a conversation that doesn't have patient context
+            targetConversation = data.conversations.find((conv: any) => 
+              !conv.messages.some((m: any) => m.content.includes('Patient Context Approved:'))
+            ) || data.conversations[0];
+          } else {
+            targetConversation = data.conversations[0];
+          }
+          
+          setConversationId(targetConversation.id);
+          setMessages(targetConversation.messages.map((m: { role: string; content: string }) => ({
             role: m.role as 'user' | 'assistant',
             content: m.content,
           })));
@@ -97,6 +74,65 @@ export default function Chatbot({ userRole }: ChatbotProps) {
   }, [userRole]);
 
   useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // Handle context clear event (when patient context changes)
+  useEffect(() => {
+    const handleClearContext = () => {
+      // For clinicians: switch back to general conversation
+      if (userRole === 'clinician') {
+        setApprovedPatientId(null);
+        setMessages([]);
+        // Reload general conversation
+        loadConversation(true).then(() => {
+          setConversationId(generalConversationId);
+        });
+      } else {
+        setConversationId(null);
+        setMessages([]);
+        setApprovedPatientId(null);
+        const greeting = 'Hello! I\'m your medical AI assistant. I can help answer your health questions and provide general medical information. How can I help you today?';
+        setMessages([{ role: 'assistant', content: greeting }]);
+      }
+    };
+
+    const handlePatientContextApproved = (event: CustomEvent) => {
+      const { patientId } = event.detail;
+      setApprovedPatientId(patientId);
+      
+      // For clinicians: save current conversation as general, then start new patient-specific conversation
+      if (userRole === 'clinician') {
+        // Save current conversation as general if not already saved
+        if (!generalConversationId && conversationId) {
+          setGeneralConversationId(conversationId);
+        }
+        
+        // Start new conversation for this patient
+        setConversationId(null);
+        setMessages([{
+          role: 'assistant',
+          content: `Patient Context Approved: Patient ID: ${patientId}. I now have access to this patient's information. How can I help you with this patient?`
+        }]);
+      } else {
+        setConversationId(null); // Start new conversation for new patient
+        setMessages([{
+          role: 'assistant',
+          content: `Patient Context Approved: Patient ID: ${patientId}. I now have access to this patient's information. How can I help you with this patient?`
+        }]);
+      }
+    };
+
+    window.addEventListener('clearChatbotContext', handleClearContext);
+    window.addEventListener('patientContextApproved', handlePatientContextApproved as EventListener);
+
+    return () => {
+      window.removeEventListener('clearChatbotContext', handleClearContext);
+      window.removeEventListener('patientContextApproved', handlePatientContextApproved as EventListener);
+    };
+  }, [userRole, conversationId, generalConversationId, loadConversation]);
+
+  useEffect(() => {
     if (isOpen && messages.length === 0) {
       loadConversation();
     }
@@ -116,6 +152,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
         body: JSON.stringify({
           message: userMessage,
           conversationId,
+          patientContextId: approvedPatientId,
         }),
       });
 
@@ -202,7 +239,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
             boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
             display: 'flex',
             flexDirection: 'column',
-            zIndex: 90,
+            zIndex: 9000,
             border: '1px solid var(--border)',
             transition: 'all 0.3s ease',
           }}
@@ -244,6 +281,36 @@ export default function Chatbot({ userRole }: ChatbotProps) {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
+              {userRole === 'clinician' && (
+                <button
+                  onClick={async () => {
+                    setMessages([]);
+                    if (approvedPatientId) {
+                      // Reload with patient context
+                      setMessages([{
+                        role: 'assistant',
+                        content: `Patient Context Approved: Patient ID: ${approvedPatientId}. I now have access to this patient's information. How can I help you with this patient?`
+                      }]);
+                    } else {
+                      // Reload general conversation
+                      await loadConversation(true);
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  title="Refresh Chat"
+                >
+                  <Loader2 size={18} color="white" />
+                </button>
+              )}
               <button
                 onClick={() => {
                   const sizes: Array<'small' | 'medium' | 'large'> = ['small', 'medium', 'large'];

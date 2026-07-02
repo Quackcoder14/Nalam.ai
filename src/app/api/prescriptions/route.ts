@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { encrypt } from '@/lib/crypto';
+import { sendPushToUser } from '@/lib/sendPush';
 
 export async function POST(request: Request) {
   try {
@@ -51,6 +52,23 @@ export async function POST(request: Request) {
         created_at: new Date(),
       },
     });
+
+    // Notify patient about new prescription
+    sendPushToUser(patientId, {
+      title: '📊 New Prescription Added',
+      body: `A new prescription with ${medications.length} medication(s) has been added to your records.`,
+      url: '/dashboard/records',
+    }).catch(() => {});
+
+    // Create clinical alert in patient dashboard
+    await prisma.clinicalAlert.create({
+      data: {
+        patient_id: patientId,
+        severity: 'info',
+        title: 'New Prescription',
+        message: `A clinician has added a prescription dated ${new Date(date).toLocaleDateString()} to your records. Medications: ${medications.map((m: any) => m.name).join(', ')}.`,
+      },
+    }).catch(() => {});
 
     return NextResponse.json({ 
       success: true, 

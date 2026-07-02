@@ -104,6 +104,9 @@ export default function HospitalDeskPage() {
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [mismatchWarning, setMismatchWarning] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [scanNotes, setScanNotes] = useState('');
+  const [scanDoctor, setScanDoctor] = useState('');
+  const [scanDoctorCustom, setScanDoctorCustom] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const TIMELINE_LIMIT = parseInt(process.env.NEXT_PUBLIC_TIMELINE_LIMIT || '10', 10);
@@ -206,28 +209,98 @@ export default function HospitalDeskPage() {
         setOcrError(data.error);
       } else {
         setResult(data);
+        setScanNotes('');
+        setScanDoctor('');
+        setScanDoctorCustom('');
         
-        // Mismatch logic
-        if (data.patientName) {
+        const branch = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk') : 'Hospital Desk';
+        const isMedical = (data.diagnoses?.length > 0) || (data.medications?.length > 0) || (Object.keys(data.labValues || {}).length > 0);
+
+        // Alert: no patient name found
+        if (!data.patientName) {
+          setMismatchWarning('No patient name found in document. Please verify this belongs to the correct patient before importing.');
+          // Fire desk alert
+          await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts`, {
+            method: 'POST',
+            body: JSON.stringify({
+              patientId: patientData.id,
+              severity: 'warning',
+              title: 'Document Scan: No Patient Name',
+              message: `A document was scanned at ${branch} for patient ${patientData.id} but no patient name was found in the document. Manual verification required.`,
+            }),
+          }).catch(() => {});
+        } else {
+          // Alert: name mismatch
           const docName = data.patientName.toLowerCase();
           const pName = patientData.name.toLowerCase();
-          // Extremely basic fuzzy matching just for MVP
           if (!docName.includes(pName.split(' ')[0]) && !pName.includes(docName.split(' ')[0])) {
             setMismatchWarning(`Patient name mismatch: Document says "${data.patientName}" but profile is "${patientData.name}".`);
+            await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts`, {
+              method: 'POST',
+              body: JSON.stringify({
+                patientId: patientData.id,
+                severity: 'critical',
+                title: 'Document Scan: Name Mismatch',
+                message: `NAME MISMATCH at ${branch}: Document shows "${data.patientName}" but patient profile is "${patientData.name}" (${patientData.id}). Do not import without verification.`,
+              }),
+            }).catch(() => {});
           }
+        }
+
+        // Alert: non-medical content
+        if (!isMedical) {
+          setMismatchWarning((prev) => prev
+            ? prev + ' Additionally, no medical content (diagnoses/medications/labs) was detected — this may not be a medical document.'
+            : 'No medical content (diagnoses, medications, or lab values) detected. This may not be a medical document.');
+          await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts`, {
+            method: 'POST',
+            body: JSON.stringify({
+              patientId: patientData.id,
+              severity: 'warning',
+              title: 'Document Scan: Non-Medical Content',
+              message: `A document scanned at ${branch} for patient ${patientData.id} appears to contain no medical content (no diagnoses, medications, or lab values). Please review before importing.`,
+            }),
+          }).catch(() => {});
         }
       }
     } catch { setOcrError('Network error — please try again.'); }
     finally { setScanning(false); }
   };
 
+  // Doctors for the current hospital branch (for dropdown)
+  const getDoctorsForBranch = () => {
+    const branch = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || '') : '';
+    const branchLower = branch.toLowerCase();
+    const doctorsByHospital: Record<string, string[]> = {
+      'apollo hospital': ['Dr. Arun (General Medicine)', 'Dr. Kavitha (Cardiology)', 'Dr. Suresh (Neurology)'],
+      'kauvery hospital': ['Dr. Venkat (Orthopaedics)', 'Dr. Priya (Gynaecology)', 'Dr. Ramesh (ENT)'],
+      'govt hospital': ['Dr. Dhanush (Emergency)', 'Dr. Monissha (General Medicine)', 'Dr. Anita (Paediatrics)'],
+    };
+    for (const key of Object.keys(doctorsByHospital)) {
+      if (branchLower.includes(key.split(' ')[0])) return doctorsByHospital[key];
+    }
+    return ['Dr. Arun (General Medicine)', 'Dr. Kavitha (Cardiology)', 'Dr. Suresh (Neurology)'];
+  };
+
   const importToVault = async () => {
     if (!result || !patientId) return;
     setImporting(true);
+    const branch = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk') : 'Hospital Desk';
+    const finalDoctor = scanDoctor === 'other' ? scanDoctorCustom.trim() : scanDoctor;
+    const combinedNotes = [result.structuredSummary || result.rawText.slice(0, 300), scanNotes.trim()].filter(Boolean).join('\n\nDesk Notes: ');
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/record`, {
         method: 'POST',
-        body: JSON.stringify({ patientId, type: 'Document Scan', provider: 'Hospital Desk OCR', diagnosis: result.diagnoses.join(', '), notes: result.structuredSummary || result.rawText.slice(0, 300), labResults: Object.entries(result.labValues).map(([k, v]) => `${k}:${v}`).join(', ') }),
+        body: JSON.stringify({
+          patientId,
+          type: 'Document Scan',
+          provider: branch,
+          hospitalDesk: branch,
+          doctorName: finalDoctor || undefined,
+          diagnosis: result.diagnoses.join(', '),
+          notes: combinedNotes,
+          labResults: Object.entries(result.labValues).map(([k, v]) => `${k}:${v}`).join(', '),
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -630,7 +703,7 @@ export default function HospitalDeskPage() {
                   {mismatchWarning && !imported && (
                     <div style={{ marginTop: '1rem', padding: '1rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#B91C1C', fontWeight: 700, marginBottom: '0.5rem' }}>
-                        <AlertTriangle size={20} /> ⚠️ PATIENT MISMATCH
+                        <AlertTriangle size={20} /> ⚠️ SCAN WARNING
                       </div>
                       <p style={{ color: '#991B1B', fontSize: '0.9rem', marginBottom: '1rem' }}>{mismatchWarning}</p>
                       <button onClick={() => setMismatchWarning(null)} style={{ padding: '0.5rem 1rem', background: '#DC2626', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
@@ -639,8 +712,45 @@ export default function HospitalDeskPage() {
                     </div>
                   )}
                   {result && !imported && !mismatchWarning && (
-                    <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-                      <button onClick={importToVault} disabled={importing} className="primary-button" style={{ padding: '0.75rem 1.5rem', opacity: importing ? 0.7 : 1, width: '100%' }}>
+                    <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {/* Doctor dropdown */}
+                      <div>
+                        <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: '0.4rem' }}>
+                          👨‍⚕️ Doctor (optional)
+                        </label>
+                        <select
+                          value={scanDoctor}
+                          onChange={e => { setScanDoctor(e.target.value); if (e.target.value !== 'other') setScanDoctorCustom(''); }}
+                          style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem' }}
+                        >
+                          <option value=''>— Select doctor (if applicable) —</option>
+                          {getDoctorsForBranch().map(d => <option key={d} value={d}>{d}</option>)}
+                          <option value='other'>Other (type manually)</option>
+                        </select>
+                        {scanDoctor === 'other' && (
+                          <input
+                            type='text'
+                            placeholder='Enter doctor name or appointment reference…'
+                            value={scanDoctorCustom}
+                            onChange={e => setScanDoctorCustom(e.target.value)}
+                            style={{ marginTop: '0.5rem', width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--primary)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                          />
+                        )}
+                      </div>
+                      {/* Notes field */}
+                      <div>
+                        <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: '0.4rem' }}>
+                          📝 Additional Notes (optional)
+                        </label>
+                        <textarea
+                          value={scanNotes}
+                          onChange={e => setScanNotes(e.target.value)}
+                          rows={3}
+                          placeholder='Add any additional notes, observations or context for this document…'
+                          style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem', resize: 'vertical', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <button onClick={importToVault} disabled={importing} className='primary-button' style={{ padding: '0.75rem 1.5rem', opacity: importing ? 0.7 : 1, width: '100%' }}>
                         {importing ? t('hdesk.importing') : t('hdesk.importToVault')}
                       </button>
                     </div>

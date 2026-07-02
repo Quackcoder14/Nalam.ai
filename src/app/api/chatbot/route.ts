@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const session = getSessionFromRequest(request);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { message, conversationId, lang = 'en' } = await request.json();
+    const { message, conversationId, lang = 'en', patientContextId } = await request.json();
     if (!message) return NextResponse.json({ error: 'Message is required' }, { status: 400 });
 
     const userId = session.staffId;
@@ -84,31 +84,37 @@ export async function POST(request: Request) {
           appointmentsContext = '\n\nYou have no appointments scheduled.';
         }
 
-        // Check if there's an approved patient context in the conversation
-        // Look for the last message that might contain patient context info
-        const lastMessage = conversation.messages[conversation.messages.length - 1];
-        if (lastMessage && lastMessage.content.includes('Patient Context Approved:')) {
-          // Extract patient ID from the context
-          const patientIdMatch = lastMessage.content.match(/Patient ID: (\w+)/);
-          if (patientIdMatch) {
-            const approvedPatientId = patientIdMatch[1];
-            
-            // Fetch only this patient's records
-            const patient = await prisma.patient.findUnique({
-              where: { id: approvedPatientId },
-            });
-            
-            const patientRecords = await prisma.medicalRecord.findMany({
-              where: { patient_id: approvedPatientId },
-              orderBy: { date: 'desc' },
-              take: 10,
-            });
+        // Check if there's an approved patient context in the conversation or request body
+        let approvedPatientId = patientContextId;
 
-            if (patient) {
-              patientContext = `\n\nCurrent Patient Context (Approved):\n- Patient: ${patient.name_enc} (${patient.id})\n- Blood Type: ${patient.blood_type_enc}\n- Allergies: ${patient.allergies_enc}\n- Chronic Conditions: ${patient.chronic_conditions_enc || 'None'}\n- Current Medications: ${patient.current_medications_enc || 'None'}\n\nRecent Medical Records:\n${patientRecords.map((r: any) => 
-                `- ${r.date}: ${r.diagnosis_enc} (${r.type_enc})`
-              ).join('\n')}`;
+        // Fallback: look for the last message that might contain patient context info if not provided in request
+        if (!approvedPatientId) {
+          const lastMessage = conversation.messages[conversation.messages.length - 1];
+          if (lastMessage && lastMessage.content.includes('Patient Context Approved:')) {
+            // Extract patient ID from the context
+            const patientIdMatch = lastMessage.content.match(/Patient ID: (\w+)/);
+            if (patientIdMatch) {
+              approvedPatientId = patientIdMatch[1];
             }
+          }
+        }
+
+        if (approvedPatientId) {
+          // Fetch only this patient's records
+          const patient = await prisma.patient.findUnique({
+            where: { id: approvedPatientId },
+          });
+          
+          const patientRecords = await prisma.medicalRecord.findMany({
+            where: { patient_id: approvedPatientId },
+            orderBy: { date: 'desc' },
+            take: 10,
+          });
+
+          if (patient) {
+            patientContext = `\n\nCurrent Patient Context (Approved):\n- Patient: ${patient.name_enc} (${patient.id})\n- Blood Type: ${patient.blood_type_enc}\n- Allergies: ${patient.allergies_enc}\n- Chronic Conditions: ${patient.chronic_conditions_enc || 'None'}\n- Current Medications: ${patient.current_medications_enc || 'None'}\n\nRecent Medical Records:\n${patientRecords.map((r: any) => 
+              `- ${r.date}: ${r.diagnosis_enc} (${r.type_enc})`
+            ).join('\n')}`;
           }
         }
 
@@ -120,7 +126,14 @@ export async function POST(request: Request) {
       context = `You are a professional medical AI assistant helping Dr. ${userId}.
 You provide clinically accurate, professional responses.
 ${patientContext ? 'You currently have approved access to the patient context below. Only discuss this patient when asked.' : 'You do not currently have approved access to any patient context. You can discuss general medical topics and your schedule.'}
-${appointmentsContext}${patientContext}`;
+${appointmentsContext}${patientContext}
+
+IMPORTANT: You must respond in JSON format with this structure:
+{
+  "message": "your response text here",
+  "is_emergency": false,
+  "emergency_actions": null
+}`;
     } else {
       // Fetch patient's appointments directly from database
       let appointmentsContext = '';

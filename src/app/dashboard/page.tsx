@@ -2607,7 +2607,7 @@ export default function PatientDashboard() {
         style={{
           position: "fixed",
           bottom:
-            "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 6.5rem)",
+            "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 8rem)",
           right: "1.5rem",
           zIndex: 90,
           background: "linear-gradient(135deg, #ef4444, #dc2626)",

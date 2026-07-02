@@ -186,6 +186,13 @@ export async function POST(request: Request) {
       include: { patient: true },
     });
 
+    // Notify patient that their request was received
+    sendPushToUser(patientId, {
+      title: '📋 Appointment Request Received',
+      body: `Your appointment request with ${doctorName || doctorId} on ${date}${time ? ` at ${time}` : ''} is pending hospital desk approval.`,
+      url: '/appointments/requests',
+    }).catch(() => {});
+
     return NextResponse.json({ success: true, appointment: mapRowToApt(row) });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -320,14 +327,32 @@ export async function PATCH(request: Request) {
       include: { patient: true },
     });
 
-    // Notify patient when appointment is approved or scheduled.
-    if (status === 'approved' || status === 'scheduled') {
-      const label = status === 'approved' ? 'Approved ✅' : 'Scheduled 🗓️';
-      sendPushToUser(row.patient_id, {
-        title: `Appointment ${label}`,
-        body: `Your appointment with ${row.doctor_name} on ${row.date}${row.time ? ` at ${row.time}` : ''} has been ${status}.`,
-        url: '/appointments/requests',
-      }).catch(() => {});
+    // Notify patient when appointment is approved, scheduled, or rejected.
+    if (status === 'approved' || status === 'scheduled' || status === 'rejected') {
+      if (status === 'approved' || status === 'scheduled') {
+        const label = status === 'approved' ? 'Approved ✅' : 'Scheduled 🗓️';
+        sendPushToUser(row.patient_id, {
+          title: `Appointment ${label}`,
+          body: `Your appointment with ${row.doctor_name} on ${row.date}${row.time ? ` at ${row.time}` : ''} has been ${status}.`,
+          url: '/appointments/requests',
+        }).catch(() => {});
+      } else {
+        // Rejected
+        sendPushToUser(row.patient_id, {
+          title: '❌ Appointment Request Rejected',
+          body: `Your appointment request with ${row.doctor_name} on ${row.date} has been rejected. Please contact the hospital desk for more information.`,
+          url: '/appointments/requests',
+        }).catch(() => {});
+        // Also create a clinical alert so it shows in dashboard
+        await prisma.clinicalAlert.create({
+          data: {
+            patient_id: row.patient_id,
+            severity: 'warning',
+            title: 'Appointment Rejected',
+            message: `Your appointment request with ${row.doctor_name} on ${row.date} was rejected.${row.hdesk_note_enc ? ` Note: ${(row as any).hdeskNote || ''}` : ''}`,
+          },
+        }).catch(() => {});
+      }
     }
 
     return NextResponse.json({ success: true, appointment: mapRowToApt(row) });

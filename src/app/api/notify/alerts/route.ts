@@ -61,6 +61,31 @@ ${JSON.stringify(alerts, null, 2)}`;
   }
 }
 
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { patientId, severity, title, message } = body;
+
+    if (!patientId || !title || !message) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const alert = await prisma.clinicalAlert.create({
+      data: {
+        patient_id: patientId,
+        severity: severity || 'info',
+        title,
+        message,
+      }
+    });
+
+    return NextResponse.json({ success: true, alert });
+  } catch (error) {
+    console.error('Failed to create alert:', error);
+    return NextResponse.json({ error: 'Failed to create alert' }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: Request) {
   try {
     const { id } = await req.json();

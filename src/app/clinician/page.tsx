@@ -13,6 +13,7 @@ import Chatbot from '@/app/components/Chatbot';
 import { apiFetch } from '@/lib/apiFetch';
 import { AVAILABLE_TIME_SLOTS } from '@/lib/doctors';
 import { RecordsOtpModal } from '../components/RecordsOtpModal';
+import { ContextOtpModal } from '../components/ContextOtpModal';
 
 /* ── Reschedule Modal with live slot availability ────────────────────────── */
 function RescheduleModal({ apt, processing, onCancel, onSubmit }: {
@@ -706,6 +707,10 @@ export default function ClinicianPortal() {
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [showPrescription, setShowPrescription] = useState(false);
+  
+  const [showContextOtpModal, setShowContextOtpModal] = useState(false);
+  const [pendingContextPatientId, setPendingContextPatientId] = useState('');
+  const [savingSession, setSavingSession] = useState(false);
 
   const fetchAppointments = useCallback(async () => {
     setAptLoading(true);
@@ -797,8 +802,35 @@ export default function ClinicianPortal() {
       }
       
       // Patient exists, proceed with context request
-      setPatientId(patientSearchInput);
-      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${patientSearchInput}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`);
+      if (data && patientId && patientId !== patientSearchInput) {
+        // Auto-save previous session if switching context
+        try {
+          await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chatbot/save-conversation`, {
+            method: 'POST',
+            body: JSON.stringify({ patientId })
+          });
+        } catch (e) {
+          console.error('Failed to auto-save previous session', e);
+        }
+      }
+
+      setPendingContextPatientId(patientSearchInput);
+      setShowContextOtpModal(true);
+      setLoadingContext(false);
+    } catch { 
+      setError(t('clinician.failedToCommunicate'));
+      setLoadingContext(false); 
+    }
+  };
+
+  const fetchContextData = async (targetPatientId: string) => {
+    setShowContextOtpModal(false);
+    setLoadingContext(true);
+    setPatientId(targetPatientId);
+    const clinicianName = role === 'emergency' ? 'Dr. Dhanush (ER Attending)' : role === 'research' ? 'BioPharm Research Lab' : 'Dr. Monissha (Cardiology)';
+
+    try {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${targetPatientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`);
       const result = await res.json();
       if (!res.ok) { setError(result.error); }
       else {
@@ -814,6 +846,33 @@ export default function ClinicianPortal() {
       }
     } catch { setError(t('clinician.failedToCommunicate')); }
     finally { setLoadingContext(false); }
+  };
+
+  const saveAndCloseSession = async () => {
+    if (!data || !patientId) return;
+    setSavingSession(true);
+    try {
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/chatbot/save-conversation`, {
+        method: 'POST',
+        body: JSON.stringify({ patientId })
+      });
+      alert('Session saved to patient records successfully.');
+      setData(null);
+      setPatientId('');
+      setPatientSearchInput('');
+      setBiography('');
+      setSimulation(null);
+      setNavDisease('');
+      setNavManualDisease('');
+      setNavTab('symptoms');
+      setNavResult(null);
+      setLoadingNav(false);
+      clearChatbotContext();
+    } catch (e) {
+      alert('Failed to save session.');
+    } finally {
+      setSavingSession(false);
+    }
   };
 
   // Clear chatbot conversation when patient context changes
@@ -1123,6 +1182,15 @@ export default function ClinicianPortal() {
         />
       )}
 
+      {showContextOtpModal && (
+        <ContextOtpModal
+          patientId={pendingContextPatientId}
+          requestorName={role === 'emergency' ? 'Dr. Dhanush (ER)' : 'Dr. Monissha (Cardiology)'}
+          onClose={() => setShowContextOtpModal(false)}
+          onSuccess={() => fetchContextData(pendingContextPatientId)}
+        />
+      )}
+
       {rescheduleApt && (
         <RescheduleModal
           apt={rescheduleApt}
@@ -1242,6 +1310,32 @@ export default function ClinicianPortal() {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Close Session */}
+              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0' }}>
+                <button
+                  onClick={saveAndCloseSession}
+                  disabled={savingSession}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.65rem 1rem',
+                    background: '#FEF2F2',
+                    color: '#DC2626',
+                    border: '1px solid #FECACA',
+                    borderRadius: 10,
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    cursor: savingSession ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  {savingSession ? 'Saving...' : '💾 Save & Close Session'}
+                </button>
               </div>
             </div>
           )}
