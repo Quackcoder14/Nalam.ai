@@ -116,7 +116,7 @@ export default function HospitalDeskPage() {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts?lang=${lang}`);
       if (res.ok) {
         const data = await res.json();
-        const incoming = data.alerts || [];
+        const incoming = (data.alerts || []).filter((a: any) => a.severity !== 'otp'); // Exclude OTP alerts
         setAlerts(incoming);
         for (const a of incoming) {
           if (a.severity === 'critical' && !notifiedAlertsRef.current.has(a.id)) {
