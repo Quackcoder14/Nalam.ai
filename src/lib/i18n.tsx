@@ -53,7 +53,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'nav.darkMode': 'Switch to dark mode',
     'nav.bookAppointment': 'Book Appointment',
     'nav.myRequests': 'My Requests',
-    'nav.chatWithDoctor': 'Chat with Doctor',
+    'nav.chatWithDoctor': 'Chat with Hospital',
     'nav.aiInsights': 'AI Insights (XAI)',
     'nav.xaiDashboard': 'XAI Dashboard',
     'nav.hospitalDesk': 'Hospital Desk',
@@ -148,7 +148,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'hdesk.searchRecords': 'Search Records',
     'hdesk.exportFHIR': 'Export FHIR Vault',
     'hdesk.patientLookup': 'Patient Lookup',
-    'hdesk.enterID': 'Enter Patient ID (e.g. P001)',
+    'hdesk.enterID': 'Enter Patient ID',
     'hdesk.load': 'Load',
     'hdesk.dob': 'DOB:',
     'hdesk.gender': 'Gender:',
@@ -265,6 +265,7 @@ const translations: Record<Lang, Record<string, string>> = {
 
     // ── Clinician ─────────────────────────────────────────────────────────
     'clinician.title': '🩺 Clinician Portal',
+    'clinician.welcome': 'Welcome',
     'clinician.subtitle': 'AI-powered patient memory, digital twin simulations, and precision care',
     'clinician.searchRecords': 'Search Records',
     'clinician.selectPatient': 'Select Patient',
@@ -474,6 +475,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'book.urgencyUrgentDesc': 'Requires attention within 48 hours',
     'book.urgencyEmergency': 'Emergency',
     'book.urgencyEmergencyDesc': 'Serious symptoms needing same-day care',
+    'book.getDirections': 'Get Directions',
+    'book.hospitalApollo': 'Apollo Hospital',
 
     // ── Appointments: Requests ─────────────────────────────────────────────
     'req.title': '📋 My Appointment Requests',
@@ -699,6 +702,9 @@ const translations: Record<Lang, Record<string, string>> = {
     'hdesk.notesPlaceholder': 'Add any additional notes, observations or context for this document…',
     'hdesk.notesLabel': 'Notes:',
     'hdesk.labsLabel': 'Labs:',
+    'hdesk.hospitalDesk': 'Hospital Desk',
+    'hdesk.staffId': 'Staff ID',
+    'xai.call': 'Call',
   },
 
   ta: {
@@ -747,7 +753,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'nav.darkMode': 'இருள் பயன்முறைக்கு மாற்றவும்',
     'nav.bookAppointment': 'முன்பதிவு செய்யவும்',
     'nav.myRequests': 'என் கோரிக்கைகள்',
-    'nav.chatWithDoctor': 'மருத்துவரிடம் உரையாடு',
+    'nav.chatWithDoctor': 'மருத்துவமனையுடன் உரையாடு',
     'nav.aiInsights': 'AI நுண்ணறிவு (XAI)',
     'nav.xaiDashboard': 'XAI இடைமுகம்',
     'nav.hospitalDesk': 'மருத்துவமனை மேசை',
@@ -858,9 +864,11 @@ const translations: Record<Lang, Record<string, string>> = {
     'dashboard.fhirDesc': 'இந்தக் கோப்பு eSanjeevani இறக்குமதிக்கான ABDM தரநிலைகளுடன் இணங்குகிறது.',
     'hdesk.markRead': 'படிக்கப்பட்டது என குறி',
     'hdesk.scanner': '📷 ஆவண ஸ்கேனர்',
-    'hdesk.timeline': '📋 சிகிச்சை பெறுபவர் காலவரிசை',
+    'hdesk.recordScanner': 'பதிவு ஸ்கேனர்',
+    'hdesk.patientTimeline': '📋 சிகிச்சை பெறுபவர் காலவரிசை',
     'hdesk.dropDoc': 'ஆவணத்தை இங்கே இழுக்கவும் அல்லது தேட கிளிக் செய்யவும்',
-    'hdesk.docFormats': 'PNG, JPG, WEBP — Groq AI OCR மூலம் இயக்கப்படுகிறது',
+    'hdesk.docFormats': 'ஆதரவு: JPG, PNG, PDF',
+    'hdesk.timeline': '📋 சிகிச்சை பெறுபவர் காலவரிசை',
     'hdesk.scanGroq': 'Groq AI மூலம் ஸ்கேன் செய்யவும்',
     'hdesk.scanning': 'ஸ்கேன் செய்கிறது...',
     'hdesk.confidence': 'நம்பகத்தன்மை:',
@@ -871,9 +879,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'hdesk.longitudinal': 'நீண்டகால காலவரிசை',
     'hdesk.total': 'மொத்தம் · காட்டுகிறது',
     'hdesk.noRecords': 'இந்த சிகிச்சை பெறுபவருக்கு பதிவுகள் இல்லை.',
-    'hdesk.new': 'புதியது',
     'hdesk.extractedData': 'பிரித்தெடுக்கப்பட்ட தரவு',
-    'hdesk.patientNotFound': 'சிகிச்சை பெறுபவர் கண்டுபிடிக்கப்படவில்லை',
     'hdesk.critical': 'முக்கியமான அசாதாரணம்',
     'hdesk.appointments': 'முன்பதிவுகள்',
     'hdesk.manageApt': 'முன்பதிவுகளை நிர்வகி',
@@ -888,6 +894,9 @@ const translations: Record<Lang, Record<string, string>> = {
     'hdesk.aptReschedule': 'மாற்று நேரம்',
     'hdesk.aptNote': 'குறிப்பு',
     'hdesk.aptProcessing': 'செயலாக்கப்படுகிறது...',
+    'hdesk.hospitalDesk': 'மருத்துவமனை மேசை',
+    'hdesk.staffId': 'பணியாளர் ஐடி',
+    'xai.call': 'அழைக்கவும்',
 
     // ── Search Page ───────────────────────────────────────────────────────
     'search.title': 'மருத்துவ பதிவு தேடல்',
@@ -959,6 +968,7 @@ const translations: Record<Lang, Record<string, string>> = {
 
     // ── Clinician ─────────────────────────────────────────────────────────
     'clinician.title': '🩺 மருத்துவர் போர்டல்',
+    'clinician.welcome': 'வரவேற்கிறோம்',
     'clinician.subtitle': 'AI-இயக்கப்பட்ட சிகிச்சை பெறுபவர் நினைவகம், டிஜிட்டல் இரட்டை உருவகப்படுத்துதல்கள் மற்றும் துல்லியமான சிகிச்சை',
     'clinician.searchRecords': 'பதிவுகள் தேடவும்',
     'clinician.selectPatient': 'சிகிச்சை பெறுபவரை தேர்ந்தெடுக்கவும்',
@@ -1168,6 +1178,19 @@ const translations: Record<Lang, Record<string, string>> = {
     'book.urgencyUrgentDesc': '48 மணி நேரத்திற்குள் கவனிப்பு தேவை',
     'book.urgencyEmergency': 'அவசர நிலை',
     'book.urgencyEmergencyDesc': 'அதே நாளில் கவனிப்பு தேவைப்படும் தீவிர அறிகுறிகள்',
+    'book.getDirections': 'திசை பெறு',
+    'book.hospitalApollo': 'அப்போலோ மருத்துவமனை',
+    'book.hospitalKauvery': 'கௌவெரி மருத்துவமனை',
+    'book.hospitalGovt': 'அரசு மருத்துவமனை',
+    'book.doctorArun': 'டாக்டர் அருண் (பொது மருத்துவம்)',
+    'book.doctorKavitha': 'டாக்டர் கவிதா (இதய நோய்)',
+    'book.doctorSuresh': 'டாக்டர் சுரேஷ் (நரம்பியல்)',
+    'book.doctorVenkat': 'டாக்டர் வெங்கட் (எலும்பியல்)',
+    'book.doctorPriya': 'டாக்டர் பிரியா (மகளிர் மருத்துவம்)',
+    'book.doctorRamesh': 'டாக்டர் ரமேஷ் (காது மூக்கு தொண்டை)',
+    'book.doctorDhanush': 'டாக்டர் தனுஷ் (அவசர சிகிச்சை)',
+    'book.doctorMonissha': 'டாக்டர் மோனிஷா (பொது மருத்துவம்)',
+    'book.doctorAnita': 'டாக்டர் அனிதா (குழந்தை மருத்துவம்)',
 
     // ── Appointments: Requests ─────────────────────────────────────────────
     'req.title': '📋 என் முன்பதிவு கோரிக்கைகள்',
@@ -1382,7 +1405,6 @@ const translations: Record<Lang, Record<string, string>> = {
     'hdesk.newTime': 'புதிய நேரம்:',
     'hdesk.reason': 'காரணம்:',
     'hdesk.awaitingPatientDecision': '⏳ நோயாளி முடிவை எதிர்நோக்கிறது',
-    'hdesk.patientTimeline': 'நோயாளி காலவரிசை',
     'hdesk.scanWarning': '⚠️ ஸ்கேன் எச்சரிக்கை',
     'hdesk.acknowledgeProceed': 'ஒப்புக்கொண்டு எப்படியும் தொடரவும்',
     'hdesk.doctorOptional': '👨‍⚕️ மருத்துவர் (விருப்பமாக)',

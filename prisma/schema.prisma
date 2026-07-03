@@ -157,9 +157,15 @@ model ClinicalAlert {
   title      String   @db.Text
   message    String   @db.Text
   is_read    Boolean  @default(false)
+  hospital   String?  // Hospital/branch that created the alert (for per-desk routing)
+  broadcast  Boolean  @default(false) // If true, alert is shown to all hospitals (e.g., anomalies)
+  acknowledged Boolean @default(false) // Whether the alert has been acknowledged as resolved
+  acknowledged_by String? // Hospital/branch that acknowledged the alert
+  acknowledged_at DateTime? // When the alert was acknowledged
   created_at DateTime @default(now())
 
   @@index([patient_id, is_read])
+  @@index([hospital, is_read])
   @@map("clinical_alerts")
 }
 
@@ -272,4 +278,21 @@ model ChatbotMessage {
 
   @@index([conversation_id, created_at])
   @@map("chatbot_messages")
+}
+
+// ─── Hospital Desk Staff ───────────────────────────────────────────────────────
+model HospitalDeskStaff {
+  id            String   @id
+  username      String   @unique // e.g., apollo@nalam.ai
+  staff_id      String   @unique // e.g., APOLLO-001
+  password_hash String
+  name_enc      String   @db.Text
+  branch        String   // e.g., Apollo Hospital
+  role          String   @default("staff") // "staff" | "manager"
+  status        String   @default("active")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@index([branch, status])
+  @@map("hospital_desk_staff")
 }

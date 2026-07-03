@@ -5,6 +5,7 @@ import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertT
 import { useLanguage } from '@/lib/i18n';
 import { apiFetch } from '@/lib/apiFetch';
 import { RecordsOtpModal } from '../components/RecordsOtpModal';
+import { ContextOtpModal } from '../components/ContextOtpModal';
 import PastNotifications from '../components/PastNotifications';
 
 interface OcrResult {
@@ -58,13 +59,15 @@ function extractVitalsDisplay(message: string): { hr?: string; spo2?: string; re
 export default function HospitalDeskPage() {
   const router = useRouter();
   const { t, lang } = useLanguage();
-  const [patientId, setPatientId] = useState('P001');
+  const [patientId, setPatientId] = useState('');
   const [patientData, setPatientData] = useState<any>(null);
   const [patientRecords, setPatientRecords] = useState<any[]>([]);
   const [abhaStatus, setAbhaStatus] = useState<{ verified: boolean; masked: string | null }>({ verified: false, masked: null });
   const [alerts, setAlerts] = useState<any[]>([]);
   const [criticalPopupAlert, setCriticalPopupAlert] = useState<any>(null);
   const notifiedAlertsRef = useRef<Set<string>>(new Set());
+  const [showAckPopup, setShowAckPopup] = useState(false);
+  const [currentAckAlert, setCurrentAckAlert] = useState<any>(null);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'scanner' | 'timeline'>('scanner');
   const [appointments, setAptList] = useState<any[]>([]);
@@ -74,6 +77,7 @@ export default function HospitalDeskPage() {
   const [chatUnread, setChatUnread] = useState(0);
   const [sortApt, setSortApt] = useState<'newest' | 'oldest' | 'upcoming' | 'past'>('newest');
   const [showRecordsModal, setShowRecordsModal] = useState(false);
+  const [showContextOtp, setShowContextOtp] = useState(false);
   const [showPastNotifications, setShowPastNotifications] = useState(false);
 
   const fetchAllAppointments = useCallback(async () => {
@@ -107,13 +111,17 @@ export default function HospitalDeskPage() {
   const [scanNotes, setScanNotes] = useState('');
   const [scanDoctor, setScanDoctor] = useState('');
   const [scanDoctorCustom, setScanDoctorCustom] = useState('');
+  const [scanEmergencyVisit, setScanEmergencyVisit] = useState(false);
+  const [scanDiagnosis, setScanDiagnosis] = useState('');
+  const [scanLabResults, setScanLabResults] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const TIMELINE_LIMIT = parseInt(process.env.NEXT_PUBLIC_TIMELINE_LIMIT || '10', 10);
 
   const fetchAlerts = useCallback(async () => {
     try {
-      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts?lang=${lang}`);
+      const branch = sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk';
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts?lang=${lang}&hospital=${encodeURIComponent(branch)}`);
       if (res.ok) {
         const data = await res.json();
         const incoming = (data.alerts || []).filter((a: any) => a.severity !== 'otp'); // Exclude OTP alerts
@@ -175,6 +183,12 @@ export default function HospitalDeskPage() {
   const loadPatient = useCallback(async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!patientId.trim()) return;
+    // Show OTP modal instead of directly loading
+    setShowContextOtp(true);
+  }, [patientId]);
+
+  const handleContextOtpSuccess = useCallback(async () => {
+    if (!patientId.trim()) return;
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=${patientId}&lang=${lang}`);
       if (res.ok) {
@@ -193,13 +207,8 @@ export default function HospitalDeskPage() {
         alert(t('hdesk.patientNotFound'));
       }
     } catch {}
+    setShowContextOtp(false);
   }, [patientId, lang, t]);
-
-  useEffect(() => {
-    if (patientData && patientId.trim()) {
-      loadPatient();
-    }
-  }, [lang, loadPatient]);
 
   const handleFile = (f: File) => {
     if (!f.type.startsWith('image/')) return;
@@ -223,6 +232,9 @@ export default function HospitalDeskPage() {
         setScanNotes('');
         setScanDoctor('');
         setScanDoctorCustom('');
+        setScanEmergencyVisit(false);
+        setScanDiagnosis('');
+        setScanLabResults('');
         
         const branch = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk') : 'Hospital Desk';
         const isMedical = (data.diagnoses?.length > 0) || (data.medications?.length > 0) || (Object.keys(data.labValues || {}).length > 0);
@@ -238,6 +250,8 @@ export default function HospitalDeskPage() {
               severity: 'warning',
               title: 'Document Scan: No Patient Name',
               message: `A document was scanned at ${branch} for patient ${patientData.id} but no patient name was found in the document. Manual verification required.`,
+              hospital: branch,
+              broadcast: false,
             }),
           }).catch(() => {});
         } else {
@@ -253,6 +267,8 @@ export default function HospitalDeskPage() {
                 severity: 'critical',
                 title: 'Document Scan: Name Mismatch',
                 message: `NAME MISMATCH at ${branch}: Document shows "${data.patientName}" but patient profile is "${patientData.name}" (${patientData.id}). Do not import without verification.`,
+                hospital: branch,
+                broadcast: false,
               }),
             }).catch(() => {});
           }
@@ -270,6 +286,8 @@ export default function HospitalDeskPage() {
               severity: 'warning',
               title: 'Document Scan: Non-Medical Content',
               message: `A document scanned at ${branch} for patient ${patientData.id} appears to contain no medical content (no diagnoses, medications, or lab values). Please review before importing.`,
+              hospital: branch,
+              broadcast: false,
             }),
           }).catch(() => {});
         }
@@ -299,18 +317,21 @@ export default function HospitalDeskPage() {
     const branch = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk') : 'Hospital Desk';
     const finalDoctor = scanDoctor === 'other' ? scanDoctorCustom.trim() : scanDoctor;
     const combinedNotes = [result.structuredSummary || result.rawText.slice(0, 300), scanNotes.trim()].filter(Boolean).join('\n\nDesk Notes: ');
+    const finalDiagnosis = scanDiagnosis.trim() || (result.diagnoses?.length > 0 ? result.diagnoses.join(', ') : '');
+    const finalLabResults = scanLabResults.trim() || (Object.keys(result.labValues).length > 0 ? Object.entries(result.labValues).map(([k, v]) => `${k}:${v}`).join(', ') : '');
+    const recordType = scanEmergencyVisit ? 'Emergency Visit' : 'Document Scan';
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/record`, {
         method: 'POST',
         body: JSON.stringify({
           patientId,
-          type: 'Document Scan',
+          type: recordType,
           provider: branch,
           hospitalDesk: branch,
           doctorName: finalDoctor || undefined,
-          diagnosis: result.diagnoses.join(', '),
+          diagnosis: finalDiagnosis,
           notes: combinedNotes,
-          labResults: Object.entries(result.labValues).map(([k, v]) => `${k}:${v}`).join(', '),
+          labResults: finalLabResults,
         }),
       });
       const data = await res.json();
@@ -336,6 +357,15 @@ export default function HospitalDeskPage() {
   };
 
   const handleAlertClick = async (a: any) => {
+    // If this is a broadcast anomaly notification and not yet acknowledged, show acknowledgment popup
+    // @ts-ignore - broadcast field will exist after migration
+    if (a.broadcast === true && !a.acknowledged) {
+      setCurrentAckAlert(a);
+      setShowAckPopup(true);
+      return;
+    }
+
+    // Default behavior: mark as read and load patient
     try {
       await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts`, { method: 'PATCH', body: JSON.stringify({ id: a.id }) });
       setAlerts(prev => prev.filter(x => x.id !== a.id));
@@ -344,7 +374,49 @@ export default function HospitalDeskPage() {
     } catch {}
   };
 
+  const handleAcknowledge = async (acknowledged: boolean) => {
+    if (!currentAckAlert) return;
+    
+    const branch = sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk';
+    
+    if (acknowledged) {
+      // Mark as acknowledged
+      try {
+        await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            id: currentAckAlert.id,
+            acknowledged: true,
+            acknowledgedBy: branch,
+          }),
+        });
+        // Refresh alerts to show updated status
+        fetchAlerts();
+      } catch {}
+    }
+    
+    setShowAckPopup(false);
+    setCurrentAckAlert(null);
+  };
+
   const displayedRecords = patientRecords.slice(0, TIMELINE_LIMIT);
+
+  useEffect(() => {
+    if (criticalPopupAlert) {
+      const timer = setTimeout(() => {
+        setCriticalPopupAlert(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [criticalPopupAlert]);
+
+  // Poll for acknowledgment status updates every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAlerts();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchAlerts]);
 
   return (
     <div className="container fade-in">
@@ -374,11 +446,89 @@ export default function HospitalDeskPage() {
         </div>
       )}
 
+      {/* Acknowledgment Popup */}
+      {showAckPopup && currentAckAlert && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '1rem',
+            right: '1rem',
+            zIndex: 9999,
+            background: 'var(--surface)',
+            border: '2px solid var(--primary)',
+            borderRadius: 12,
+            padding: '1.2rem 1.5rem',
+            boxShadow: '0 8px 32px rgba(0,82,165,0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            maxWidth: '350px',
+            animation: 'pulseGlow 2s infinite',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <AlertTriangle size={20} color="var(--accent-amber)" />
+            <div style={{ fontWeight: 700, color: 'var(--deep-blue)', fontSize: '0.95rem' }}>
+              Is this taken care of?
+            </div>
+          </div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', lineHeight: 1.5 }}>
+            {currentAckAlert.title}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+            <button
+              onClick={() => handleAcknowledge(true)}
+              style={{
+                flex: 1,
+                padding: '0.6rem 1rem',
+                background: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => handleAcknowledge(false)}
+              style={{
+                flex: 1,
+                padding: '0.6rem 1rem',
+                background: 'var(--surface-muted)',
+                color: 'var(--foreground)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              No
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex-between slide-up" style={{ marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', color: 'var(--deep-blue)' }}>{t('hdesk.title')}</h2>
-          <p style={{ color: 'var(--charcoal)', fontSize: '0.95rem' }}>{t('hdesk.subtitle')}</p>
+          <h2 style={{ fontSize: '2rem', color: 'var(--deep-blue)' }}>
+            {(() => {
+              const branch = sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || t('hdesk.hospitalDesk');
+              const deskLabel = t('hdesk.hospitalDesk');
+              // Avoid duplicate "Hospital" word
+              if (branch.toLowerCase().includes('hospital')) {
+                return branch + ' Desk';
+              }
+              return branch + ' ' + deskLabel;
+            })()}
+          </h2>
+          <p style={{ color: 'var(--charcoal)', fontSize: '0.95rem' }}>
+            {t('hdesk.staffId')}: {sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || 'N/A'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
           <button onClick={() => router.push('/hospital-desk/patients/new')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--primary)', color: 'white', borderColor: 'var(--primary)' }}>
@@ -419,11 +569,11 @@ export default function HospitalDeskPage() {
               <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginTop: 2 }}>ID: {patientData.id}</div>
               {/* ABHA Badge */}
               {abhaStatus.verified ? (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', fontSize: '0.75rem', fontWeight: 700, color: '#16a34a' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-green)' }}>
                   <ShieldCheck size={12} /> ABHA: {abhaStatus.masked}
                 </div>
               ) : (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'rgba(251,191,36,0.12)', border: '1px dashed rgba(251,191,36,0.6)', fontSize: '0.75rem', fontWeight: 700, color: '#d97706' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'rgba(251,191,36,0.12)', border: '1px dashed rgba(251,191,36,0.6)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-amber)' }}>
                   <Link2 size={12} /> {t('abha.notLinked')}
                 </div>
               )}
@@ -463,6 +613,15 @@ export default function HospitalDeskPage() {
         />
       )}
 
+      {showContextOtp && (
+        <ContextOtpModal
+          patientId={patientId}
+          requestorName={sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk'}
+          onClose={() => setShowContextOtp(false)}
+          onSuccess={handleContextOtpSuccess}
+        />
+      )}
+
       {/* Active Notifications */}
       <section className="glass-panel slide-up stagger-2" style={{ marginBottom: '1.5rem' }}>
         <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
@@ -484,14 +643,28 @@ export default function HospitalDeskPage() {
               const snap = extractVitalsDisplay(a.message || '');
               const cleanMsg = (a.message || '').replace(/\s*\|.*$/, ''); // strip vitals tag
               const hasSnap = snap.hr || snap.spo2 || snap.resp || snap.temp || snap.sys;
+              // @ts-ignore - acknowledged field will exist after migration
+              const isAcknowledged = a.acknowledged;
+              // @ts-ignore - acknowledged_by field will exist after migration
+              const acknowledgedBy = a.acknowledged_by;
               return (
               <div key={a.id} className="fade-in"
                 onClick={() => {
+                  // Navigate to XAI page
                   const parsed = parseVitalsFromMessage(a.message);
                   parsed.patientId = a.patient_id;
+                  
+                  // If this is a broadcast anomaly notification and not yet acknowledged, store alert data for popup on XAI page
+                  // @ts-ignore - broadcast field will exist after migration
+                  if (a.broadcast === true && !isAcknowledged) {
+                    sessionStorage.setItem('pendingAckAlert', JSON.stringify(a));
+                  } else {
+                    sessionStorage.removeItem('pendingAckAlert');
+                  }
+                  
                   router.push(`/xai?${new URLSearchParams(parsed).toString()}`);
                 }}
-                style={{ padding: '1rem', background: a.severity === 'critical' ? 'var(--accent-red-bg)' : 'var(--accent-amber-bg)', borderLeft: `4px solid ${a.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)'}`, borderRadius: 8, cursor: 'pointer', transition: 'transform 0.2s' }}
+                style={{ padding: '1rem', background: a.severity === 'critical' ? 'var(--accent-red-bg)' : 'var(--accent-amber-bg)', borderLeft: `4px solid ${a.severity === 'critical' ? 'var(--accent-red)' : 'var(--accent-amber)'}`, borderRadius: 8, cursor: 'pointer', transition: 'transform 0.2s', opacity: isAcknowledged ? 0.6 : 1 }}
                 onMouseOver={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
                 onMouseOut={e => (e.currentTarget.style.transform = 'translateY(0)')}
               >
@@ -502,15 +675,20 @@ export default function HospitalDeskPage() {
                   </div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>{timeAgo(a.created_at)}</span>
                 </div>
+                {isAcknowledged && acknowledgedBy && (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.4rem', padding: '0.2rem 0.6rem', borderRadius: 20, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-green)' }}>
+                    <CheckCircle size={12} /> Taken care of by {acknowledgedBy}
+                  </div>
+                )}
                 <div style={{ fontSize: '0.9rem', color: 'var(--foreground)', fontWeight: 600, marginBottom: '0.2rem' }}>{a.title}</div>
                 <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginBottom: hasSnap ? '0.5rem' : '0.75rem', lineHeight: 1.5 }}>{cleanMsg}</p>
                 {hasSnap && (
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-                    {snap.hr   && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(252,165,165,0.25)', border: '1px solid rgba(252,165,165,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>❤️ {snap.hr} BPM</span>}
-                    {snap.spo2 && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(165,216,255,0.25)', border: '1px solid rgba(165,216,255,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>🫁 {snap.spo2}% SpO₂</span>}
-                    {snap.resp && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(134,239,172,0.25)', border: '1px solid rgba(134,239,172,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>💨 {snap.resp} bpm</span>}
-                    {snap.temp && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(253,230,138,0.25)', border: '1px solid rgba(253,230,138,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>🌡️ {snap.temp}°C</span>}
-                    {snap.sys  && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(199,210,254,0.25)', border: '1px solid rgba(199,210,254,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--deep-blue)' }}>🩸 {snap.sys}/{snap.dia} mmHg</span>}
+                    {snap.hr   && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(252,165,165,0.25)', border: '1px solid rgba(252,165,165,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--foreground)' }}>❤️ {snap.hr} BPM</span>}
+                    {snap.spo2 && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(165,216,255,0.25)', border: '1px solid rgba(165,216,255,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--foreground)' }}>🫁 {snap.spo2}% SpO₂</span>}
+                    {snap.resp && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(134,239,172,0.25)', border: '1px solid rgba(134,239,172,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--foreground)' }}>💨 {snap.resp} bpm</span>}
+                    {snap.temp && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(253,230,138,0.25)', border: '1px solid rgba(253,230,138,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--foreground)' }}>🌡️ {snap.temp}°C</span>}
+                    {snap.sys  && <span style={{ padding: '0.2rem 0.55rem', borderRadius: 20, background: 'rgba(199,210,254,0.25)', border: '1px solid rgba(199,210,254,0.5)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--foreground)' }}>🩸 {snap.sys}/{snap.dia} mmHg</span>}
                   </div>
                 )}
                 <button onClick={(e) => { e.stopPropagation(); handleAlertClick(a); }} className="glass-button" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>
@@ -655,7 +833,7 @@ export default function HospitalDeskPage() {
               {/* Header Tabs */}
               <div className="slide-up" style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
                 <button onClick={() => setActiveTab('scanner')} className="glass-button" style={{ background: activeTab === 'scanner' ? 'var(--primary)' : 'transparent', color: activeTab === 'scanner' ? 'white' : 'var(--charcoal)', border: activeTab === 'scanner' ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-                  <ScanLine size={16} /> {t('hdesk.recordScanner')}
+                  <ScanLine size={16} /> Document Scanner
                 </button>
                 <button onClick={() => setActiveTab('timeline')} className="glass-button" style={{ background: activeTab === 'timeline' ? 'var(--primary)' : 'transparent', color: activeTab === 'timeline' ? 'white' : 'var(--charcoal)', border: activeTab === 'timeline' ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                   <Activity size={16} /> {t('hdesk.patientTimeline')}
@@ -724,6 +902,32 @@ export default function HospitalDeskPage() {
                   )}
                   {result && !imported && !mismatchWarning && (
                     <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {/* Emergency Visit checkbox */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <input
+                          type="checkbox"
+                          id="emergencyVisit"
+                          checked={scanEmergencyVisit}
+                          onChange={e => setScanEmergencyVisit(e.target.checked)}
+                          style={{ width: 18, height: 18, cursor: 'pointer' }}
+                        />
+                        <label htmlFor="emergencyVisit" style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--deep-blue)', cursor: 'pointer' }}>
+                          Emergency Visit
+                        </label>
+                      </div>
+                      {/* Diagnosis field */}
+                      <div>
+                        <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: '0.4rem' }}>
+                          Diagnosis
+                        </label>
+                        <input
+                          type='text'
+                          placeholder='Enter diagnosis (optional)'
+                          value={scanDiagnosis}
+                          onChange={e => setScanDiagnosis(e.target.value)}
+                          style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                        />
+                      </div>
                       {/* Doctor dropdown */}
                       <div>
                         <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: '0.4rem' }}>
@@ -761,8 +965,21 @@ export default function HospitalDeskPage() {
                           style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem', resize: 'vertical', boxSizing: 'border-box' }}
                         />
                       </div>
-                      <button onClick={importToVault} disabled={importing} className='primary-button' style={{ padding: '0.75rem 1.5rem', opacity: importing ? 0.7 : 1, width: '100%' }}>
-                        {importing ? t('hdesk.importing') : t('hdesk.importToVault')}
+                      {/* Lab Results field */}
+                      <div>
+                        <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--charcoal)', display: 'block', marginBottom: '0.4rem' }}>
+                          Lab Results
+                        </label>
+                        <textarea
+                          value={scanLabResults}
+                          onChange={e => setScanLabResults(e.target.value)}
+                          rows={2}
+                          placeholder='Enter lab results (optional)'
+                          style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem', resize: 'vertical', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <button onClick={importToVault} disabled={importing} className='primary-button' style={{ padding: '0.75rem 1.5rem', opacity: importing ? 0.7 : 1, width: '100%', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: importing ? 'not-allowed' : 'pointer' }}>
+                        {importing ? 'Importing...' : 'Add to Timeline'}
                       </button>
                     </div>
                   )}

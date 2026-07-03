@@ -294,6 +294,7 @@ export default function PatientDashboard() {
   const [dismissedPopups, setDismissedPopups] = useState<Set<string>>(
     new Set(),
   );
+  const [fadingPopups, setFadingPopups] = useState<Set<string>>(new Set());
   const [alertsReady, setAlertsReady] = useState(false);
   const autoDismissTimers = useRef<
     Record<string, ReturnType<typeof setTimeout>>
@@ -364,15 +365,26 @@ export default function PatientDashboard() {
     if (!alertsReady) return;
     const pending = patientAlerts.filter(
       (a) =>
-        (a.severity === "critical" || a.severity === "warning") &&
-        !dismissedPopups.has(a.id),
+        (a.severity === "critical" || a.severity === "warning" || a.severity === "otp") &&
+        !dismissedPopups.has(a.id) &&
+        !fadingPopups.has(a.id),
     );
     const active = pending[0];
     if (!active || autoDismissTimers.current[active.id]) return;
     autoDismissTimers.current[active.id] = setTimeout(() => {
-      dismissPopup(active.id);
+      // Start fade out
+      setFadingPopups(prev => new Set(prev).add(active.id));
+      // Then dismiss after fade completes
+      setTimeout(() => {
+        dismissPopup(active.id);
+        setFadingPopups(prev => {
+          const next = new Set(prev);
+          next.delete(active.id);
+          return next;
+        });
+      }, 500); // 500ms fade duration
     }, 5000);
-  }, [patientAlerts, dismissedPopups, dismissPopup, alertsReady]);
+  }, [patientAlerts, dismissedPopups, fadingPopups, dismissPopup, alertsReady]);
 
   useEffect(
     () => () => {
@@ -1299,7 +1311,7 @@ export default function PatientDashboard() {
                   border: "1px solid rgba(34,197,94,0.35)",
                   fontSize: "0.75rem",
                   fontWeight: 700,
-                  color: "#16a34a",
+                  color: "var(--accent-green)",
                 }}
               >
                 <ShieldCheck size={12} /> {abha.masked}
@@ -2383,6 +2395,7 @@ export default function PatientDashboard() {
         @keyframes slideDown { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
         @keyframes slideUpRight { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes toastFromBottomRight { from { transform: translate(28px, 28px); opacity: 0; } to { transform: translate(0, 0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
         @keyframes shrinkBar { from { width:100% } to { width:0% } }
         @keyframes spin { to { transform: rotate(360deg); } }
         .notification-popup { max-width: 420px; }
@@ -2415,8 +2428,8 @@ export default function PatientDashboard() {
                   bottom:
                     "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem)",
                   right: "1rem",
-                  zIndex: 9998,
-                  animation: "toastFromBottomRight 0.4s ease",
+                  zIndex: 10000,
+                  animation: fadingPopups.has(activePopup.id) ? "fadeOut 0.5s ease forwards" : "toastFromBottomRight 0.4s ease",
                   width: "min(420px, calc(100vw - 2rem))",
                   pointerEvents: "auto",
                 }}
@@ -2549,7 +2562,7 @@ export default function PatientDashboard() {
                 display: "flex",
                 alignItems: "flex-start",
                 gap: "0.75rem",
-                animation: "toastFromBottomRight 0.35s ease",
+                animation: fadingPopups.has(activePopup.id) ? "fadeOut 0.5s ease forwards" : "toastFromBottomRight 0.35s ease",
                 pointerEvents: "auto",
                 overflow: "hidden",
                 cursor: "pointer",
@@ -2925,10 +2938,10 @@ export default function PatientDashboard() {
         isHospitalDesk={false}
       />
 
-    </div>
-
     {/* Chatbot */}
     <Chatbot userRole="patient" />
+
+    </div>
     </>
   );
 }

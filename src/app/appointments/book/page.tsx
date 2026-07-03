@@ -406,7 +406,15 @@ export default function BookAppointment() {
               <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--deep-blue)' }}>{selectedHospital}</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--charcoal)' }}>{t('book.selectedHospital')}</div>
             </div>
-            <button onClick={() => { setHospital(null); setStep(0); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: 600 }}>Change</button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button 
+                onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedHospital + ', Chennai')}`, '_blank')}
+                style={{ background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: '0.4rem 0.8rem', borderRadius: 6 }}
+              >
+                {t('book.getDirections')}
+              </button>
+              <button onClick={() => { setHospital(null); setStep(0); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: 600 }}>Change</button>
+            </div>
           </div>
 
           <h3 style={{ marginBottom: '1rem', color: 'var(--deep-blue)', fontSize: '1.1rem' }}>{t('book.chooseDoctor')}</h3>

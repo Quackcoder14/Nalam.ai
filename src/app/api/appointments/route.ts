@@ -297,6 +297,10 @@ export async function PATCH(request: Request) {
           severity: 'info',
           title: 'Appointment Rescheduled & Confirmed',
           message: `Your appointment with ${existing.doctor_name} has been rescheduled to ${proposedDate} at ${proposedTime} and is now confirmed.`,
+          // @ts-ignore - hospital field will exist after migration
+          hospital: existing.hospital || null,
+          // @ts-ignore - broadcast field will exist after migration
+          broadcast: false, // Appointment alerts are hospital-specific
         }
       });
 
@@ -317,6 +321,10 @@ export async function PATCH(request: Request) {
           severity: 'info',
           title: 'Reschedule Proposal Rejected',
           message: `You have rejected the reschedule proposal for your appointment with ${existing.doctor_name}. Your original appointment details remain. Please contact the hospital for further assistance.`,
+          // @ts-ignore - hospital field will exist after migration
+          hospital: existing.hospital || null,
+          // @ts-ignore - broadcast field will exist after migration
+          broadcast: false, // Appointment alerts are hospital-specific
         }
       });
     }
@@ -350,6 +358,10 @@ export async function PATCH(request: Request) {
             severity: 'warning',
             title: 'Appointment Rejected',
             message: `Your appointment request with ${row.doctor_name} on ${row.date} was rejected.${row.hdesk_note_enc ? ` Note: ${(row as any).hdeskNote || ''}` : ''}`,
+            // @ts-ignore - hospital field will exist after migration
+            hospital: row.hospital || null,
+            // @ts-ignore - broadcast field will exist after migration
+            broadcast: false, // Appointment alerts are hospital-specific
           },
         }).catch(() => {});
       }

@@ -47,13 +47,17 @@ export async function POST(request: Request) {
       url: '/dashboard/records',
     }).catch(() => {});
 
-    // Create clinical alert in patient dashboard
+    // Create clinical alert in patient dashboard (hospital-specific, not broadcast)
     await prisma.clinicalAlert.create({
       data: {
         patient_id: patientId,
         severity: 'info',
         title: 'New Health Record',
         message: `A new document scan record has been added to your vault by ${richProvider}.${diagnosis ? ` Diagnosis: ${diagnosis}.` : ''}`,
+        // @ts-ignore - hospital field will exist after migration
+        hospital: hospitalDesk || null,
+        // @ts-ignore - broadcast field will exist after migration
+        broadcast: false, // Document scan alerts are hospital-specific
       },
     }).catch(() => {});
 

@@ -29,6 +29,7 @@ export default function DeskChat() {
   const [showMockProfile, setShowMockProfile] = useState(false);
 
   const hospital = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Apollo Hospital') : 'Apollo Hospital';
+  const staffId = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || '') : '';
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -132,7 +133,8 @@ export default function DeskChat() {
           hospital,
           sender: 'desk',
           type,
-          content
+          content,
+          staffId: staffId
         }),
       });
       if (res.ok) {
@@ -210,7 +212,7 @@ export default function DeskChat() {
       {/* Mock Patient Profile Modal */}
       {showMockProfile && activePatient && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(4px)' }}>
-          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 400, background: 'white', padding: '1.5rem', borderRadius: 16, position: 'relative' }}>
+          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 400, background: 'var(--surface)', padding: '1.5rem', borderRadius: 16, position: 'relative' }}>
             <button onClick={() => setShowMockProfile(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--charcoal)' }}>
               <X size={20} />
             </button>
@@ -335,7 +337,7 @@ export default function DeskChat() {
               {/* Chat Header with condensed Patient Info */}
               <div style={{ padding: '0.75rem 1.5rem', background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 2 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <button className="mobile-back-btn" onClick={() => setActivePatient(null)} style={{ background: 'transparent', border: 'none', padding: '0.5rem', cursor: 'pointer', color: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', marginLeft: '-1rem', marginRight: '-0.5rem' }}>
+                  <button className="mobile-back-btn" onClick={() => setActivePatient(null)} style={{ background: 'transparent', border: 'none', padding: '0.5rem', cursor: 'pointer', color: 'var(--charcoal)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '-1rem', marginRight: '-0.5rem' }}>
                     <ArrowLeft size={20} />
                   </button>
                   <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -350,7 +352,8 @@ export default function DeskChat() {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--charcoal)', fontWeight: 600 }}>Staff ID: {staffId}</span>
                   <button onClick={() => setShowMockProfile(true)} className="glass-button" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>View Profile</button>
                 </div>
               </div>

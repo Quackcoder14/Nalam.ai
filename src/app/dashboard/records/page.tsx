@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Upload, Trash2, X, FileText, Image as ImageIcon,
   FolderOpen, File, Download, Clock, HardDrive, ScanLine, Info,
-  CheckCircle, AlertCircle, Plus
+  CheckCircle, AlertCircle, Plus, MessageSquare, ArrowUpDown, ChevronDown
 } from 'lucide-react';
 import { apiFetch } from '@/lib/apiFetch';
 
@@ -41,23 +41,24 @@ function groupByMonth(files: PatientFile[]) {
 }
 
 function FileIcon({ type, size = 32 }: { type: string; size?: number }) {
-  if (type === 'image') return <ImageIcon size={size} color="#0097A7" />;
-  if (type === 'pdf') return <FileText size={size} color="#E53E3E" />;
-  return <File size={size} color="#5C35A1" />;
+  if (type === 'image') return <ImageIcon size={size} color="var(--accent-teal)" />;
+  if (type === 'pdf') return <FileText size={size} color="var(--accent-red)" />;
+  return <File size={size} color="var(--accent-purple)" />;
 }
 
 function SourceBadge({ source }: { source: string }) {
   const isScanner = source === 'document_scanner';
   const isPrescription = source === 'clinician';
+  const isChatbot = source === 'chatbot';
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
       borderRadius: 20, fontSize: '0.7rem', fontWeight: 700,
-      background: isScanner ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : isPrescription ? 'linear-gradient(135deg,#FFF5F5,#FED7D7)' : 'linear-gradient(135deg,#F0FFF4,#C6F6D5)',
-      color: isScanner ? '#0052A5' : isPrescription ? '#C53030' : '#276749',
-      border: `1px solid ${isScanner ? '#BFDBFE' : isPrescription ? '#FED7D7' : '#9AE6B4'}`,
+      background: isScanner ? 'var(--primary-light)' : isPrescription ? 'var(--accent-red-bg)' : isChatbot ? 'var(--accent-purple-bg)' : 'rgba(34,197,94,0.12)',
+      color: isScanner ? 'var(--primary)' : isPrescription ? 'var(--accent-red)' : isChatbot ? 'var(--accent-purple)' : 'var(--accent-green)',
+      border: `1px solid ${isScanner ? 'var(--primary)' : isPrescription ? 'var(--accent-red)' : isChatbot ? 'var(--accent-purple)' : 'var(--accent-green)'}`,
     }}>
-      {isScanner ? <><ScanLine size={11} /> Document Scanner</> : isPrescription ? <><FileText size={11} /> Prescription</> : <><Upload size={11} /> Manual Upload</>}
+      {isScanner ? <><ScanLine size={11} /> Document Scanner</> : isPrescription ? <><FileText size={11} /> Prescription</> : isChatbot ? <><MessageSquare size={11} /> AI Consultation</> : <><Upload size={11} /> Manual Upload</>}
     </span>
   );
 }
@@ -133,16 +134,18 @@ function FileViewer({ file, onClose, onDelete }: { file: FileWithData; onClose: 
             <a href={file.fileData} download={file.filename} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', textDecoration: 'none' }}>
               <Download size={16} />
             </a>
-            <button onClick={handleDelete} disabled={deleting} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #FCA5A5', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626', cursor: 'pointer' }}>
-              <Trash2 size={16} />
-            </button>
+            {file.source === 'manual' && (
+              <button onClick={handleDelete} disabled={deleting} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--accent-red)', background: 'var(--accent-red-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-red)', cursor: 'pointer' }}>
+                <Trash2 size={16} />
+              </button>
+            )}
             <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--charcoal)', cursor: 'pointer' }}>
               <X size={16} />
             </button>
           </div>
         </div>
         {/* Content */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '1rem', background: '#F8FAFC' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '1rem', background: 'var(--surface-muted)' }}>
           {isImage && (
             <img src={file.fileData} alt={file.filename} style={{ maxWidth: '100%', borderRadius: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
           )}
@@ -150,16 +153,16 @@ function FileViewer({ file, onClose, onDelete }: { file: FileWithData; onClose: 
             <iframe src={file.fileData} title={file.filename} style={{ width: '100%', height: '65vh', border: 'none', borderRadius: 8 }} />
           )}
           {isDocument && textContent && (
-            <div style={{ 
-              background: 'white', 
-              padding: '1.5rem', 
-              borderRadius: 8, 
-              fontFamily: 'monospace', 
-              fontSize: '0.9rem', 
+            <div style={{
+              background: 'var(--surface)',
+              padding: '1.5rem',
+              borderRadius: 8,
+              fontFamily: 'monospace',
+              fontSize: '0.9rem',
               lineHeight: 1.6,
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
-              border: '1px solid #E2E8F0'
+              border: '1px solid var(--border)'
             }}>
               {textContent}
             </div>
@@ -187,6 +190,8 @@ export default function RecordsPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [error, setError] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'size' | 'type'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getPatientId = () =>
@@ -261,7 +266,26 @@ export default function RecordsPage() {
     setFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  const grouped = groupByMonth(files);
+  const sortedFiles = [...files].sort((a, b) => {
+    let comparison = 0;
+    switch (sortBy) {
+      case 'date':
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        break;
+      case 'name':
+        comparison = a.filename.localeCompare(b.filename);
+        break;
+      case 'size':
+        comparison = a.fileSizeBytes - b.fileSizeBytes;
+        break;
+      case 'type':
+        comparison = a.fileType.localeCompare(b.fileType);
+        break;
+    }
+    return sortOrder === 'asc' ? comparison : -comparison;
+  });
+
+  const grouped = groupByMonth(sortedFiles);
   const months = Object.keys(grouped);
 
   return (
@@ -290,6 +314,56 @@ export default function RecordsPage() {
           <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem' }}>
             {files.length} file{files.length !== 1 ? 's' : ''} stored · Encrypted & secure
           </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ position: 'relative' }}>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'size' | 'type')}
+              style={{
+                appearance: 'none',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '0.4rem 2rem 0.4rem 0.7rem',
+                fontSize: '0.78rem',
+                color: 'var(--foreground)',
+                cursor: 'pointer',
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+            >
+              <option value="date">Sort by Date</option>
+              <option value="name">Sort by Name</option>
+              <option value="size">Sort by Size</option>
+              <option value="type">Sort by Type</option>
+            </select>
+            <ChevronDown
+              size={12}
+              style={{
+                position: 'absolute',
+                right: '0.5rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                pointerEvents: 'none',
+                color: 'var(--foreground-muted)',
+              }}
+            />
+          </div>
+          <button
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="glass-button"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              padding: '0.4rem 0.7rem',
+              fontSize: '0.78rem',
+            }}
+          >
+            <ArrowUpDown size={12} style={{ transform: sortOrder === 'asc' ? 'rotate(180deg)' : 'none' }} />
+            {sortOrder === 'asc' ? 'Oldest' : 'Newest'}
+          </button>
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}

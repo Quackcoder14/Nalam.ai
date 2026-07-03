@@ -7,9 +7,10 @@ import {
 } from 'recharts';
 import {
   Brain, TrendingUp, TrendingDown, Minus, AlertTriangle,
-  Info, ChevronDown, ChevronUp, Loader2, MessageCircle, PhoneCall,
+  Info, ChevronDown, ChevronUp, Loader2, MessageCircle, PhoneCall, CheckCircle, X,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface XAIFeature {
   feature: string; label: string; value: number; unit: string;
@@ -117,6 +118,8 @@ function XAIDashboardInner() {
   const [showChart, setShowChart] = useState(false);
   const [showAmbulanceModal, setShowAmbulanceModal] = useState(false);
   const [callingAmbulance, setCallingAmbulance] = useState(false);
+  const [showAckPopup, setShowAckPopup] = useState(false);
+  const [currentAckAlert, setCurrentAckAlert] = useState<any>(null);
 
   const patientId = searchParams.get('patientId');
 
@@ -128,6 +131,41 @@ function XAIDashboardInner() {
         .catch(() => {});
     }
   }, [patientId]);
+
+  // Check for pending acknowledgment alert from sessionStorage
+  useEffect(() => {
+    const pendingAlert = sessionStorage.getItem('pendingAckAlert');
+    if (pendingAlert) {
+      try {
+        const alert = JSON.parse(pendingAlert);
+        setCurrentAckAlert(alert);
+        setShowAckPopup(true);
+        sessionStorage.removeItem('pendingAckAlert');
+      } catch {}
+    }
+  }, []);
+
+  const handleAcknowledge = async (acknowledged: boolean) => {
+    if (!currentAckAlert) return;
+    
+    const branch = sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk';
+    
+    if (acknowledged) {
+      try {
+        await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/notify/alerts`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            id: currentAckAlert.id,
+            acknowledged: true,
+            acknowledgedBy: branch,
+          }),
+        });
+      } catch {}
+    }
+    
+    setShowAckPopup(false);
+    setCurrentAckAlert(null);
+  };
 
   const fetchExplanation = useCallback(async (vals: typeof vitals) => {
     setLoading(true); setError('');
@@ -198,11 +236,17 @@ function XAIDashboardInner() {
             <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)', marginTop: '0.15rem' }}>{t('xai.mobile')} <strong>{patient.mobile || t('xai.notAvailable')}</strong></div>
           </div>
           {patient.mobile && (
-            <a href={`https://wa.me/${patient.mobile.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(t('xai.whatsappMsg'))}`}
-              target="_blank" rel="noopener noreferrer"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1rem', borderRadius: 8, background: '#25D366', color: 'white', textDecoration: 'none', fontWeight: 700, fontSize: '0.84rem' }}>
-              <MessageCircle size={16} /> {t('xai.sendAlert')}
-            </a>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <a href={`tel:${patient.mobile.replace(/[^0-9]/g, '')}`}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1rem', borderRadius: 8, background: 'var(--primary)', color: 'white', textDecoration: 'none', fontWeight: 700, fontSize: '0.84rem' }}>
+                <PhoneCall size={16} /> {t('xai.call')}
+              </a>
+              <a href={`https://wa.me/${patient.mobile.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(t('xai.whatsappMsg'))}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1rem', borderRadius: 8, background: '#25D366', color: 'white', textDecoration: 'none', fontWeight: 700, fontSize: '0.84rem' }}>
+                <MessageCircle size={16} /> {t('xai.sendAlert')}
+              </a>
+            </div>
           )}
         </div>
       )}
@@ -311,6 +355,72 @@ function XAIDashboardInner() {
 
       <style>{`.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
+      {/* ── ACKNOWLEDGMENT POPUP ── */}
+      {showAckPopup && currentAckAlert && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '1rem',
+            right: '1rem',
+            zIndex: 9999,
+            background: 'var(--surface)',
+            border: '2px solid var(--primary)',
+            borderRadius: 12,
+            padding: '1.2rem 1.5rem',
+            boxShadow: '0 8px 32px rgba(0,82,165,0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+            maxWidth: '350px',
+            animation: 'pulseGlow 2s infinite',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <AlertTriangle size={20} color="var(--accent-amber)" />
+            <div style={{ fontWeight: 700, color: 'var(--deep-blue)', fontSize: '0.95rem' }}>
+              Is this taken care of?
+            </div>
+          </div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', lineHeight: 1.5 }}>
+            {currentAckAlert.title}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+            <button
+              onClick={() => handleAcknowledge(true)}
+              style={{
+                flex: 1,
+                padding: '0.6rem 1rem',
+                background: 'var(--primary)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              Yes
+            </button>
+            <button
+              onClick={() => handleAcknowledge(false)}
+              style={{
+                flex: 1,
+                padding: '0.6rem 1rem',
+                background: 'var(--surface-muted)',
+                color: 'var(--foreground)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+            >
+              No
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── AMBULANCE BUTTON ── */}
       <button
         onDoubleClick={() => setShowAmbulanceModal(true)}
@@ -328,29 +438,29 @@ function XAIDashboardInner() {
       {/* ── AMBULANCE MODAL ── */}
       {showAmbulanceModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: '1rem' }}>
-          <div style={{ background: 'white', padding: '2rem', borderRadius: 20, maxWidth: 380, width: '100%', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', animation: 'slideUp 0.3s ease' }}>
+          <div style={{ background: 'var(--surface)', padding: '2rem', borderRadius: 20, maxWidth: 380, width: '100%', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', animation: 'slideUp 0.3s ease' }}>
             {callingAmbulance ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: 70, height: 70, borderRadius: '50%', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'heartbeat 1s infinite' }}>
-                  <PhoneCall size={34} color="#DC2626" />
+                <div style={{ width: 70, height: 70, borderRadius: '50%', background: 'var(--accent-red-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'heartbeat 1s infinite' }}>
+                  <PhoneCall size={34} color="var(--accent-red)" />
                 </div>
-                <h2 style={{ fontSize: '1.25rem', color: '#1A2B4A', fontWeight: 800 }}>Calling Ambulance...</h2>
-                <p style={{ color: '#64748B', fontSize: '0.85rem' }}>Connecting to emergency services</p>
+                <h2 style={{ fontSize: '1.25rem', color: 'var(--foreground)', fontWeight: 800 }}>Calling Ambulance...</h2>
+                <p style={{ color: 'var(--charcoal)', fontSize: '0.85rem' }}>Connecting to emergency services</p>
               </div>
             ) : (
               <>
-                <div style={{ width: 54, height: 54, borderRadius: '50%', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
-                  <AlertTriangle size={26} color="#DC2626" />
+                <div style={{ width: 54, height: 54, borderRadius: '50%', background: 'var(--accent-red-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+                  <AlertTriangle size={26} color="var(--accent-red)" />
                 </div>
-                <h2 style={{ fontSize: '1.25rem', color: '#1A2B4A', fontWeight: 800, marginBottom: '0.4rem' }}>Emergency Services</h2>
-                <p style={{ color: '#64748B', marginBottom: '1.5rem', fontSize: '0.85rem' }}>Are you sure you want to call an ambulance?</p>
+                <h2 style={{ fontSize: '1.25rem', color: 'var(--foreground)', fontWeight: 800, marginBottom: '0.4rem' }}>Emergency Services</h2>
+                <p style={{ color: 'var(--charcoal)', marginBottom: '1.5rem', fontSize: '0.85rem' }}>Are you sure you want to call an ambulance?</p>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button onClick={() => setShowAmbulanceModal(false)} style={{ flex: 1, padding: '0.75rem', background: '#F1F5F9', color: '#475569', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={() => setShowAmbulanceModal(false)} style={{ flex: 1, padding: '0.75rem', background: 'var(--surface-muted)', color: 'var(--foreground)', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
                   <button onClick={() => {
                     setCallingAmbulance(true);
                     const audio = new Audio('/ringing.mp3'); audio.loop = true; audio.play().catch(() => {});
                     setTimeout(() => { audio.pause(); setCallingAmbulance(false); setShowAmbulanceModal(false); }, 5000);
-                  }} style={{ flex: 1, padding: '0.75rem', background: '#DC2626', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(220,38,38,0.3)' }}>Proceed</button>
+                  }} style={{ flex: 1, padding: '0.75rem', background: 'var(--accent-red)', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(220,38,38,0.3)' }}>Proceed</button>
                 </div>
               </>
             )}

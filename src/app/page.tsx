@@ -89,6 +89,10 @@ export default function HomePage() {
         sessionStorage.setItem('nalamStaffId', data.staffId);
         localStorage.setItem('nalamStaffId', data.staffId);
       }
+      if (data.patientName && data.role === 'clinician') {
+        sessionStorage.setItem('nalamDoctorName', data.patientName);
+        localStorage.setItem('nalamDoctorName', data.patientName);
+      }
       // Store token in sessionStorage as a Bearer fallback for API calls
       if (data.token) {
         sessionStorage.setItem('nalamToken', data.token);
@@ -240,13 +244,13 @@ export default function HomePage() {
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.6rem' }}>
             <button
               onClick={() => { setLangFading(false); setPhase('language'); }}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'none', border: '1.5px solid #cbd5e0', borderRadius: 20, padding: '0.28rem 0.8rem', cursor: 'pointer', fontSize: '0.85rem', color: '#4A5568', fontFamily: 'inherit' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'none', border: '1.5px solid var(--border)', borderRadius: 20, padding: '0.28rem 0.8rem', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--foreground)', fontFamily: 'inherit' }}
             >
               <Globe size={14} /> {lang === 'ta' ? 'தமிழ்' : 'English'} ↻
             </button>
           </div>
-          <h1 className="home-title" style={{ color: '#1A2B4A', fontWeight: 700, marginBottom: '0.3rem' }}>{t('login.welcome')}</h1>
-          <p className="home-subtitle" style={{ color: '#4A5568' }}>{t('login.selectRole')}</p>
+          <h1 className="home-title" style={{ color: 'var(--foreground)', fontWeight: 700, marginBottom: '0.3rem' }}>{t('login.welcome')}</h1>
+          <p className="home-subtitle" style={{ color: 'var(--charcoal)' }}>{t('login.selectRole')}</p>
         </div>
 
         {!loginType ? (
@@ -259,22 +263,22 @@ export default function HomePage() {
             ].map(({ role, Icon, title, desc, accentColor, bg }) => (
               <button key={role} onClick={() => setLoginType(role)} className="role-btn"
                 style={{
-                  background: 'var(--surface)', border: '1.5px solid #e2e8f0', borderRadius: 18,
+                  background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 18,
                   cursor: 'pointer', textAlign: 'left',
                   boxShadow: '0 2px 12px rgba(0,82,165,0.06)',
                   display: 'flex', alignItems: 'center', gap: '1rem', width: '100%',
                 }}
                 onTouchStart={e => { e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.background = `${accentColor}08`; }}
-                onTouchEnd={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = 'var(--surface)'; }}
+                onTouchEnd={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface)'; }}
                 onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.boxShadow = `0 10px 32px ${accentColor}22`; }}
-                onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,82,165,0.06)'; }}
+                onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,82,165,0.06)'; }}
               >
                 <div style={{ width: 56, height: 56, background: bg, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon size={28} color={accentColor} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 className="role-title" style={{ fontWeight: 700, color: '#1A2B4A', marginBottom: '0.2rem' }}>{title}</h3>
-                  <p className="role-desc" style={{ color: '#4A5568', lineHeight: 1.45 }}>{desc}</p>
+                  <h3 className="role-title" style={{ fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.2rem' }}>{title}</h3>
+                  <p className="role-desc" style={{ color: 'var(--charcoal)', lineHeight: 1.45 }}>{desc}</p>
                 </div>
                 <ChevronRight size={20} color={accentColor} style={{ flexShrink: 0 }} />
               </button>
@@ -283,51 +287,59 @@ export default function HomePage() {
         ) : (
           /* ── Credentials form ── */
           <div className="login-box" style={{ background: 'var(--surface)', borderRadius: 20, boxShadow: '0 8px 40px rgba(0,82,165,0.1)', animation: 'slideUp 0.4s ease' }}>
-            <button onClick={() => setLoginType(null)} style={{ background: 'none', border: 'none', color: '#4A5568', cursor: 'pointer', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', padding: 0, fontFamily: 'inherit' }}>
+            <button onClick={() => setLoginType(null)} style={{ background: 'none', border: 'none', color: 'var(--foreground)', cursor: 'pointer', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', padding: 0, fontFamily: 'inherit' }}>
               <ArrowLeft size={15} /> {t('login.back')}
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.5rem' }}>
               <div style={{ width: 40, height: 40, background: loginType === 'patient' ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : loginType === 'clinician' ? 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' : 'linear-gradient(135deg,#F3E8FF,#D8B4FE)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {loginType === 'patient' ? <User size={20} color="#0052A5" /> : loginType === 'clinician' ? <Stethoscope size={20} color="#0097A7" /> : <Monitor size={20} color="#5C35A1" />}
               </div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1A2B4A' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--foreground)' }}>
                 {loginType === 'patient' ? t('role.patient.loginTitle') : loginType === 'clinician' ? t('role.clinician.loginTitle') : t('role.hdesk.loginTitle')}
               </h2>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              {[t('login.username'), t('login.password')].map((label, idx) => (
-                <div key={idx}>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.35rem' }}>{label}</label>
-                  <input
-                    type={idx === 1 ? 'password' : 'text'}
-                    value={idx === 0 ? username : password}
-                    onChange={e => idx === 0 ? setUsername(e.target.value) : setPassword(e.target.value)}
-                    placeholder={idx === 1 ? '••••••••' : 'Enter username'}
-                    onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
-                    style={{ width: '100%', padding: '0.75rem 0.9rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', background: '#FAFBFD' }}
-                    onFocus={e => e.target.style.borderColor = loginType === 'patient' ? '#0052A5' : loginType === 'clinician' ? '#0097A7' : '#5C35A1'}
-                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
-                  />
-                </div>
-              ))}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.35rem' }}>{t('login.username')}</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="Enter username"
+                  onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
+                  style={{ width: '100%', padding: '0.75rem 0.9rem', border: '2px solid var(--border)', borderRadius: 10, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: 'var(--foreground)', background: 'var(--surface-muted)' }}
+                  onFocus={e => e.target.style.borderColor = loginType === 'patient' ? '#0052A5' : loginType === 'clinician' ? '#0097A7' : '#5C35A1'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+              </div>
               {loginType === 'hdesk' && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4A5568', marginBottom: '0.35rem' }}>Staff ID</label>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.35rem' }}>Staff ID</label>
                   <input
                     type="text"
                     value={hdeskStaffId}
                     onChange={e => setHdeskStaffId(e.target.value)}
-                    placeholder="Enter your desk staff ID"
+                    placeholder="Enter staff ID"
                     onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
-                    style={{ width: '100%', padding: '0.75rem 0.9rem', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: '#1A2B4A', background: '#FAFBFD' }}
+                    style={{ width: '100%', padding: '0.75rem 0.9rem', border: '2px solid var(--border)', borderRadius: 10, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: 'var(--foreground)', background: 'var(--surface-muted)' }}
                     onFocus={e => e.target.style.borderColor = '#5C35A1'}
-                    onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border)'}
                   />
-                  <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.35rem', fontStyle: 'italic' }}>
-                    Hint: Use HD-101 (Front Desk) or HD-102 (Manager)
-                  </div>
                 </div>
               )}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.35rem' }}>{t('login.password')}</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  onKeyDown={e => e.key === 'Enter' && handleLogin(loginType!)}
+                  style={{ width: '100%', padding: '0.75rem 0.9rem', border: '2px solid var(--border)', borderRadius: 10, fontSize: '1rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: 'var(--foreground)', background: 'var(--surface-muted)' }}
+                  onFocus={e => e.target.style.borderColor = loginType === 'patient' ? '#0052A5' : loginType === 'clinician' ? '#0097A7' : '#5C35A1'}
+                  onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
+              </div>
               {loginError && (
                 <div style={{ padding: '0.6rem 0.9rem', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, color: '#B91C1C', fontSize: '0.82rem', fontWeight: 600 }}>
                   ⚠️ {loginError}

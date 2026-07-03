@@ -93,6 +93,8 @@ export async function POST(request: Request) {
               severity: data.severity,
               title: dbTitle,
               message: dbMessage,
+              // @ts-ignore - broadcast field will exist after migration
+              broadcast: true, // Anomaly alerts should be broadcast to all hospitals
             }
           });
           alertCreated = true;

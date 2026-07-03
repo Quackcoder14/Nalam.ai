@@ -12,6 +12,7 @@ export async function GET(request: Request) {
     const patientId = searchParams.get('patientId')?.trim();
     const fast = searchParams.get('fast') === '1';
     const past = searchParams.get('past') === '1';
+    const hospital = searchParams.get('hospital')?.trim(); // Hospital/branch for per-desk routing
 
     let alerts = await prisma.clinicalAlert.findMany({
       where: {
@@ -21,6 +22,19 @@ export async function GET(request: Request) {
       orderBy: { created_at: 'desc' },
       take: past ? 50 : (patientId ? 50 : 20),
     });
+
+    // Client-side filtering by hospital (until Prisma types are regenerated)
+    if (hospital) {
+      alerts = alerts.filter(alert => {
+        // @ts-ignore - hospital field will exist after migration
+        const alertHospital = alert.hospital;
+        // @ts-ignore - broadcast field will exist after migration
+        const isBroadcast = alert.broadcast;
+        
+        // Show alerts from this hospital OR broadcast alerts OR legacy alerts without hospital
+        return alertHospital === hospital || isBroadcast === true || alertHospital === null;
+      });
+    }
 
     if (lang === 'ta' && !fast && alerts.length > 0) {
       // Use the IDs and updated_at to form a cache key
@@ -64,7 +78,7 @@ ${JSON.stringify(alerts, null, 2)}`;
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { patientId, severity, title, message } = body;
+    const { patientId, severity, title, message, hospital, broadcast } = body;
 
     if (!patientId || !title || !message) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -76,6 +90,10 @@ export async function POST(req: Request) {
         severity: severity || 'info',
         title,
         message,
+        // @ts-ignore - hospital field will exist after migration
+        hospital: hospital || null,
+        // @ts-ignore - broadcast field will exist after migration
+        broadcast: broadcast || false,
       }
     });
 
@@ -88,9 +106,28 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const { id } = await req.json();
+    const body = await req.json();
+    const { id, acknowledged, acknowledgedBy } = body;
+    
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
+    // Handle acknowledgment (for anomaly notifications)
+    if (acknowledged !== undefined && acknowledgedBy) {
+      const alert = await prisma.clinicalAlert.update({
+        where: { id },
+        data: {
+          // @ts-ignore - acknowledged field will exist after migration
+          acknowledged: true,
+          // @ts-ignore - acknowledged_by field will exist after migration
+          acknowledged_by: acknowledgedBy,
+          // @ts-ignore - acknowledged_at field will exist after migration
+          acknowledged_at: new Date(),
+        }
+      });
+      return NextResponse.json({ success: true, alert });
+    }
+
+    // Default: mark as read
     const alert = await prisma.clinicalAlert.update({
       where: { id },
       data: { is_read: true }

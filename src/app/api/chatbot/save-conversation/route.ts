@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         filename_enc: encrypt(`AI_Consultation_${new Date().toISOString().split('T')[0]}.txt`),
         file_type: 'document',
         file_data_enc: encrypt(fileData),
-        source: 'clinician',
+        source: 'chatbot',
         uploaded_by: doctorId,
         file_size_bytes: fileSizeBytes,
       },

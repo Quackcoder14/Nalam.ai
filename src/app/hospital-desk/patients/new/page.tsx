@@ -121,7 +121,7 @@ export default function NewPatientPage() {
   return (
     <div className="container fade-in" style={{ maxWidth: 1120 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.25rem' }}>
-        <button onClick={() => router.push('/hospital-desk')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button onClick={() => router.push('/hospital-desk')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.9rem' }}>
           <ArrowLeft size={16} /> Desk
         </button>
         <div>
@@ -131,9 +131,9 @@ export default function NewPatientPage() {
       </div>
 
       {createdId && (
-        <div style={{ marginBottom: '1rem', padding: '0.9rem 1rem', borderRadius: 10, background: 'var(--accent-green-bg)', color: 'var(--accent-green)', border: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}>
+        <div style={{ marginBottom: '1rem', padding: '0.9rem 1rem', borderRadius: 10, background: 'var(--accent-green-bg)', color: 'var(--accent-green)', border: '1px solid var(--accent-green)', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}>
           <CheckCircle size={18} /> Patient registered: {createdId} (Login: {createdEmail})
-          <button onClick={() => router.push(`/hospital-desk`)} style={{ marginLeft: 'auto', border: 'none', borderRadius: 8, background: 'white', color: 'var(--accent-green)', padding: '0.4rem 0.75rem', fontWeight: 800, cursor: 'pointer' }}>Back to desk</button>
+          <button onClick={() => router.push(`/hospital-desk`)} style={{ marginLeft: 'auto', border: 'none', borderRadius: 8, background: 'var(--surface)', color: 'var(--accent-green)', padding: '0.4rem 0.75rem', fontWeight: 800, cursor: 'pointer' }}>Back to desk</button>
         </div>
       )}
       {error && <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: 10, background: 'var(--accent-red-bg)', color: 'var(--accent-red)', border: '1px solid var(--accent-red)', fontWeight: 700 }}>{error}</div>}

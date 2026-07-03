@@ -133,7 +133,7 @@ export default function NewDoctorPage() {
   return (
     <div className="container fade-in" style={{ maxWidth: 1080 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '1.25rem' }}>
-        <button onClick={() => router.push('/hospital-desk')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button onClick={() => router.push('/hospital-desk')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.9rem' }}>
           <ArrowLeft size={16} /> Desk
         </button>
         <div>
@@ -143,7 +143,7 @@ export default function NewDoctorPage() {
       </div>
 
       {created && (
-        <div style={{ marginBottom: '1rem', padding: '0.9rem 1rem', borderRadius: 10, background: 'var(--accent-green-bg)', color: 'var(--accent-green)', border: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}>
+        <div style={{ marginBottom: '1rem', padding: '0.9rem 1rem', borderRadius: 10, background: 'var(--accent-green-bg)', color: 'var(--accent-green)', border: '1px solid var(--accent-green)', display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}>
           <CheckCircle size={18} /> Doctor registered: {created} (Login: {createdEmail})
         </div>
       )}

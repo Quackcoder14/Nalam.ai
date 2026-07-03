@@ -680,6 +680,7 @@ export default function ClinicianPortal() {
   const [patientSearchError, setPatientSearchError] = useState<string | null>(null);
   const [role, setRole]                   = useState<'specialist' | 'emergency' | 'research'>('specialist');
   const [doctorId, setDoctorId]           = useState<string>('');
+  const [doctorName, setDoctorName]       = useState<string>('');
   const [allPatients, setAllPatients]     = useState<any[]>([]);
   const [data, setData]                       = useState<any>(null);
   const [error, setError]                     = useState<string | null>(null);
@@ -761,10 +762,12 @@ export default function ClinicianPortal() {
       })
       .catch(() => router.push('/'));
 
-    // Read the logged-in doctor's id and clinician role from sessionStorage or localStorage
+    // Read the logged-in doctor's id, name, and clinician role from sessionStorage or localStorage
     const storedStaffId = sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || '';
+    const storedDoctorName = sessionStorage.getItem('nalamDoctorName') || localStorage.getItem('nalamDoctorName') || '';
     const storedClinicianRole = (sessionStorage.getItem('nalamClinicianRole') || localStorage.getItem('nalamClinicianRole')) as 'specialist' | 'emergency' | 'research' | null;
     if (storedStaffId) setDoctorId(storedStaffId);
+    if (storedDoctorName) setDoctorName(storedDoctorName);
     if (storedClinicianRole) setRole(storedClinicianRole);
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient?id=ALL`)
@@ -1028,7 +1031,9 @@ export default function ClinicianPortal() {
         {/* Page Header */}
         <div className="slide-up stagger-1" style={{ marginBottom: '1.25rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <h2 style={{ fontSize: '1.35rem', marginBottom: '0.15rem', lineHeight: 1.2 }}>{t('clinician.title')}</h2>
+          <h2 style={{ fontSize: '1.35rem', marginBottom: '0.15rem', lineHeight: 1.2 }}>
+            {doctorName ? `${t('clinician.welcome')} ${doctorName}` : t('clinician.title')}
+          </h2>
           <p style={{ color: 'var(--accent-teal)', fontSize: '0.82rem' }}>{t('clinician.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -1098,10 +1103,10 @@ export default function ClinicianPortal() {
                 if (arr.length === 0) return <p style={{ color: 'var(--charcoal)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>{t('clinician.noSortAppointments').replace('{sortApt}', sortApt)}</p>;
 
                 return arr.map(apt => {
-                  const stColors: Record<string, string> = { approved: '#0052A5', scheduled: '#2E7D32', reschedule_accepted: '#2E7D32', rejected: '#C62828', cancelled: '#71717A', reschedule_patient_rejected: '#71717A', pending_reschedule: '#C07A00' };
-                  const stBgs: Record<string, string> = { approved: '#EBF3FF', scheduled: '#E8F5E9', reschedule_accepted: '#E8F5E9', rejected: '#FFEBEE', cancelled: '#F4F4F5', reschedule_patient_rejected: '#F4F4F5', pending_reschedule: '#FFF8E1' };
-                  const stColor = stColors[apt.status] || '#C07A00';
-                  const stBg    = stBgs[apt.status] || '#FFF8E1';
+                  const stColors: Record<string, string> = { approved: 'var(--primary)', scheduled: 'var(--accent-green)', reschedule_accepted: 'var(--accent-green)', rejected: 'var(--accent-red)', cancelled: 'var(--foreground-muted)', reschedule_patient_rejected: 'var(--foreground-muted)', pending_reschedule: 'var(--accent-amber)' };
+                  const stBgs: Record<string, string> = { approved: 'var(--primary-light)', scheduled: 'rgba(34,197,94,0.12)', reschedule_accepted: 'rgba(34,197,94,0.12)', rejected: 'var(--accent-red-bg)', cancelled: 'var(--surface-muted)', reschedule_patient_rejected: 'var(--surface-muted)', pending_reschedule: 'rgba(251,191,36,0.12)' };
+                  const stColor = stColors[apt.status] || 'var(--accent-amber)';
+                  const stBg    = stBgs[apt.status] || 'rgba(251,191,36,0.12)';
                   const stLabel = apt.status === 'reschedule_patient_rejected' ? 'RESCHEDULE REJECTED' : apt.status === 'reschedule_accepted' ? 'SCHEDULED' : apt.status.replace('_', ' ').toUpperCase();
                   const isGreyed = ['reschedule_patient_rejected'].includes(apt.status);
 
@@ -1110,7 +1115,7 @@ export default function ClinicianPortal() {
                       <div style={{ flex: 1, minWidth: 220 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
                           <span style={{ fontWeight: 800, fontSize: '1.05rem', color: isGreyed ? 'var(--foreground-muted)' : 'var(--deep-blue)' }}>{apt.patientName}</span>
-                          <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: apt.urgency==='Emergency'?'#FFEBEE':apt.urgency==='Urgent'?'#FFF8E1':'#E0F7FA', color: apt.urgency==='Emergency'?'#C62828':apt.urgency==='Urgent'?'#C07A00':'#0097A7', fontWeight: 700 }}>{apt.urgency}</span>
+                          <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: apt.urgency==='Emergency'?'var(--accent-red-bg)':apt.urgency==='Urgent'?'rgba(251,191,36,0.12)':'rgba(0,151,167,0.12)', color: apt.urgency==='Emergency'?'var(--accent-red)':apt.urgency==='Urgent'?'var(--accent-amber)':'var(--accent-teal)', fontWeight: 700 }}>{apt.urgency}</span>
                           <span style={{ fontSize: '0.73rem', padding: '0.15rem 0.6rem', borderRadius: 20, background: stBg, color: stColor, fontWeight: 700 }}>{stLabel}</span>
                         </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--charcoal)', marginBottom: '0.75rem' }}>
