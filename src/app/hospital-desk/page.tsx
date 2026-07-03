@@ -60,6 +60,7 @@ export default function HospitalDeskPage() {
   const router = useRouter();
   const { t, lang } = useLanguage();
   const [patientId, setPatientId] = useState('');
+  const [sessionInfo, setSessionInfo] = useState({ staffId: 'N/A', branch: '' });
   const [patientData, setPatientData] = useState<any>(null);
   const [patientRecords, setPatientRecords] = useState<any[]>([]);
   const [abhaStatus, setAbhaStatus] = useState<{ verified: boolean; masked: string | null }>({ verified: false, masked: null });
@@ -151,6 +152,9 @@ export default function HospitalDeskPage() {
   useEffect(() => {
     const role = sessionStorage.getItem('nalamRole') || localStorage.getItem('nalamRole');
     const branch = sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Apollo Hospitals';
+    const staffId = sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || 'N/A';
+    setSessionInfo({ staffId, branch });
+
     if (role !== 'hdesk' && role !== 'clinician') router.push('/');
     fetchAlerts();
     
@@ -517,7 +521,7 @@ export default function HospitalDeskPage() {
         <div>
           <h2 style={{ fontSize: '2rem', color: 'var(--deep-blue)' }}>
             {(() => {
-              const branch = sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || t('hdesk.hospitalDesk');
+              const branch = sessionInfo.branch || t('hdesk.hospitalDesk');
               const deskLabel = t('hdesk.hospitalDesk');
               // Avoid duplicate "Hospital" word
               if (branch.toLowerCase().includes('hospital')) {
@@ -527,7 +531,7 @@ export default function HospitalDeskPage() {
             })()}
           </h2>
           <p style={{ color: 'var(--charcoal)', fontSize: '0.95rem' }}>
-            {t('hdesk.staffId')}: {sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || 'N/A'}
+            {t('hdesk.staffId')}: {sessionInfo.staffId}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -607,8 +611,8 @@ export default function HospitalDeskPage() {
         <RecordsOtpModal
           patientId={patientId}
           patientName={patientData.name}
-          requestorId={sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || 'desk'}
-          requestorName={sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk'}
+          requestorId={sessionInfo.staffId || 'desk'}
+          requestorName={sessionInfo.branch || 'Hospital Desk'}
           onClose={() => setShowRecordsModal(false)}
         />
       )}
@@ -616,7 +620,7 @@ export default function HospitalDeskPage() {
       {showContextOtp && (
         <ContextOtpModal
           patientId={patientId}
-          requestorName={sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || 'Hospital Desk'}
+          requestorName={sessionInfo.branch || 'Hospital Desk'}
           onClose={() => setShowContextOtp(false)}
           onSuccess={handleContextOtpSuccess}
         />

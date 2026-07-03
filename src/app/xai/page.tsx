@@ -353,7 +353,16 @@ function XAIDashboardInner() {
         </>
       )}
 
-      <style>{`.spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        .spin { animation: spin 1s linear infinite; } 
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 640px) {
+          .ambulance-button-mobile {
+            bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 5.75rem) !important;
+            right: 0.75rem !important;
+          }
+        }
+      `}</style>
 
       {/* ── ACKNOWLEDGMENT POPUP ── */}
       {showAckPopup && currentAckAlert && (
@@ -423,11 +432,12 @@ function XAIDashboardInner() {
 
       {/* ── AMBULANCE BUTTON ── */}
       <button
+        className="ambulance-button-mobile"
         onDoubleClick={() => setShowAmbulanceModal(true)}
         style={{
-          position: 'fixed', bottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem)', right: '1rem', zIndex: 90,
+          position: 'fixed', bottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 8.75rem)', right: '1.5rem', zIndex: 90,
           background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: 'white', border: 'none', borderRadius: '50%',
-          width: '60px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: '56px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 8px 24px rgba(239, 68, 68, 0.4)', cursor: 'pointer', animation: 'pulseGlow 2s infinite'
         }}
         title="Double Click to Call Ambulance"

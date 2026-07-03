@@ -156,7 +156,7 @@ export default function Chatbot({ userRole }: ChatbotProps) {
         body: JSON.stringify({
           message: userMessage,
           conversationId,
-          patientContextId: approvedPatientId,
+          lang,
         }),
       });
 

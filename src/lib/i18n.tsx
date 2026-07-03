@@ -21,7 +21,7 @@ const translations: Record<Lang, Record<string, string>> = {
     // ── Login Page ───────────────────────────────────────────────────────────
     'login.welcome': 'Welcome Back',
     'login.selectRole': 'Select your role to continue',
-    'login.back': '← Back',
+    'login.back': 'Back',
     'login.username': 'Username',
     'login.password': 'Password',
     'login.signIn': 'Sign In →',
@@ -721,7 +721,7 @@ const translations: Record<Lang, Record<string, string>> = {
     // ── Login Page ───────────────────────────────────────────────────────────
     'login.welcome': 'மீண்டும் வரவேற்கிறோம்',
     'login.selectRole': 'தொடர உங்கள் பணியை தேர்ந்தெடுக்கவும்',
-    'login.back': '← பின்னால்',
+    'login.back': 'பின்னால்',
     'login.username': 'பயனர் பெயர்',
     'login.password': 'கடவுச்சொல்',
     'login.signIn': 'உள்நுழைக →',
