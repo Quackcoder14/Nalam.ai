@@ -13,74 +13,73 @@ datasource db {
 
 // ─── Patient ─────────────────────────────────────────────────────────────────
 model Patient {
-  id                      String   @id
-  password_hash           String?
-  name_enc                String   @db.Text
-  dob_enc                 String   @db.Text
-  gender_enc              String   @db.Text
-  contact_enc             String   @db.Text
-  mobile_enc              String?  @db.Text
-  email_enc               String?  @db.Text
-  address_enc             String?  @db.Text
-  city_enc                String?  @db.Text
-  district_enc            String?  @db.Text
-  state_enc               String?  @db.Text
-  pincode_enc             String?  @db.Text
-  guardian_name_enc       String?  @db.Text
-  emergency_name_enc      String?  @db.Text
-  emergency_relation_enc  String?  @db.Text
-  emergency_phone_enc     String?  @db.Text
-  occupation_enc          String?  @db.Text
-  marital_status_enc      String?  @db.Text
-  preferred_language_enc  String?  @db.Text
-  insurance_provider_enc  String?  @db.Text
-  insurance_policy_enc    String?  @db.Text
-  aadhaar_last4_enc       String?  @db.Text
-  blood_type_enc          String   @db.Text
-  allergies_enc           String   @db.Text
-  chronic_conditions_enc  String?  @db.Text
-  current_medications_enc String?  @db.Text
-  past_surgeries_enc      String?  @db.Text
-  family_history_enc      String?  @db.Text
-  lifestyle_notes_enc     String?  @db.Text
-  consent_emergency       Boolean  @default(false)
-  consent_specialist      Boolean  @default(false)
-  consent_research        Boolean  @default(false)
-  abha_id_enc             String?  @db.Text
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
+  id                  String          @id
+  password_hash       String?
+  name_enc            String          @db.Text
+  dob_enc             String          @db.Text
+  gender_enc          String          @db.Text
+  contact_enc         String          @db.Text
+  mobile_enc          String?         @db.Text
+  email_enc           String?         @db.Text
+  address_enc         String?         @db.Text
+  city_enc            String?         @db.Text
+  district_enc        String?         @db.Text
+  state_enc           String?         @db.Text
+  pincode_enc         String?         @db.Text
+  guardian_name_enc   String?         @db.Text
+  emergency_name_enc  String?         @db.Text
+  emergency_relation_enc String?      @db.Text
+  emergency_phone_enc String?         @db.Text
+  occupation_enc      String?         @db.Text
+  marital_status_enc  String?         @db.Text
+  preferred_language_enc String?      @db.Text
+  insurance_provider_enc String?      @db.Text
+  insurance_policy_enc String?        @db.Text
+  aadhaar_last4_enc   String?         @db.Text
+  blood_type_enc      String          @db.Text
+  allergies_enc       String          @db.Text
+  chronic_conditions_enc String?      @db.Text
+  current_medications_enc String?     @db.Text
+  past_surgeries_enc  String?         @db.Text
+  family_history_enc  String?         @db.Text
+  lifestyle_notes_enc String?         @db.Text
+  consent_emergency   Boolean         @default(false)
+  consent_specialist  Boolean         @default(false)
+  consent_research    Boolean         @default(false)
+  abha_id_enc         String?         @db.Text
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
 
-  records          MedicalRecord[]
-  auditLogs        AuditLog[]
-  appointments     Appointment[]
-  messages         ChatMessage[]
-  files            PatientFile[]
-  otpRequests      RecordsOtp[]
-  Teleconsultation Teleconsultation[]
+  records             MedicalRecord[]
+  auditLogs           AuditLog[]
+  appointments        Appointment[]
+  messages            ChatMessage[]
+  files               PatientFile[]
+  otpRequests         RecordsOtp[]
 
   @@map("patients")
 }
 
 // ─── Medical Record ───────────────────────────────────────────────────────────
 model MedicalRecord {
-  id                   String   @id @default(cuid())
-  patient_id           String
-  date                 String
-  type_enc             String   @db.Text
-  provider_enc         String   @db.Text
-  diagnosis_enc        String   @db.Text
-  notes_enc            String?  @db.Text
-  lab_results_enc      String?  @db.Text
-  department_enc       String?  @db.Text
-  doctor_name_enc      String?  @db.Text
-  medications_enc      String?  @db.Text
-  procedures_enc       String?  @db.Text
-  vitals_json_enc      String?  @db.Text
-  follow_up_date       String?
-  attachments_json_enc String?  @db.Text
-  created_at           DateTime @default(now())
+  id              String   @id @default(cuid())
+  patient_id      String
+  date            String
+  type_enc        String   @db.Text
+  provider_enc    String   @db.Text
+  diagnosis_enc   String   @db.Text
+  notes_enc       String?  @db.Text
+  lab_results_enc String?  @db.Text
+  department_enc  String?  @db.Text
+  doctor_name_enc String?  @db.Text
+  medications_enc String?  @db.Text
+  procedures_enc  String?  @db.Text
+  vitals_json_enc String?  @db.Text
+  follow_up_date  String?
+  attachments_json_enc String? @db.Text
+  created_at      DateTime @default(now())
 
-  patient Patient @relation(fields: [patient_id], references: [id])
+  patient         Patient  @relation(fields: [patient_id], references: [id])
 
   @@index([patient_id, date])
   @@map("medical_records")
@@ -88,34 +87,34 @@ model MedicalRecord {
 
 // ─── Doctor ────────────────────────────────────────────────────────────────────
 model Doctor {
-  id                      String   @id
-  password_hash           String?
-  full_name_enc           String   @db.Text
-  gender_enc              String?  @db.Text
-  dob_enc                 String?  @db.Text
-  mobile_enc              String?  @db.Text
-  email_enc               String?  @db.Text
-  registration_number     String
-  registration_council    String
-  registration_year       String?
-  qualification_enc       String   @db.Text
-  specialty               String
-  department              String
-  designation             String?
-  hospital                String
-  experience_years        Int?
-  languages_json          String?  @db.Text
-  consultation_modes_json String?  @db.Text
-  available_days_json     String?  @db.Text
-  time_slots_json         String?  @db.Text
-  room_number_enc         String?  @db.Text
-  address_enc             String?  @db.Text
-  district                String?
-  state                   String?  @default("Tamil Nadu")
-  pincode                 String?
-  status                  String   @default("active")
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
+  id                    String   @id
+  password_hash         String?
+  full_name_enc         String   @db.Text
+  gender_enc            String?  @db.Text
+  dob_enc               String?  @db.Text
+  mobile_enc            String?  @db.Text
+  email_enc             String?  @db.Text
+  registration_number   String
+  registration_council  String
+  registration_year     String?
+  qualification_enc     String   @db.Text
+  specialty             String
+  department            String
+  designation           String?
+  hospital              String
+  experience_years      Int?
+  languages_json        String?  @db.Text
+  consultation_modes_json String? @db.Text
+  available_days_json   String?  @db.Text
+  time_slots_json       String?  @db.Text
+  room_number_enc       String?  @db.Text
+  address_enc           String?  @db.Text
+  district              String?
+  state                 String?   @default("Tamil Nadu")
+  pincode               String?
+  status                String   @default("active")
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
 
   @@unique([registration_council, registration_number])
   @@index([hospital, specialty, status])
@@ -124,14 +123,14 @@ model Doctor {
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 model AuditLog {
-  id            String   @id @default(cuid())
-  patient_id    String
-  clinician_enc String   @db.Text
-  reason_enc    String   @db.Text
-  context_type  String
-  created_at    DateTime @default(now())
+  id             String   @id @default(cuid())
+  patient_id     String
+  clinician_enc  String   @db.Text
+  reason_enc     String   @db.Text
+  context_type   String
+  created_at     DateTime @default(now())
 
-  patient Patient @relation(fields: [patient_id], references: [id])
+  patient        Patient  @relation(fields: [patient_id], references: [id])
 
   @@index([patient_id, created_at])
   @@map("audit_logs")
@@ -141,7 +140,7 @@ model AuditLog {
 model PushSubscription {
   id         String   @id @default(cuid())
   patient_id String?
-  role       String   @default("patient") // "patient" | "clinician"
+  role       String   @default("patient")  // "patient" | "clinician"
   endpoint   String   @unique @db.Text
   keys_json  String   @db.Text
   created_at DateTime @default(now())
@@ -152,18 +151,18 @@ model PushSubscription {
 
 // ─── Clinical Alerts (Active Notifications) ──────────────────────────────────
 model ClinicalAlert {
-  id              String    @id @default(cuid())
-  patient_id      String
-  severity        String
-  title           String    @db.Text
-  message         String    @db.Text
-  is_read         Boolean   @default(false)
-  hospital        String? // Hospital/branch that created the alert (for per-desk routing)
-  broadcast       Boolean   @default(false) // If true, alert is shown to all hospitals (e.g., anomalies)
-  acknowledged    Boolean   @default(false) // Whether the alert has been acknowledged as resolved
+  id         String   @id @default(cuid())
+  patient_id String
+  severity   String
+  title      String   @db.Text
+  message    String   @db.Text
+  is_read    Boolean  @default(false)
+  hospital   String?  // Hospital/branch that created the alert (for per-desk routing)
+  broadcast  Boolean  @default(false) // If true, alert is shown to all hospitals (e.g., anomalies)
+  acknowledged Boolean @default(false) // Whether the alert has been acknowledged as resolved
   acknowledged_by String? // Hospital/branch that acknowledged the alert
   acknowledged_at DateTime? // When the alert was acknowledged
-  created_at      DateTime  @default(now())
+  created_at DateTime @default(now())
 
   @@index([patient_id, is_read])
   @@index([hospital, is_read])
@@ -172,30 +171,30 @@ model ClinicalAlert {
 
 // ─── Appointments ────────────────────────────────────────────────────────────
 model Appointment {
-  id                       String    @id @default(cuid())
-  patient_id               String
-  doctor_id                String
-  doctor_name              String
-  doctor_specialty         String
-  hospital                 String
-  date                     String
-  time                     String?
-  reason_enc               String    @db.Text
-  urgency                  String
-  vitals_json              String?   @db.Text
-  attachments_json         String?   @db.Text
-  status                   String    @default("pending")
-  ai_summary_enc           String?   @db.Text
-  hdesk_note_enc           String?   @db.Text
-  reschedule_reason_enc    String?   @db.Text
-  reschedule_proposed_date String?
-  reschedule_proposed_time String?
-  created_at               DateTime  @default(now())
-  approved_at              DateTime?
-  scheduled_at             DateTime?
-  pre_reschedule_status    String?
+  id                        String    @id @default(cuid())
+  patient_id                String
+  doctor_id                 String
+  doctor_name               String
+  doctor_specialty          String
+  hospital                  String
+  date                      String
+  time                      String?
+  reason_enc                String    @db.Text
+  urgency                   String
+  vitals_json               String?   @db.Text
+  attachments_json          String?   @db.Text
+  status                    String    @default("pending")
+  ai_summary_enc            String?   @db.Text
+  hdesk_note_enc            String?   @db.Text
+  reschedule_reason_enc     String?   @db.Text
+  reschedule_proposed_date  String?
+  reschedule_proposed_time  String?
+  created_at                DateTime  @default(now())
+  approved_at               DateTime?
+  scheduled_at              DateTime?
+  pre_reschedule_status     String?
 
-  patient Patient @relation(fields: [patient_id], references: [id])
+  patient                   Patient   @relation(fields: [patient_id], references: [id])
 
   @@index([patient_id, status])
   @@map("appointments")
@@ -203,17 +202,17 @@ model Appointment {
 
 // ─── Chat Messages ───────────────────────────────────────────────────────────
 model ChatMessage {
-  id          String   @id @default(cuid())
-  patient_id  String
-  hospital    String
-  sender      String // "patient" | "desk"
-  type        String   @default("text") // "text", "voice", "image", "file"
-  content_enc String   @db.Text
-  staff_id    String? // The identity of the staff member who sent this message (if desk/clinician)
-  is_read     Boolean  @default(false)
-  created_at  DateTime @default(now())
+  id           String   @id @default(cuid())
+  patient_id   String
+  hospital     String
+  sender       String   // "patient" | "desk"
+  type         String   @default("text") // "text", "voice", "image", "file"
+  content_enc  String   @db.Text
+  staff_id     String?  // The identity of the staff member who sent this message (if desk/clinician)
+  is_read      Boolean  @default(false)
+  created_at   DateTime @default(now())
 
-  patient Patient @relation(fields: [patient_id], references: [id])
+  patient      Patient  @relation(fields: [patient_id], references: [id])
 
   @@index([patient_id, hospital])
   @@map("chat_messages")
@@ -221,17 +220,17 @@ model ChatMessage {
 
 // ─── Patient Files (Records Gallery) ─────────────────────────────────────────
 model PatientFile {
-  id              String   @id @default(cuid())
-  patient_id      String
-  filename_enc    String   @db.Text
-  file_type       String // "image" | "pdf" | "document"
-  file_data_enc   String   @db.Text // base64 encrypted
-  source          String   @default("manual") // "manual" | "document_scanner"
-  uploaded_by     String // patient_id or staff_id
-  file_size_bytes Int      @default(0)
-  created_at      DateTime @default(now())
+  id               String   @id @default(cuid())
+  patient_id       String
+  filename_enc     String   @db.Text
+  file_type        String   // "image" | "pdf" | "document"
+  file_data_enc    String   @db.Text  // base64 encrypted
+  source           String   @default("manual") // "manual" | "document_scanner"
+  uploaded_by      String   // patient_id or staff_id
+  file_size_bytes  Int      @default(0)
+  created_at       DateTime @default(now())
 
-  patient Patient @relation(fields: [patient_id], references: [id])
+  patient          Patient  @relation(fields: [patient_id], references: [id])
 
   @@index([patient_id, created_at])
   @@map("patient_files")
@@ -239,16 +238,16 @@ model PatientFile {
 
 // ─── Records OTP ──────────────────────────────────────────────────────────────
 model RecordsOtp {
-  id             String   @id @default(cuid())
-  patient_id     String
-  otp_hash       String // SHA-256 hashed OTP
-  requestor_id   String // clinician or hdesk staff ID
-  requestor_name String   @default("")
-  expires_at     DateTime
-  used           Boolean  @default(false)
-  created_at     DateTime @default(now())
+  id            String   @id @default(cuid())
+  patient_id    String
+  otp_hash      String   // SHA-256 hashed OTP
+  requestor_id  String   // clinician or hdesk staff ID
+  requestor_name String  @default("")
+  expires_at    DateTime
+  used          Boolean  @default(false)
+  created_at    DateTime @default(now())
 
-  patient Patient @relation(fields: [patient_id], references: [id])
+  patient       Patient  @relation(fields: [patient_id], references: [id])
 
   @@index([patient_id, expires_at])
   @@map("records_otps")
@@ -256,13 +255,13 @@ model RecordsOtp {
 
 // ─── Chatbot Conversations ─────────────────────────────────────────────────────
 model ChatbotConversation {
-  id         String   @id @default(cuid())
-  user_id    String // patient_id or clinician_id
-  user_role  String // 'patient' or 'clinician'
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id          String   @id @default(cuid())
+  user_id     String   // patient_id or clinician_id
+  user_role   String   // 'patient' or 'clinician'
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
-  messages ChatbotMessage[]
+  messages    ChatbotMessage[]
 
   @@index([user_id, user_role])
   @@map("chatbot_conversations")
@@ -271,11 +270,11 @@ model ChatbotConversation {
 model ChatbotMessage {
   id              String   @id @default(cuid())
   conversation_id String
-  role            String // 'user' or 'assistant'
+  role            String   // 'user' or 'assistant'
   content         String   @db.Text
   created_at      DateTime @default(now())
 
-  conversation ChatbotConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  conversation    ChatbotConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
 
   @@index([conversation_id, created_at])
   @@map("chatbot_messages")
@@ -288,7 +287,7 @@ model HospitalDeskStaff {
   staff_id      String   @unique // e.g., APOLLO-001
   password_hash String
   name_enc      String   @db.Text
-  branch        String // e.g., Apollo Hospital
+  branch        String   // e.g., Apollo Hospital
   role          String   @default("staff") // "staff" | "manager"
   status        String   @default("active")
   created_at    DateTime @default(now())
@@ -296,24 +295,4 @@ model HospitalDeskStaff {
 
   @@index([branch, status])
   @@map("hospital_desk_staff")
-}
-
-// ─── Teleconsultations (WebRTC Signaling via Polling) ─────────────────────────
-model Teleconsultation {
-  id              String   @id @default(cuid())
-  patient_id      String
-  hospital        String // Routes to the correct hospital desk
-  type            String // "audio" | "video"
-  status          String   @default("ringing") // "ringing" | "accepted" | "rejected" | "ended"
-  offer_json      String?  @db.Text
-  answer_json     String?  @db.Text
-  ice_caller_json String?  @db.Text
-  ice_callee_json String?  @db.Text
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
-
-  patient Patient @relation(fields: [patient_id], references: [id])
-
-  @@index([hospital, status])
-  @@map("teleconsultations")
 }
