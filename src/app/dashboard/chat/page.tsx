@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Send, Mic, Paperclip, Building2, User, UserCircle, StopCircle, Image as ImageIcon, File, X } from 'lucide-react';
+import { ArrowLeft, Send, Mic, Paperclip, Building2, User, UserCircle, StopCircle, Image as ImageIcon, File, X, Phone, Video } from 'lucide-react';
+import VideoCallModal from '../../components/VideoCallModal';
 
 const HOSPITALS = ['Apollo Hospital', 'Kauvery Hospital', 'Govt Hospital'];
 
@@ -24,6 +25,8 @@ function PatientChatInner() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [callMode, setCallMode] = useState<'video' | 'audio' | null>(null);
   const [mockProfile, setMockProfile] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -279,12 +282,56 @@ function PatientChatInner() {
             <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Building2 size={20} />
             </div>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--deep-blue)' }}>{selectedHospital || 'Hospital Desk'}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Online
               </div>
             </div>
+
+            {/* Call Buttons */}
+            {selectedHospital && (
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => setCallMode('audio')}
+                  style={{
+                    background: 'var(--surface-muted)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '50%',
+                    width: 36,
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--primary)',
+                    transition: 'background 0.2s'
+                  }}
+                  title="Audio Call"
+                >
+                  <Phone size={18} />
+                </button>
+                <button
+                  onClick={() => setCallMode('video')}
+                  style={{
+                    background: 'var(--surface-muted)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '50%',
+                    width: 36,
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--primary)',
+                    transition: 'background 0.2s'
+                  }}
+                  title="Video Call"
+                >
+                  <Video size={18} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Messages */}
@@ -392,6 +439,17 @@ function PatientChatInner() {
           </div>
         </div>
       </div>
+
+      {callMode && selectedHospital && (
+        <VideoCallModal
+          isOpen={true}
+          onClose={() => setCallMode(null)}
+          mode="caller"
+          type={callMode}
+          patientId={getPatientId()}
+          hospital={selectedHospital}
+        />
+      )}
     </div>
   );
 }

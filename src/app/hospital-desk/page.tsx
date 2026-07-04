@@ -7,6 +7,8 @@ import { apiFetch } from '@/lib/apiFetch';
 import { RecordsOtpModal } from '../components/RecordsOtpModal';
 import { ContextOtpModal } from '../components/ContextOtpModal';
 import PastNotifications from '../components/PastNotifications';
+import VideoCallModal from '../components/VideoCallModal';
+import { Phone, PhoneCall, PhoneOff } from 'lucide-react';
 
 interface OcrResult {
   rawText: string; medications: string[]; diagnoses: string[];
@@ -80,6 +82,8 @@ export default function HospitalDeskPage() {
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [showContextOtp, setShowContextOtp] = useState(false);
   const [showPastNotifications, setShowPastNotifications] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<any>(null);
+  const [activeCall, setActiveCall] = useState<any>(null);
 
   const fetchAllAppointments = useCallback(async () => {
     try {
@@ -169,12 +173,35 @@ export default function HospitalDeskPage() {
     };
     fetchUnread();
     
+    const fetchIncomingCalls = async () => {
+      try {
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/webrtc?hospital=${encodeURIComponent(branch)}&status=ringing`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.calls && data.calls.length > 0) {
+            // Only set if we don't have an active call
+            setIncomingCall(data.calls[0]);
+          } else {
+            setIncomingCall(null);
+          }
+        }
+      } catch {}
+    };
+
     const iv = setInterval(() => {
       fetchAlerts();
       fetchUnread();
     }, 10000);
+
+    const callIv = setInterval(() => {
+      fetchIncomingCalls();
+    }, 3000);
+
     fetchAllAppointments();
-    return () => clearInterval(iv);
+    return () => {
+      clearInterval(iv);
+      clearInterval(callIv);
+    };
   }, [router, fetchAlerts, fetchAllAppointments]);
 
   // Listen for custom event to open Past Notifications modal
@@ -1044,6 +1071,119 @@ export default function HospitalDeskPage() {
         isHospitalDesk={true}
       />
 
+      {/* Incoming Call Popup — centered WhatsApp-style */}
+      {incomingCall && !activeCall && (
+        <>
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 198,
+            background: 'rgba(26,43,74,0.55)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+          }} />
+          <div style={{
+            position: 'fixed', zIndex: 199,
+            top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: 340, maxWidth: '94vw',
+            background: 'var(--glass-bg)',
+            border: '1.5px solid var(--glass-border)',
+            borderRadius: 28,
+            boxShadow: '0 32px 80px rgba(26,43,74,0.22), 0 0 0 1px rgba(0,82,165,0.07)',
+            padding: '44px 28px 32px',
+            textAlign: 'center',
+            animation: 'callPopIn 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+          }}>
+            {/* Pulsing ring avatar */}
+            <div style={{ position: 'relative', width: 88, height: 88, margin: '0 auto 18px' }}>
+              <div style={{
+                position: 'absolute', inset: -14,
+                borderRadius: '50%',
+                border: '2px solid rgba(0,82,165,0.2)',
+                animation: 'ringPulse 1.6s ease-out infinite',
+              }} />
+              <div style={{
+                position: 'absolute', inset: -7,
+                borderRadius: '50%',
+                border: '2px solid rgba(0,82,165,0.35)',
+                animation: 'ringPulse 1.6s ease-out 0.4s infinite',
+              }} />
+              <div style={{
+                width: 88, height: 88, borderRadius: '50%',
+                background: 'linear-gradient(135deg, var(--primary) 0%, var(--powder-blue-dark) 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <PhoneCall size={38} style={{ color: 'white' }} />
+              </div>
+            </div>
+
+            <h2 style={{ color: 'var(--deep-blue)', fontWeight: 700, fontSize: 19, margin: '0 0 6px' }}>
+              Incoming {incomingCall.type === 'video' ? 'Video' : 'Audio'} Call
+            </h2>
+            <p style={{ color: 'var(--charcoal)', fontSize: 13, margin: '0 0 32px' }}>
+              Patient · {incomingCall.patient_id}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 32 }}>
+              {/* Reject */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <button
+                  onClick={async () => {
+                    await apiFetch('/api/webrtc', { method: 'PUT', body: JSON.stringify({ call_id: incomingCall.id, status: 'rejected' }) });
+                    setIncomingCall(null);
+                  }}
+                  style={{
+                    width: 64, height: 64, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                    background: 'linear-gradient(135deg, var(--accent-red) 0%, #B71C1C 100%)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 8px 24px rgba(198,40,40,0.4)',
+                    transition: 'all 0.18s cubic-bezier(0.34,1.56,0.64,1)',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.12)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(198,40,40,0.55)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)';    e.currentTarget.style.boxShadow = '0 8px 24px rgba(198,40,40,0.4)'; }}
+                >
+                  <PhoneOff size={24} style={{ color: 'white' }} />
+                </button>
+                <span style={{ color: 'var(--charcoal)', fontSize: 12 }}>Decline</span>
+              </div>
+
+              {/* Accept */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <button
+                  onClick={() => { setActiveCall(incomingCall); setIncomingCall(null); }}
+                  style={{
+                    width: 64, height: 64, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                    background: 'linear-gradient(135deg, var(--accent-green) 0%, #1b5e20 100%)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 8px 24px rgba(46,125,50,0.4)',
+                    transition: 'all 0.18s cubic-bezier(0.34,1.56,0.64,1)',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.12)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(46,125,50,0.55)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)';    e.currentTarget.style.boxShadow = '0 8px 24px rgba(46,125,50,0.4)'; }}
+                >
+                  <Phone size={24} style={{ color: 'white' }} />
+                </button>
+                <span style={{ color: 'var(--charcoal)', fontSize: 12 }}>Accept</span>
+              </div>
+            </div>
+          </div>
+          <style>{`
+            @keyframes callPopIn { from { opacity:0; transform:translate(-50%,-46%) scale(0.86); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
+            @keyframes ringPulse { from { opacity:0.7; transform:scale(1); } to { opacity:0; transform:scale(1.6); } }
+          `}</style>
+        </>
+      )}
+
+      {/* Active Call Modal */}
+      {activeCall && (
+        <VideoCallModal
+          isOpen={true}
+          onClose={() => setActiveCall(null)}
+          mode="callee"
+          type={activeCall.type}
+          callId={activeCall.id}
+          initialOffer={JSON.parse(activeCall.offer_json)}
+        />
+      )}
+
       <style>{`
         @keyframes slideUpRight { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -1051,3 +1191,4 @@ export default function HospitalDeskPage() {
     </div>
   );
 }
+

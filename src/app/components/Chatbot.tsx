@@ -13,10 +13,12 @@ type Message = {
 type ChatbotProps = {
   userRole: 'patient' | 'clinician';
   patientData?: Record<string, unknown>;
+  records?: Record<string, unknown>[];
+  intervention?: Record<string, unknown>;
   doctorCalendar?: Record<string, unknown>;
 };
 
-export default function Chatbot({ userRole }: ChatbotProps) {
+export default function Chatbot({ userRole, patientData, records, intervention }: ChatbotProps) {
   const { t, lang } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -157,6 +159,10 @@ export default function Chatbot({ userRole }: ChatbotProps) {
           message: userMessage,
           conversationId,
           lang,
+          patientContextId: approvedPatientId,
+          patientData: userRole === 'patient' ? patientData : undefined,
+          records: userRole === 'patient' ? records : undefined,
+          intervention: userRole === 'patient' ? intervention : undefined,
         }),
       });
 

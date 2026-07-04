@@ -26,6 +26,11 @@ import {
   PhoneCall,
   MoreHorizontal,
   MapPin,
+  TrendingUp,
+  ChevronRight,
+  Droplets,
+  Wind,
+  Info,
 } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import VoiceTriage from "../components/VoiceTriage";
@@ -287,6 +292,7 @@ export default function PatientDashboard() {
   const [showAudit, setShowAudit] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [intervention, setIntervention] = useState<any>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
   const [fhirData, setFhirData] = useState<any>(null);
   const [fhirLoading, setFhirLoading] = useState(false);
   const [showMoreActions, setShowMoreActions] = useState(false);
@@ -2275,77 +2281,234 @@ export default function PatientDashboard() {
       </div>
 
       {/* ── INTERVENTION ENGINE ── */}
-      {intervention && (
-        <section
-          className="glass-panel slide-up stagger-3"
-          style={{ borderColor: `${riskColor}44`, marginTop: "1rem" }}
-        >
-          <div className="flex-between" style={{ marginBottom: "0.75rem" }}>
-            <h3
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                color: riskColor,
-                fontSize: "0.92rem",
-              }}
-            >
-              <BellRing size={16} /> {t("dashboard.interventionEngine")}
-            </h3>
-            <span className="badge amber pulse-glow">
-              {intervention.riskLevel} {t("dashboard.riskLevel")}
-            </span>
-          </div>
-          <div
-            style={{
-              background: `${riskColor}0D`,
-              borderLeft: `4px solid ${riskColor}`,
-              padding: "0.75rem 0.85rem",
-              borderRadius: 8,
-            }}
+      {intervention && (() => {
+        const score: number = intervention.risk_score ?? 0;
+        const vitals = intervention.vitals ?? {};
+
+        // Derive urgency from risk score
+        const urgency = score >= 6
+          ? { label: t('dashboard.urgencyImmediate'), color: 'var(--accent-red)', bg: '#FEE2E2' }
+          : score >= 3
+            ? { label: t('dashboard.urgencyWeek'), color: 'var(--accent-amber)', bg: '#FEF3C7' }
+            : { label: t('dashboard.urgencyMonth'), color: 'var(--accent-teal)', bg: '#D1FAE5' };
+
+        // Parse action plan into bullet steps
+        const actionSteps: string[] = (() => {
+          const raw: string = intervention.actionPlan ?? '';
+          // Try numbered list first (1. ... 2. ...)
+          const numbered = raw.match(/\d+\.\s+[^.!?]+[.!?]/g);
+          if (numbered && numbered.length > 1) return numbered.map((s: string) => s.replace(/^\d+\.\s+/, '').trim());
+          // Otherwise split by sentence
+          return raw.split(/(?<=[.!?])\s+/).filter((s: string) => s.trim().length > 10);
+        })();
+
+        // Vitals breakdown with status indicators
+        const vitalItems = [
+          {
+            label: t('dashboard.vitalBP'),
+            value: vitals.systolic && vitals.diastolic ? `${vitals.systolic}/${vitals.diastolic}` : '—',
+            unit: 'mmHg',
+            icon: Heart,
+            status: vitals.systolic >= 160 ? 'high' : vitals.systolic >= 140 ? 'medium' : vitals.systolic >= 130 ? 'borderline' : 'normal',
+            range: '< 130/80 normal',
+          },
+          {
+            label: t('dashboard.vitalHba1c'),
+            value: vitals.hba1c ? `${vitals.hba1c}` : '—',
+            unit: '%',
+            icon: Droplets,
+            status: vitals.hba1c >= 8 ? 'high' : vitals.hba1c >= 6.5 ? 'medium' : vitals.hba1c >= 5.7 ? 'borderline' : 'normal',
+            range: '< 5.7% normal',
+          },
+          {
+            label: t('dashboard.vitalEgfr'),
+            value: vitals.egfr ? `${vitals.egfr}` : '—',
+            unit: 'ml/min',
+            icon: Wind,
+            status: vitals.egfr < 45 ? 'high' : vitals.egfr < 60 ? 'medium' : vitals.egfr < 75 ? 'borderline' : 'normal',
+            range: '≥ 90 optimal',
+          },
+        ];
+
+        const statusColor = (s: string) =>
+          s === 'high' ? 'var(--accent-red)' : s === 'medium' ? 'var(--accent-amber)' : s === 'borderline' ? '#F59E0B' : 'var(--accent-teal)';
+        const statusLabel = (s: string) =>
+          s === 'high' ? t('dashboard.statusHigh') : s === 'medium' ? t('dashboard.statusElevated') : s === 'borderline' ? t('dashboard.statusBorderline') : t('dashboard.statusNormal');
+
+        // Plain-language explanation
+        const explanation = score >= 6
+          ? "Your health data shows a pattern that needs prompt medical attention. Your blood pressure, blood sugar, or kidney function may be significantly outside the healthy range. Please contact your doctor soon — acting quickly can prevent serious complications."
+          : score >= 3
+            ? "Some of your health indicators are slightly outside the healthy range. This is a good time to revisit your diet, activity levels, and any medications. A follow-up with your doctor this week is recommended to get these under control."
+            : "Your health indicators are mostly within acceptable ranges. Keep up with your current routine, maintain a balanced diet, stay active, and continue your prescribed medications. A routine check-up within the month is still a good idea.";
+
+        // Risk history — only records that have at least one parseable lab value, limited to last 12 months
+        const cutoffDate = new Date();
+        cutoffDate.setMonth(cutoffDate.getMonth() - 12);
+        const riskHistory = (records || [])
+          .filter((r: any) => {
+            if (!r.date) return false;
+            const labs: string = r.lab_results ?? '';
+            const hasLab = /BP[:\s]*(\d+)\/(\d+)/i.test(labs) || /HbA1c[:\s]*([\d.]+)/i.test(labs) || /eGFR[:\s]*(\d+)/i.test(labs);
+            const d = new Date(r.date);
+            return hasLab && !isNaN(d.getTime()) && d >= cutoffDate;
+          })
+          .slice(-6)
+          .map((r: any) => {
+            const labs: string = r.lab_results ?? '';
+            const bpM = labs.match(/BP[:\s]*(\d+)\/(\d+)/i);
+            const haM = labs.match(/HbA1c[:\s]*([\d.]+)/i);
+            const egM = labs.match(/eGFR[:\s]*(\d+)/i);
+            const sys = bpM ? parseInt(bpM[1]) : 130;
+            const ha = haM ? parseFloat(haM[1]) : 5.7;
+            const eg = egM ? parseInt(egM[1]) : 90;
+            let s = 0;
+            if (sys >= 160) s += 3; else if (sys >= 140) s += 2; else if (sys >= 130) s += 1;
+            if (ha >= 8.0) s += 3; else if (ha >= 6.5) s += 2; else if (ha >= 5.7) s += 1;
+            if (eg < 45) s += 3; else if (eg < 60) s += 2; else if (eg < 75) s += 1;
+            // Format date as "Jan '24" style
+            const d = new Date(r.date);
+            const label = d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+            return { date: label, score: s, level: s >= 6 ? 'High' : s >= 3 ? 'Medium' : 'Low' };
+          });
+        // Add current score at the end
+        const allHistory = [...riskHistory, { date: 'Now', score, level: intervention.riskLevel }];
+
+        return (
+          <section
+            className="glass-panel slide-up stagger-3"
+            style={{ borderColor: `${riskColor}44`, marginTop: '1rem', padding: '1.25rem' }}
           >
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: "0.82rem",
-                color: "var(--deep-blue)",
-                marginBottom: "0.25rem",
-              }}
-            >
-              {t("dashboard.detectedPattern")}
+            {/* Header */}
+            <div className="flex-between" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: riskColor, fontSize: '0.95rem', fontWeight: 700 }}>
+                <BellRing size={17} /> {t('dashboard.interventionEngine')}
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ background: urgency.bg, color: urgency.color, fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: 20, border: `1px solid ${urgency.color}44` }}>
+                  <Clock size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                  {urgency.label}
+                </span>
+                <span className="badge amber pulse-glow">{intervention.riskLevel} {t('dashboard.riskLevel')}</span>
+              </div>
             </div>
-            <p
-              style={{
-                fontSize: "0.82rem",
-                color: "var(--charcoal)",
-                marginBottom: "0.65rem",
-                lineHeight: 1.55,
-              }}
-            >
-              {intervention.detectedPattern}
-            </p>
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: "0.82rem",
-                color: "var(--deep-blue)",
-                marginBottom: "0.25rem",
-              }}
-            >
-              {t("dashboard.actionPlan")}
+
+            {/* Risk Score Gauge */}
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--charcoal)' }}>{t('dashboard.riskScore')}</span>
+                <span style={{ fontSize: '0.88rem', fontWeight: 800, color: riskColor }}>{score}/10</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 99, background: 'var(--surface-muted)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.min(score * 10, 100)}%`, borderRadius: 99, background: `linear-gradient(90deg, var(--accent-teal), ${riskColor})`, transition: 'width 1s ease' }} />
+              </div>
             </div>
-            <p
-              style={{
-                fontSize: "0.82rem",
-                color: "var(--charcoal)",
-                lineHeight: 1.55,
-              }}
-            >
-              {intervention.actionPlan}
-            </p>
-          </div>
-        </section>
-      )}
+
+            {/* Vitals Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem', marginBottom: '1rem' }}>
+              {vitalItems.map(({ label, value, unit, icon: Icon, status, range }) => (
+                <div key={label} style={{ background: `${statusColor(status)}0D`, border: `1.5px solid ${statusColor(status)}33`, borderRadius: 10, padding: '0.6rem 0.5rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{label}</div>
+                  <Icon size={16} color={statusColor(status)} style={{ marginBottom: '0.15rem' }} />
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: statusColor(status), lineHeight: 1.1 }}>{value}</div>
+                  <div style={{ fontSize: '0.62rem', color: 'var(--charcoal)', marginTop: '0.1rem' }}>{unit}</div>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: statusColor(status), marginTop: '0.2rem' }}>{statusLabel(status)}</div>
+                  <div style={{ fontSize: '0.6rem', color: 'var(--foreground-muted)', marginTop: '0.15rem' }}>{range}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Detected Pattern */}
+            <div style={{ background: `${riskColor}0D`, borderLeft: `4px solid ${riskColor}`, padding: '0.7rem 0.85rem', borderRadius: 8, marginBottom: '0.85rem' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--deep-blue)', marginBottom: '0.25rem' }}>{t('dashboard.detectedPattern')}</div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--charcoal)', lineHeight: 1.55, margin: 0 }}>{intervention.detectedPattern}</p>
+            </div>
+
+            {/* Action Steps */}
+            <div style={{ marginBottom: '0.85rem' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--deep-blue)', marginBottom: '0.5rem' }}>{t('dashboard.actionPlan')}</div>
+              <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {actionSteps.map((step, i) => (
+                  <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--charcoal)', lineHeight: 1.5 }}>
+                    <span style={{ minWidth: 22, height: 22, borderRadius: '50%', background: `${riskColor}20`, color: riskColor, fontWeight: 800, fontSize: '0.72rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            {/* Risk Timeline */}
+            {allHistory.length > 1 && (
+              <div style={{ marginBottom: '0.85rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--deep-blue)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <TrendingUp size={13} /> {t('dashboard.riskHistory')}
+                </div>
+                {/* Legend */}
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                  {[['High', 'var(--accent-red)'], ['Medium', 'var(--accent-amber)'], ['Low', 'var(--accent-teal)']].map(([lbl, col]) => (
+                    <span key={lbl} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.65rem', color: 'var(--charcoal)' }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 3, background: col as string, display: 'inline-block' }} />
+                      {lbl}
+                    </span>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.4rem', height: 56 }}>
+                  {allHistory.map((h, i) => {
+                    const hColor = h.level === 'High' ? 'var(--accent-red)' : h.level === 'Medium' ? 'var(--accent-amber)' : 'var(--accent-teal)';
+                    const heightPct = Math.max((h.score / 10) * 100, 10);
+                    const isNow = i === allHistory.length - 1;
+                    return (
+                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                        <div
+                          title={`${h.level} — Score ${h.score}/10`}
+                          style={{ width: '100%', height: `${heightPct}%`, background: hColor, borderRadius: 4, opacity: isNow ? 1 : 0.6, minHeight: 6, transition: 'height 0.8s ease', border: isNow ? `2px solid ${hColor}` : 'none', boxSizing: 'border-box' }}
+                        />
+                        <span style={{ fontSize: '0.62rem', color: isNow ? riskColor : 'var(--foreground-muted)', fontWeight: isNow ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '100%', textAlign: 'center' }}>
+                          {h.date}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* What does this mean? */}
+            <div style={{ marginBottom: '1rem', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+              <button
+                onClick={() => setShowExplanation(v => !v)}
+                style={{ width: '100%', padding: '0.6rem 0.85rem', background: 'var(--surface-muted)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--foreground)', fontFamily: 'inherit' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Info size={14} /> {t('dashboard.whatMeansForMe')}
+                </span>
+                {showExplanation ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              </button>
+              {showExplanation && (
+                <div style={{ padding: '0.75rem 0.85rem', background: 'var(--surface)', fontSize: '0.82rem', color: 'var(--charcoal)', lineHeight: 1.65 }}>
+                  {explanation}
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => router.push('/appointments/book')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1rem', borderRadius: 10, background: riskColor, color: 'white', border: 'none', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                <Calendar size={14} /> {t('dashboard.bookAppointment')}
+              </button>
+              <button
+                onClick={() => router.push('/appointments/requests')}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1rem', borderRadius: 10, background: 'var(--surface-muted)', color: 'var(--foreground)', border: '1.5px solid var(--border)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                <ChevronRight size={14} /> {t('dashboard.scheduleFollowUp')}
+              </button>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ── NEARBY HOSPITALS MAP (Ola Maps) ── */}
       <section
@@ -2938,7 +3101,28 @@ export default function PatientDashboard() {
       />
 
     {/* Chatbot */}
-    <Chatbot userRole="patient" />
+    <Chatbot
+      userRole="patient"
+      patientData={patient ? {
+        id: patient.id,
+        name: patient.name_enc,
+        dob: patient.dob,
+        bloodType: patient.blood_type_enc,
+        allergies: patient.allergies_enc,
+        chronicConditions: patient.chronic_conditions_enc,
+        currentMedications: patient.current_medications_enc,
+        gender: patient.gender_enc,
+        abhaId: patient.abha_id,
+      } : undefined}
+      records={records?.slice(0, 10)}
+      intervention={intervention ? {
+        riskLevel: intervention.riskLevel,
+        risk_score: intervention.risk_score,
+        detectedPattern: intervention.detectedPattern,
+        actionPlan: intervention.actionPlan,
+        vitals: intervention.vitals,
+      } : undefined}
+    />
 
     </div>
     </>

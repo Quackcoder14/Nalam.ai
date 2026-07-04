@@ -98,6 +98,8 @@ export async function POST(request: Request) {
       riskLevel:       result.riskLevel ?? 'Unknown',
       detectedPattern,
       actionPlan,
+      risk_score:      result.risk_score ?? 0,
+      vitals:          result.vitals ?? {},
       glassBox,
     });
   } catch (e: any) {

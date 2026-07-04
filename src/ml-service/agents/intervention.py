@@ -9,6 +9,7 @@ action plan with detected pattern and risk level.
 import os
 import logging
 import re
+from datetime import datetime, timedelta
 from groq import Groq
 from .state import NalamState, LANG_INSTRUCTION
 
@@ -65,12 +66,35 @@ def _extract_features(patient: dict, records: list) -> dict:
             "hba1c": hba1c, "egfr": egfr, "risk_score": score, "risk_level": risk_level}
 
 
+def _filter_recent_records(records: list, months: int = 6) -> list:
+    """Return only records from the last `months` months that have lab data."""
+    cutoff = datetime.now() - timedelta(days=months * 30)
+    recent = []
+    for r in records:
+        try:
+            record_date = datetime.strptime(r.get("date", ""), "%Y-%m-%d")
+            if record_date >= cutoff:
+                recent.append(r)
+        except (ValueError, TypeError):
+            pass  # skip records with unparseable dates
+    # Fallback: if no recent records, use the 3 most recent overall
+    if not recent and records:
+        sorted_records = sorted(
+            [r for r in records if r.get("date")],
+            key=lambda x: x.get("date", ""),
+            reverse=True
+        )
+        recent = sorted_records[:3]
+    return recent
+
+
 def intervention_node(state: NalamState) -> NalamState:
     if state.get("guardrail_denied"):
         return {**state, "intervention_result": {"error": "Access denied by guardrails."}}
 
     patient  = state.get("patient_filtered", state.get("patient_raw", {}))
-    records  = state.get("records_filtered", [])
+    all_records  = state.get("records_filtered", [])
+    records  = _filter_recent_records(all_records)  # Only recent records
     context  = state.get("retrieved_context", [])
     lang     = state.get("lang", "en")
     lang_instr = LANG_INSTRUCTION.get(lang, "")
@@ -124,6 +148,13 @@ Respond in this EXACT JSON format (no markdown):
         cleaned = raw.replace("```json", "").replace("```", "").strip()
         result = json.loads(cleaned)
         result["risk_score"] = features["risk_score"]
+        result["vitals"] = {
+            "systolic": features["systolic"],
+            "diastolic": features["diastolic"],
+            "hba1c": features["hba1c"],
+            "egfr": features["egfr"],
+            "age": features["age"],
+        }
         logger.info(f"Intervention: risk={result.get('riskLevel')}")
     except Exception as e:
         logger.error(f"Intervention node failed: {e}")
@@ -140,6 +171,13 @@ Respond in this EXACT JSON format (no markdown):
                 "detectedPattern": f"Risk score {features['risk_score']}/10 based on vitals.",
                 "actionPlan": "Review medication regimen and schedule follow-up within 4 weeks.",
                 "risk_score": features["risk_score"],
+                "vitals": {
+                    "systolic": features["systolic"],
+                    "diastolic": features["diastolic"],
+                    "hba1c": features["hba1c"],
+                    "egfr": features["egfr"],
+                    "age": features["age"],
+                },
             }
 
     return {**state, "intervention_result": result}
