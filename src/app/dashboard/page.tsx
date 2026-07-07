@@ -37,6 +37,7 @@ import VoiceTriage from "../components/VoiceTriage";
 import WhatsAppButton from "../components/WhatsAppButton";
 import Chatbot from "../components/Chatbot";
 import PastNotifications from "../components/PastNotifications";
+import IntakeModal from "../components/IntakeModal";
 import { apiFetch } from "@/lib/apiFetch";
 import dynamic from "next/dynamic";
 
@@ -349,6 +350,109 @@ export default function PatientDashboard() {
   const [chatUnread, setChatUnread] = useState(0);
   const anomalyRef = useRef<any>(null);
   const router = useRouter();
+
+  // ── Intake Request (Pre-Consultation) polling ───────────────────────────────
+  const [pendingIntake, setPendingIntake] = useState<any | null>(null);
+  const [showIntakeModal, setShowIntakeModal] = useState(false);
+  const [hideIntakeBanner, setHideIntakeBanner] = useState(false);
+  const [intakeDismissed, setIntakeDismissed] = useState(false);
+  const submittedIntakeIds = useRef<Set<string>>(new Set());
+  const intakeDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Dismiss intake notification → archives it as a read alert so it appears in PastNotifications
+  const dismissIntakeNotification = useCallback(async (intake: any) => {
+    if (!intake) return;
+    try {
+      await apiFetch('/api/notify/alerts', {
+        method: 'POST',
+        body: JSON.stringify({
+          patientId: intake.patient_id,
+          severity: 'info',
+          title: 'Symptom Intake Request (Dismissed)',
+          message: 'A symptom intake request from the hospital desk was dismissed without completing.',
+        }),
+      }).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          // Immediately mark as read so it goes straight to past notifications
+          if (data.alert?.id) {
+            await apiFetch('/api/notify/alerts', {
+              method: 'PATCH',
+              body: JSON.stringify({ id: data.alert.id }),
+            });
+          }
+        }
+      });
+    } catch {}
+    submittedIntakeIds.current.add(intake.id);
+    
+    // Persist manual dismissal so it doesn't show up again on refresh
+    const dismissed = JSON.parse(localStorage.getItem('nalamDismissedIntakes') || '{}');
+    dismissed[intake.id] = true;
+    localStorage.setItem('nalamDismissedIntakes', JSON.stringify(dismissed));
+    
+    setIntakeDismissed(true);
+    setPendingIntake(null);
+  }, []);
+
+  const dismissIntakeBanner = useCallback(() => {
+    if (intakeDismissTimer.current) clearTimeout(intakeDismissTimer.current);
+    intakeDismissTimer.current = null;
+    setPendingIntake(null);
+  }, []);
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await apiFetch(`/api/intake?role=patient`, { skipCache: true });
+        const data = await res.json();
+        const items = Array.isArray(data) ? data : [];
+        // Filter out intakes that were submitted this session or manually dismissed previously
+        const dismissed = JSON.parse(localStorage.getItem('nalamDismissedIntakes') || '{}');
+        const fresh = items.filter((i: any) => !submittedIntakeIds.current.has(i.id) && !dismissed[i.id]);
+        if (fresh.length > 0) {
+          setPendingIntake((prev: any) => {
+            // Only update if it's a new intake (different ID)
+            if (prev?.id === fresh[0].id) return prev;
+            return fresh[0];
+          });
+        } else {
+          setPendingIntake(null);
+        }
+      } catch {}
+    };
+    poll();
+    const interval = setInterval(poll, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-dismiss intake banner after 10 seconds if not interacted with, and persist this state
+  useEffect(() => {
+    if (pendingIntake && !showIntakeModal && !hideIntakeBanner) {
+      // Check if already auto-dismissed in a previous session
+      const shownIntakes = JSON.parse(localStorage.getItem('nalamShownIntakes') || '{}');
+      if (shownIntakes[pendingIntake.id]) {
+        setHideIntakeBanner(true);
+        return;
+      }
+
+      if (intakeDismissTimer.current) clearTimeout(intakeDismissTimer.current);
+      intakeDismissTimer.current = setTimeout(() => {
+        setHideIntakeBanner(true);
+        // Save to localStorage so it doesn't show again on refresh
+        const updated = JSON.parse(localStorage.getItem('nalamShownIntakes') || '{}');
+        updated[pendingIntake.id] = true;
+        localStorage.setItem('nalamShownIntakes', JSON.stringify(updated));
+        
+        intakeDismissTimer.current = null;
+      }, 10000);
+    } else if (!pendingIntake) {
+      setHideIntakeBanner(false);
+    }
+    return () => {
+      if (intakeDismissTimer.current) clearTimeout(intakeDismissTimer.current);
+    };
+  }, [pendingIntake, showIntakeModal, hideIntakeBanner]);
 
   useEffect(() => {
     vitalsRef.current = vitals;
@@ -775,7 +879,69 @@ export default function PatientDashboard() {
   return (
     <>
     <div className="container fade-in">
+      {/* ── Intake Request Notification Banner ── */}
+      {pendingIntake && !showIntakeModal && !hideIntakeBanner && (
+        <div
+          className="notification-popup"
+          onClick={() => setShowIntakeModal(true)}
+          style={{
+            position: 'fixed',
+            bottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem)',
+            right: '1rem',
+            zIndex: 9998,
+            width: 'min(420px, calc(100vw - 2rem))',
+            background: 'var(--surface)',
+            borderLeft: '4px solid #0EA5E9',
+            borderRadius: 12,
+            padding: '0.85rem 1rem',
+            boxShadow: '0 8px 32px rgba(14,165,233,0.24)',
+            display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+            animation: 'toastFromBottomRight 0.35s ease',
+            pointerEvents: 'auto',
+            overflow: 'hidden',
+            cursor: 'pointer',
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              height: 3,
+              background: "#0EA5E9",
+              borderRadius: "0 0 0 12px",
+              animation: "shrinkBar 10s linear forwards",
+            }}
+          />
+          <div style={{ flexShrink: 0, marginTop: 2 }}>
+             <ClipboardList size={20} color="#0EA5E9" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, color: '#0EA5E9', fontSize: '0.95rem', marginBottom: '0.15rem' }}>
+              {lang === 'ta' ? 'அறிகுறி பதிவு கோரிக்கை' : 'Symptom Intake Requested'}
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.4 }}>
+              {lang === 'ta' ? 'மருத்துவமனை மேசையிலிருந்து — தட்டி பதிவு செய்யவும்' : 'From the hospital desk — tap to record your symptoms'}
+            </div>
+          </div>
+          <ChevronRight size={18} color="#0EA5E9" style={{ marginTop: 2 }} />
+        </div>
+      )}
+      {showIntakeModal && pendingIntake && (
+        <IntakeModal
+          intakeId={pendingIntake.id}
+          patientId={pendingIntake.patient_id}
+          lang={lang}
+          onClose={() => setShowIntakeModal(false)}
+          onSubmitted={() => {
+            submittedIntakeIds.current.add(pendingIntake.id);
+            setShowIntakeModal(false);
+            setPendingIntake(null);
+          }}
+        />
+      )}
       {/* ── Notifications Modal (bell panel only — no auto popups here) ── */}
+
       {showNotificationsModal && (
         <div
           style={{
@@ -845,7 +1011,49 @@ export default function PatientDashboard() {
                 gap: "0.75rem",
               }}
             >
-              {patientAlerts.length === 0 ? (
+              {/* Intake Request Notification */}
+              {pendingIntake && !intakeDismissed && (
+                <div
+                  style={{
+                    padding: "0.85rem 1rem",
+                    background: "#E0F2FE",
+                    borderLeft: "4px solid #0EA5E9",
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "0.65rem",
+                  }}
+                >
+                  <ClipboardList size={16} color="#0EA5E9" style={{ marginTop: 3 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, color: "#0EA5E9", fontSize: "0.9rem", marginBottom: "0.2rem" }}>
+                      Symptom Intake Requested
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "var(--charcoal)", lineHeight: 1.4 }}>
+                      From the hospital desk — tap to record your symptoms.
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.6rem" }}>
+                      <button
+                        onClick={() => {
+                          setShowNotificationsModal(false);
+                          setHideIntakeBanner(false);
+                          setShowIntakeModal(true);
+                        }}
+                        style={{ padding: "0.35rem 0.8rem", borderRadius: 6, border: "none", background: "#0EA5E9", color: "white", fontWeight: 700, fontSize: "0.78rem", cursor: "pointer" }}
+                      >Fill Now</button>
+                      <button
+                        onClick={() => {
+                          setShowNotificationsModal(false);
+                          dismissIntakeNotification(pendingIntake);
+                        }}
+                        style={{ padding: "0.35rem 0.8rem", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--charcoal)", fontWeight: 600, fontSize: "0.78rem", cursor: "pointer" }}
+                      >Dismiss</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {patientAlerts.length === 0 && !pendingIntake ? (
                 <div
                   style={{
                     textAlign: "center",

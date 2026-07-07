@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Activity, Clock, ChevronDown, X, ShieldCheck, Link2, MessageSquare, ArrowUpDown, UserPlus, ClipboardPlus } from 'lucide-react';
+import { ScanLine, ArrowLeft, Upload, CheckCircle, XCircle, Search, Bell, AlertTriangle, Activity, Clock, ChevronDown, X, ShieldCheck, Link2, MessageSquare, ArrowUpDown, UserPlus, ClipboardPlus, ClipboardList, Send, ChevronRight, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { apiFetch } from '@/lib/apiFetch';
 import { RecordsOtpModal } from '../components/RecordsOtpModal';
@@ -70,7 +70,7 @@ export default function HospitalDeskPage() {
   const [showAckPopup, setShowAckPopup] = useState(false);
   const [currentAckAlert, setCurrentAckAlert] = useState<any>(null);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'scanner' | 'timeline'>('scanner');
+  const [activeTab, setActiveTab] = useState<'scanner' | 'timeline' | 'intake'>('scanner');
   const [appointments, setAptList] = useState<any[]>([]);
   const [aptExpanded, setAptExpanded] = useState<string | null>(null);
   const [aptNote, setAptNote] = useState<Record<string, string>>({});
@@ -80,6 +80,16 @@ export default function HospitalDeskPage() {
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [showContextOtp, setShowContextOtp] = useState(false);
   const [showPastNotifications, setShowPastNotifications] = useState(false);
+
+  // ── Intake (Record Symptoms) state ──────────────────────────────────────
+  const [intakeStatus, setIntakeStatus] = useState<'idle' | 'sent' | 'pending' | 'submitted' | 'routing' | 'routed'>('idle');
+  const [intakeId, setIntakeId] = useState<string | null>(null);
+  const [intakeData, setIntakeData] = useState<any | null>(null);
+  const [intakeDetailOpen, setIntakeDetailOpen] = useState(false);
+  const [intakeDoctors, setIntakeDoctors] = useState<any[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [routingIntake, setRoutingIntake] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const fetchAllAppointments = useCallback(async () => {
     try {
@@ -214,6 +224,74 @@ export default function HospitalDeskPage() {
     setShowContextOtp(false);
   }, [patientId, lang, t]);
 
+  // ── Intake API Functions ──────────────────────────────────────────────────
+  const fetchIntakeStatus = useCallback(async () => {
+    if (!patientId || !sessionInfo.branch) return;
+    try {
+      const res = await apiFetch(`/api/intake?role=desk&hospital=${encodeURIComponent(sessionInfo.branch)}`, { skipCache: true });
+      const data = await res.json();
+      const ptIntake = Array.isArray(data) ? data.find((i: any) => i.patient_id === patientId && i.status !== 'cleared') : null;
+      if (ptIntake) {
+        setIntakeId(ptIntake.id);
+        setIntakeStatus(ptIntake.status);
+        if (ptIntake.status === 'submitted' || ptIntake.status === 'routed') {
+          try {
+            const detailRes = await apiFetch(`/api/intake/${ptIntake.id}`, { skipCache: true });
+            setIntakeData(await detailRes.json());
+          } catch {}
+        }
+      } else {
+        setIntakeStatus('idle');
+        setIntakeId(null);
+        setIntakeData(null);
+      }
+    } catch {}
+  }, [patientId, sessionInfo.branch]);
+
+  useEffect(() => {
+    if (patientData && activeTab === 'intake') {
+      fetchIntakeStatus();
+      const iv = setInterval(fetchIntakeStatus, 5000);
+      return () => clearInterval(iv);
+    }
+  }, [patientData, activeTab, fetchIntakeStatus]);
+
+  const sendIntakeRequest = async () => {
+    try {
+      setResendCooldown(15);
+      const res = await apiFetch(`/api/intake`, {
+        method: 'POST',
+        body: JSON.stringify({ patientId, hospital: sessionInfo.branch }),
+      });
+      if (res.ok) fetchIntakeStatus();
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const t = setTimeout(() => setResendCooldown(p => p - 1), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [resendCooldown]);
+
+  const [showRoutedToast, setShowRoutedToast] = useState(false);
+
+  const routeIntake = async () => {
+    if (!intakeId || !selectedDoctorId) return;
+    setRoutingIntake(true);
+    try {
+      await apiFetch(`/api/intake/${intakeId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'route', doctorId: selectedDoctorId }),
+      });
+      fetchIntakeStatus();
+      setShowRoutedToast(true);
+      setTimeout(() => setShowRoutedToast(false), 3500);
+    } catch {}
+    setRoutingIntake(false);
+  };
+
+
   const handleFile = (f: File) => {
     if (!f.type.startsWith('image/')) return;
     setFile(f); setResult(null); setImported(false); setOcrError(null);
@@ -300,19 +378,30 @@ export default function HospitalDeskPage() {
     finally { setScanning(false); }
   };
 
-  // Doctors for the current hospital branch (for dropdown)
   const getDoctorsForBranch = () => {
     const branch = typeof window !== 'undefined' ? (sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch') || '') : '';
     const branchLower = branch.toLowerCase();
-    const doctorsByHospital: Record<string, string[]> = {
-      'apollo hospital': ['Dr. Arun (General Medicine)', 'Dr. Kavitha (Cardiology)', 'Dr. Suresh (Neurology)'],
-      'kauvery hospital': ['Dr. Venkat (Orthopaedics)', 'Dr. Priya (Gynaecology)', 'Dr. Ramesh (ENT)'],
-      'govt hospital': ['Dr. Dhanush (Emergency)', 'Dr. Monissha (General Medicine)', 'Dr. Anita (Paediatrics)'],
+    const doctorsByHospital: Record<string, {id: string, name: string}[]> = {
+      'apollo hospital': [
+        {id: 'dr_arun', name: 'Dr. Arun (General Medicine)'},
+        {id: 'dr_kavitha', name: 'Dr. Kavitha (Cardiology)'},
+        {id: 'dr_suresh', name: 'Dr. Suresh (Neurology)'}
+      ],
+      'kauvery hospital': [
+        {id: 'dr_venkat', name: 'Dr. Venkat (Orthopaedics)'},
+        {id: 'dr_priya', name: 'Dr. Priya (Gynaecology)'},
+        {id: 'dr_ramesh', name: 'Dr. Ramesh (ENT)'}
+      ],
+      'govt hospital': [
+        {id: 'dr_dhanush', name: 'Dr. Dhanush (Emergency)'},
+        {id: 'dr_monissha', name: 'Dr. Monissha (General Medicine)'},
+        {id: 'dr_anita', name: 'Dr. Anita (Paediatrics)'}
+      ],
     };
     for (const key of Object.keys(doctorsByHospital)) {
       if (branchLower.includes(key.split(' ')[0])) return doctorsByHospital[key];
     }
-    return ['Dr. Arun (General Medicine)', 'Dr. Kavitha (Cardiology)', 'Dr. Suresh (Neurology)'];
+    return doctorsByHospital['apollo hospital'];
   };
 
   const importToVault = async () => {
@@ -842,6 +931,9 @@ export default function HospitalDeskPage() {
                 <button onClick={() => setActiveTab('timeline')} className="glass-button" style={{ background: activeTab === 'timeline' ? 'var(--primary)' : 'transparent', color: activeTab === 'timeline' ? 'white' : 'var(--charcoal)', border: activeTab === 'timeline' ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                   <Activity size={16} /> {t('hdesk.patientTimeline')}
                 </button>
+                <button onClick={() => setActiveTab('intake')} className="glass-button" style={{ background: activeTab === 'intake' ? 'var(--primary)' : 'transparent', color: activeTab === 'intake' ? 'white' : 'var(--charcoal)', border: activeTab === 'intake' ? 'none' : '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
+                  <ClipboardList size={16} /> Record Symptoms
+                </button>
               </div>
 
               {/* Document Scanner */}
@@ -943,7 +1035,7 @@ export default function HospitalDeskPage() {
                           style={{ width: '100%', padding: '0.6rem 0.85rem', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--foreground)', fontFamily: 'inherit', fontSize: '0.88rem' }}
                         >
                           <option value=''>{t('hdesk.selectDoctor')}</option>
-                          {getDoctorsForBranch().map(d => <option key={d} value={d}>{d}</option>)}
+                          {getDoctorsForBranch().map((d: { id: string; name: string }) => <option key={d.id} value={d.id}>{d.name}</option>)}
                           <option value='other'>{t('hdesk.otherTypeManually')}</option>
                         </select>
                         {scanDoctor === 'other' && (
@@ -1032,10 +1124,152 @@ export default function HospitalDeskPage() {
                   </div>
                 </section>
               )}
+
+              {/* Record Symptoms (Intake) */}
+              {activeTab === 'intake' && (
+                <section className="glass-panel slide-up stagger-2">
+                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', marginBottom: '1.25rem' }}>
+                    <ClipboardList size={18} /> Record Symptoms
+                  </h3>
+
+                  {(intakeStatus === 'idle' || intakeStatus === 'pending') && (
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                      <ClipboardPlus size={48} color="var(--primary)" style={{ opacity: 0.5, margin: '0 auto 1rem' }} />
+                      <p style={{ color: 'var(--charcoal)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                        Send a request to the patient's dashboard to collect their symptoms and standard nurse triage questions.
+                      </p>
+                      {intakeStatus === 'pending' && (
+                        <p style={{ color: 'var(--accent-orange)', fontSize: '0.8rem', fontWeight: 600, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                          <CheckCircle size={14} /> Request Sent. Waiting for patient to complete form...
+                        </p>
+                      )}
+                      <button 
+                        onClick={sendIntakeRequest} 
+                        disabled={resendCooldown > 0}
+                        className="primary-button" 
+                        style={{ padding: '0.75rem 1.5rem', background: resendCooldown > 0 ? 'var(--surface-muted)' : 'var(--primary)', color: resendCooldown > 0 ? 'var(--charcoal-light)' : 'white', border: resendCooldown > 0 ? '1px solid var(--border)' : 'none', borderRadius: 8, fontWeight: 700, cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer' }}
+                      >
+                        {resendCooldown > 0 ? (
+                          <>Sent... wait ({resendCooldown}s)</>
+                        ) : (
+                          <><Send size={16} style={{ marginRight: '0.5rem', display: 'inline' }} /> {intakeStatus === 'pending' ? 'Send Request Again' : 'Send Request'}</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {(intakeStatus === 'submitted' || intakeStatus === 'routed') && intakeData && (
+                    <div>
+                      <div
+                        onClick={() => setIntakeDetailOpen(true)}
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '1rem', cursor: 'pointer', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.2rem' }}>Symptoms Recorded</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--charcoal-light)' }}>{timeAgo(intakeData.updated_at)}</div>
+                        </div>
+                        <button className="glass-button" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>View Details</button>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--charcoal)' }}>Route to Doctor:</label>
+                        <select
+                          value={selectedDoctorId}
+                          onChange={e => setSelectedDoctorId(e.target.value)}
+                          disabled={intakeStatus === 'routed'}
+                          style={{ padding: '0.75rem', borderRadius: 8, border: '1px solid var(--border)', fontFamily: 'inherit', background: 'var(--surface-muted)' }}
+                        >
+                          <option value="">-- Select a Doctor --</option>
+                          {getDoctorsForBranch().map(d => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={routeIntake}
+                          disabled={!selectedDoctorId || routingIntake || intakeStatus === 'routed'}
+                          style={{
+                            marginTop: '0.5rem', padding: '0.75rem', borderRadius: 8, border: 'none', fontWeight: 700,
+                            background: intakeStatus === 'routed' ? 'var(--accent-green)' : 'var(--primary)',
+                            color: 'white', cursor: (!selectedDoctorId || intakeStatus === 'routed') ? 'not-allowed' : 'pointer',
+                            opacity: (!selectedDoctorId && intakeStatus !== 'routed') ? 0.6 : 1,
+                            width: '100%'
+                          }}
+                        >
+                          {intakeStatus === 'routed' ? (lang === 'ta' ? '✓ வெற்றிகரமாக அனுப்பப்பட்டது' : '✓ Routed Successfully') : routingIntake ? (lang === 'ta' ? 'அனுப்பப்படுகிறது...' : 'Routing...') : (lang === 'ta' ? 'மருத்துவருக்கு அனுப்பு' : 'Route to Doctor')}
+                        </button>
+                      </div>
+
+                      {/* Send Request Again option */}
+                      <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--charcoal)', marginBottom: '0.75rem' }}>
+                          {lang === 'ta' ? 'புதிய அறிகுறிகளை சேகரிக்க வேண்டுமா? நோயாளிக்கு புதிய கோரிக்கையை அனுப்பவும்.' : 'Need to collect fresh symptoms? Send a new intake request to the patient.'}
+                        </p>
+                        <button
+                          onClick={sendIntakeRequest}
+                          disabled={resendCooldown > 0}
+                          style={{
+                            padding: '0.6rem 1.25rem', borderRadius: 8, fontWeight: 700, fontSize: '0.85rem',
+                            background: resendCooldown > 0 ? 'var(--surface-muted)' : 'transparent',
+                            color: resendCooldown > 0 ? 'var(--charcoal-light)' : 'var(--primary)',
+                            border: `1.5px solid ${resendCooldown > 0 ? 'var(--border)' : 'var(--primary)'}`,
+                            cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
+                            width: '100%',
+                            maxWidth: '300px'
+                          }}
+                        >
+                          {resendCooldown > 0 ? (
+                            <>{lang === 'ta' ? `அனுப்பப்பட்டது... காத்திருக்கவும் (${resendCooldown}s)` : `Sent... wait (${resendCooldown}s)`}</>
+                          ) : (
+                            <>{lang === 'ta' ? 'மீண்டும் கோரிக்கை அனுப்பு' : 'Send Request Again'}</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
             </>
           )}
         </div>
       </div>
+
+      {/* Intake Detail Modal */}
+      {intakeDetailOpen && intakeData && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(3px)' }}>
+          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 500, maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 16 }}>
+            <div className="flex-between" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ color: 'var(--deep-blue)' }}>Intake Details</h3>
+              <button onClick={() => setIntakeDetailOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color="var(--charcoal)" /></button>
+            </div>
+            
+            <div style={{ background: 'var(--surface-muted)', borderRadius: 8, padding: '1rem', marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--charcoal)', marginBottom: '0.3rem', fontWeight: 600 }}>Raw Symptoms (Patient Input)</div>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--foreground)' }}>{intakeData.symptoms_text || 'None'}</p>
+            </div>
+
+            <h4 style={{ fontSize: '0.9rem', color: 'var(--charcoal)', marginBottom: '0.5rem' }}>Questionnaire Responses</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {intakeData.questionnaire && Object.entries(intakeData.questionnaire).map(([q, a]: any, i) => (
+                <div key={i} style={{ background: 'var(--surface-muted)', borderRadius: 8, padding: '0.75rem 1rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', marginBottom: '0.2rem' }}>{q}</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--foreground)', fontWeight: 600 }}>{a}</div>
+                </div>
+              ))}
+            </div>
+            
+            {intakeData.ai_summary && (
+              <div style={{ marginTop: '1.5rem', background: 'rgba(0, 82, 165, 0.05)', border: '1px solid var(--primary)', borderRadius: 8, padding: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontWeight: 700, marginBottom: '0.5rem' }}>
+                  <span>✨</span> AI Clinical Summary
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                  {intakeData.ai_summary}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Past Notifications Modal */}
       <PastNotifications
@@ -1048,6 +1282,18 @@ export default function HospitalDeskPage() {
         @keyframes slideUpRight { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+      {showRoutedToast && (
+        <div style={{
+          position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--accent-green)', color: 'white', padding: '0.75rem 1.5rem',
+          borderRadius: 8, fontWeight: 600, fontSize: '0.9rem', boxShadow: '0 8px 32px rgba(34,197,94,0.3)',
+          display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 10000,
+          animation: 'slideUp 0.3s ease-out'
+        }}>
+          <CheckCircle size={18} />
+          {lang === 'ta' ? 'மருத்துவருக்கு வெற்றிகரமாக அனுப்பப்பட்டது' : 'Routed to doctor successfully'}
+        </div>
+      )}
     </div>
   );
 }

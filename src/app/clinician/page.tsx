@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Cpu, Stethoscope, AlertTriangle, Activity, Eye, EyeOff, Database, Clock, Lock, Unlock, FlaskConical, FileText, CheckCircle, XCircle, SkipForward, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { Cpu, Stethoscope, AlertTriangle, Activity, Eye, EyeOff, Database, Clock, Lock, Unlock, FlaskConical, FileText, CheckCircle, XCircle, SkipForward, ChevronDown, ArrowUpDown, Bell, BellRing, X, ClipboardList } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import WhatsAppButton from '@/app/components/WhatsAppButton';
 import PrescriptionTable from '@/app/components/PrescriptionTable';
@@ -714,6 +714,131 @@ export default function ClinicianPortal() {
   const [pendingContextPatientId, setPendingContextPatientId] = useState('');
   const [savingSession, setSavingSession] = useState(false);
 
+  // Intake State
+  const [routedIntakes, setRoutedIntakes] = useState<any[]>([]);
+  const [intakeDetailOpen, setIntakeDetailOpen] = useState(false);
+  const [selectedIntake, setSelectedIntake] = useState<any>(null);
+  const [intakeDetailLoading, setIntakeDetailLoading] = useState<string | false>(false);
+  const [intakeProcessing, setIntakeProcessing] = useState<string | null>(null);
+  const [intakeToast, setIntakeToast] = useState<any | null>(null);
+  const [showNotificationsPanel, setShowNotificationsPanel] = useState(false);
+  const [pastIntakes, setPastIntakes] = useState<any[]>([]);
+  const knownRoutedIds = useRef<Set<string>>(new Set());
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchRoutedIntakes = useCallback(async () => {
+    try {
+      const docId = sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || '';
+      if (!docId) return;
+      const [activeRes, pastRes] = await Promise.all([
+        apiFetch(`/api/intake?role=doctor&doctorId=${docId}`, { skipCache: true }),
+        apiFetch(`/api/intake?role=doctor&doctorId=${docId}&past=1`, { skipCache: true }),
+      ]);
+      if (activeRes.ok) {
+        const data = await activeRes.json();
+        const intakes: any[] = Array.isArray(data) ? data : [];
+        // Detect newly routed intakes and show toast
+        intakes.forEach(intake => {
+          if (!knownRoutedIds.current.has(intake.id)) {
+            knownRoutedIds.current.add(intake.id);
+            // Only show toast for intakes that aren't freshly loaded (i.e., after bootstrap)
+            if (knownRoutedIds.current.size > 1 || routedIntakes.length === 0) {
+              setIntakeToast(intake);
+              if (toastTimer.current) clearTimeout(toastTimer.current);
+              toastTimer.current = setTimeout(() => setIntakeToast(null), 12000);
+            }
+          }
+        });
+        setRoutedIntakes(intakes);
+      }
+      if (pastRes.ok) {
+        const pastData = await pastRes.json();
+        setPastIntakes(Array.isArray(pastData) ? pastData : []);
+      }
+    } catch {}
+  }, [routedIntakes.length]);
+
+  // Bootstrap known IDs on first load without showing toast
+  const bootstrapRef = useRef(false);
+  useEffect(() => {
+    const bootstrap = async () => {
+      const docId = sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || '';
+      if (!docId) return;
+      const res = await apiFetch(`/api/intake?role=doctor&doctorId=${docId}`, { skipCache: true });
+      if (res.ok) {
+        const data = await res.json();
+        const intakes: any[] = Array.isArray(data) ? data : [];
+        intakes.forEach(i => knownRoutedIds.current.add(i.id));
+        setRoutedIntakes(intakes);
+      }
+      const pastRes = await apiFetch(`/api/intake?role=doctor&doctorId=${docId}&past=1`, { skipCache: true });
+      if (pastRes.ok) {
+        const pastData = await pastRes.json();
+        setPastIntakes(Array.isArray(pastData) ? pastData : []);
+      }
+      bootstrapRef.current = true;
+      // Start polling after bootstrap
+      const iv = setInterval(async () => {
+        const docId2 = sessionStorage.getItem('nalamStaffId') || localStorage.getItem('nalamStaffId') || '';
+        if (!docId2) return;
+        const [r, pr] = await Promise.all([
+          apiFetch(`/api/intake?role=doctor&doctorId=${docId2}`, { skipCache: true }),
+          apiFetch(`/api/intake?role=doctor&doctorId=${docId2}&past=1`, { skipCache: true }),
+        ]);
+        if (r.ok) {
+          const d = await r.json();
+          const active: any[] = Array.isArray(d) ? d : [];
+          active.forEach(intake => {
+            if (!knownRoutedIds.current.has(intake.id)) {
+              knownRoutedIds.current.add(intake.id);
+              setIntakeToast(intake);
+              if (toastTimer.current) clearTimeout(toastTimer.current);
+              toastTimer.current = setTimeout(() => setIntakeToast(null), 12000);
+            }
+          });
+          setRoutedIntakes(active);
+        }
+        if (pr.ok) {
+          const pd = await pr.json();
+          setPastIntakes(Array.isArray(pd) ? pd : []);
+        }
+      }, 5000);
+      return () => clearInterval(iv);
+    };
+    bootstrap();
+  }, []);
+
+  const clearIntake = async (id: string, patientId: string) => {
+    setIntakeProcessing(id);
+    try {
+      await apiFetch(`/api/intake/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'clear' }) });
+      await fetchRoutedIntakes();
+      setPatientSearchInput(patientId);
+      requestContext(); // auto-load the patient Context
+      setIntakeDetailOpen(false);
+    } finally { setIntakeProcessing(null); }
+  };
+
+  // Fetch decrypted intake detail before opening the modal
+  const viewIntakeDetails = async (intakeOrId: any) => {
+    const id = typeof intakeOrId === 'string' ? intakeOrId : intakeOrId.id;
+    setIntakeDetailLoading(id);
+    try {
+      const res = await apiFetch(`/api/intake/${id}`, { skipCache: true });
+      if (res.ok) {
+        const decrypted = await res.json();
+        setSelectedIntake(decrypted);
+      } else {
+        // Fallback: use raw list item (will show encrypted, but better than nothing)
+        if (typeof intakeOrId === 'object') setSelectedIntake(intakeOrId);
+      }
+    } catch {
+      if (typeof intakeOrId === 'object') setSelectedIntake(intakeOrId);
+    }
+    setIntakeDetailLoading(false);
+    setIntakeDetailOpen(true);
+  };
+
   const fetchAppointments = useCallback(async () => {
     setAptLoading(true);
     try {
@@ -1050,6 +1175,19 @@ export default function ClinicianPortal() {
             </span>
           </button>
         )}
+        {/* Notifications Button */}
+        <button
+          className="glass-button"
+          onClick={() => setShowNotificationsPanel(p => !p)}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', position: 'relative', background: showNotificationsPanel ? 'var(--primary)' : 'var(--surface)', color: showNotificationsPanel ? 'white' : 'var(--primary)', fontSize: '0.8rem' }}
+        >
+          <Bell size={14} /> Notifications
+          {routedIntakes.length > 0 && (
+            <span style={{ minWidth: 18, height: 18, borderRadius: 9999, background: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+              {routedIntakes.length}
+            </span>
+          )}
+        </button>
         <button
           className="glass-button"
           onClick={() => { setShowAppointments(p => !p); if (!showAppointments) fetchAppointments(); }}
@@ -1062,6 +1200,88 @@ export default function ClinicianPortal() {
         </button>
         </div>
       </div>
+
+      {/* ── Intake Toast Notification (bottom-right) ── */}
+      {intakeToast && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 10000,
+          background: 'linear-gradient(135deg, #0052A5, #0077CC)',
+          borderRadius: 16, padding: '1rem 1.25rem',
+          boxShadow: '0 8px 32px rgba(0,82,165,0.4)',
+          display: 'flex', alignItems: 'flex-start', gap: '0.85rem',
+          maxWidth: 340, animation: 'slideUp 0.4s cubic-bezier(0.16,1,0.3,1)',
+        }}>
+          <div style={{ fontSize: 28, flexShrink: 0 }}>🏥</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, color: 'white', fontSize: '0.9rem', marginBottom: '0.2rem' }}>New Intake Summary Routed</div>
+            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)', marginBottom: '0.65rem' }}>
+              Patient symptoms have been submitted and routed to you. Tap to review.
+            </div>
+            <button
+              onClick={() => { viewIntakeDetails(intakeToast); setIntakeToast(null); }}
+              style={{ padding: '0.4rem 0.9rem', borderRadius: 8, border: 'none', background: 'white', color: '#0052A5', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+            >View Intake</button>
+          </div>
+          <button onClick={() => setIntakeToast(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* ── Notifications Panel ── */}
+      {showNotificationsPanel && (
+        <div className="glass-panel slide-up" style={{ marginBottom: '1.5rem', border: '1.5px solid rgba(0,82,165,0.2)', background: 'rgba(0,82,165,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)', fontSize: '0.95rem' }}>
+              <BellRing size={16} /> Intake Notifications
+            </h3>
+            <button onClick={() => setShowNotificationsPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--charcoal)' }}><X size={16} /></button>
+          </div>
+
+          {routedIntakes.length === 0 && pastIntakes.length === 0 ? (
+            <p style={{ color: 'var(--charcoal)', fontSize: '0.88rem', textAlign: 'center', padding: '1.5rem 0' }}>No intake notifications yet.</p>
+          ) : (
+            <>
+              {routedIntakes.length > 0 && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Active ({routedIntakes.length})</div>
+                  {routedIntakes.map(intake => (
+                    <div key={intake.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.9rem 1rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <ClipboardList size={20} color="var(--primary)" style={{ flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--deep-blue)' }}>Patient Intake Submitted</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>{new Date(intake.updated_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                      </div>
+                      <button
+                        onClick={() => { viewIntakeDetails(intake); setShowNotificationsPanel(false); }}
+                        style={{ padding: '0.35rem 0.8rem', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}
+                      >{lang === 'ta' ? 'மதிப்பாய்வு' : 'Review'}</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {pastIntakes.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Past / Cleared ({pastIntakes.length})</div>
+                  {pastIntakes.map(intake => (
+                    <div key={intake.id} style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.9rem 1rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', opacity: 0.7 }}>
+                      <ClipboardList size={20} color="var(--charcoal)" style={{ flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--foreground)' }}>Intake Cleared</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)' }}>{new Date(intake.updated_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                      </div>
+                      <button
+                        onClick={() => { viewIntakeDetails(intake); setShowNotificationsPanel(false); }}
+                        style={{ padding: '0.35rem 0.8rem', borderRadius: 8, background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--charcoal)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
+                      >{lang === 'ta' ? 'மதிப்பாய்வு' : 'Review'}</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Appointments Panel */}
       {showAppointments && (
@@ -1178,6 +1398,79 @@ export default function ClinicianPortal() {
               })()}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Patient Intakes Panel */}
+      {routedIntakes.length > 0 && (
+        <div className="glass-panel slide-up" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--accent-orange)' }}>
+          <div className="flex-between" style={{ marginBottom: '1rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--deep-blue)' }}>
+              <AlertTriangle size={18} color="var(--accent-orange)" /> Action Required: Patient Intakes
+            </h3>
+            <span className="badge amber">{routedIntakes.length} Pending</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {routedIntakes.map(intake => (
+              <div key={intake.id} style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', borderRadius: 10, padding: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, color: 'var(--deep-blue)', marginBottom: '0.2rem' }}>Patient ID: {intake.patient_id}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)' }}>Intake submitted on {new Date(intake.updated_at).toLocaleString()}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={() => viewIntakeDetails(intake)} disabled={intakeDetailLoading === intake.id} className="glass-button" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+                    {intakeDetailLoading === intake.id ? (lang === 'ta' ? 'ஏற்றுகிறது...' : 'Loading...') : (lang === 'ta' ? 'விவரங்களை மதிப்பாய்வு செய்க' : 'Review Details')}
+                  </button>
+                  <button
+                    onClick={() => clearIntake(intake.id, intake.patient_id)}
+                    disabled={intakeProcessing === intake.id}
+                    className="primary-button"
+                    style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', background: 'var(--accent-green)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, cursor: intakeProcessing === intake.id ? 'not-allowed' : 'pointer' }}
+                  >
+                    {intakeProcessing === intake.id ? 'Clearing...' : 'Clear & Load Context'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Intake Detail Modal */}
+      {selectedIntake && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(3px)' }}>
+          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 500, maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 16 }}>
+            <div className="flex-between" style={{ marginBottom: '1rem' }}>
+              <h3 style={{ color: 'var(--deep-blue)' }}>Intake Details (Patient: {selectedIntake.patient_id})</h3>
+              <button onClick={() => setSelectedIntake(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} color="var(--charcoal)" /></button>
+            </div>
+            
+            <div style={{ background: 'var(--surface-muted)', borderRadius: 8, padding: '1rem', marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--charcoal)', marginBottom: '0.3rem', fontWeight: 600 }}>Raw Symptoms</div>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--foreground)' }}>{selectedIntake.symptoms_text || 'None'}</p>
+            </div>
+
+            <h4 style={{ fontSize: '0.9rem', color: 'var(--charcoal)', marginBottom: '0.5rem' }}>Questionnaire Responses</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {selectedIntake.questionnaire && Object.entries(selectedIntake.questionnaire).map(([q, a]: any, i) => (
+                <div key={i} style={{ background: 'var(--surface-muted)', borderRadius: 8, padding: '0.75rem 1rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', marginBottom: '0.2rem' }}>{q}</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--foreground)', fontWeight: 600 }}>{a}</div>
+                </div>
+              ))}
+            </div>
+            
+            {selectedIntake.ai_summary && (
+              <div style={{ marginTop: '1.5rem', background: 'rgba(0, 82, 165, 0.05)', border: '1px solid var(--primary)', borderRadius: 8, padding: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary)', fontWeight: 700, marginBottom: '0.5rem' }}>
+                  <span>✨</span> AI Clinical Summary
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                  {selectedIntake.ai_summary}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

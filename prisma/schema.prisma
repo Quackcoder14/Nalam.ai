@@ -56,8 +56,10 @@ model Patient {
   messages            ChatMessage[]
   files               PatientFile[]
   otpRequests         RecordsOtp[]
+  intakeRequests      IntakeRequest[]
 
   @@map("patients")
+
 }
 
 // ─── Medical Record ───────────────────────────────────────────────────────────
@@ -296,3 +298,25 @@ model HospitalDeskStaff {
   @@index([branch, status])
   @@map("hospital_desk_staff")
 }
+
+// ─── Intake Requests (Pre-Consultation Symptom Recording) ──────────────────────
+model IntakeRequest {
+  id                 String   @id @default(cuid())
+  patient_id         String
+  hospital           String
+  status             String   @default("pending") // "pending", "submitted", "routed", "cleared"
+  symptoms_text_enc  String?  @db.Text
+  questionnaire_json_enc String? @db.Text
+  routed_doctor_id   String?
+  ai_summary_enc     String?  @db.Text
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  patient            Patient  @relation(fields: [patient_id], references: [id])
+
+  @@index([patient_id, status])
+  @@index([hospital, status])
+  @@index([routed_doctor_id, status])
+  @@map("intake_requests")
+}
+
