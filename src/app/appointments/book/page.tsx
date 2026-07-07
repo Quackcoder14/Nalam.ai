@@ -57,9 +57,9 @@ function StepBar({ current }: { current: number }) {
   const steps = [t('book.stepHospital'), t('book.stepDoctor'), t('book.stepDate'), t('book.stepSummary'), t('book.stepReview')];
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: '2.5rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: '2.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
       {steps.map((label, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', flex: i < steps.length - 1 ? 1 : 'none' }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'center', flex: i < steps.length - 1 ? 1 : 'none', minWidth: 'fit-content' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
             <div style={{
               width: 34, height: 34, borderRadius: '50%',
@@ -69,6 +69,7 @@ function StepBar({ current }: { current: number }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 700, fontSize: '0.85rem',
               transition: 'all 0.3s ease',
+              flexShrink: 0,
             }}>
               {i < current ? <CheckCircle size={16} /> : i + 1}
             </div>
@@ -77,7 +78,7 @@ function StepBar({ current }: { current: number }) {
             </span>
           </div>
           {i < steps.length - 1 && (
-            <div style={{ flex: 1, height: 2, background: i < current ? '#22c55e' : 'var(--border)', margin: '0 0.5rem', marginBottom: 18, transition: 'background 0.3s ease' }} />
+            <div style={{ flex: 1, height: 2, background: i < current ? '#22c55e' : 'var(--border)', margin: '0 0.5rem', marginBottom: 18, transition: 'background 0.3s ease', minWidth: 20 }} />
           )}
         </div>
       ))}

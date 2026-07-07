@@ -42,6 +42,12 @@ async function fetchNearby(lat: number, lng: number, type: PlaceType): Promise<N
   try {
     const searchUrl = `https://api.olamaps.io/places/v1/nearbysearch?location=${lat},${lng}&radius=12000&types=${type}&api_key=${OLA_API_KEY}`;
     const searchRes = await fetch(searchUrl);
+    
+    if (!searchRes.ok) {
+      console.warn(`Ola Maps API error: ${searchRes.status} ${searchRes.statusText} for type: ${type}`);
+      return [];
+    }
+    
     const searchData = await searchRes.json();
     if (searchData.status !== 'ok' || !searchData.predictions) return [];
 
@@ -50,6 +56,9 @@ async function fetchNearby(lat: number, lng: number, type: PlaceType): Promise<N
         try {
           const detailUrl = `https://api.olamaps.io/places/v1/details?place_id=${p.place_id}&api_key=${OLA_API_KEY}`;
           const detailRes = await fetch(detailUrl);
+          
+          if (!detailRes.ok) return null;
+          
           const detailData = await detailRes.json();
           if (detailData.status !== 'ok' || !detailData.result?.geometry?.location) return null;
           const result = detailData.result;
@@ -67,7 +76,10 @@ async function fetchNearby(lat: number, lng: number, type: PlaceType): Promise<N
       })
     );
     return dedupePlaces(places.filter(Boolean) as NearbyPlace[]);
-  } catch { return []; }
+  } catch (error) {
+    console.warn('Failed to fetch nearby places:', error);
+    return [];
+  }
 }
 
 async function geocodeLocation(query: string): Promise<{ lat: number; lng: number; label: string } | null> {
@@ -292,11 +304,15 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
       let styleObj: any = `https://api.olamaps.io/tiles/vector/v1/styles/default-light-standard/style.json?api_key=${OLA_API_KEY}`;
       try {
         const styleRes = await fetch(styleObj);
-        const styleJson = await styleRes.json();
-        if (styleJson.layers) {
-          styleJson.layers = styleJson.layers.filter((l: any) => l.id !== '3d_model_data' && l['source-layer'] !== '3d_model');
+        if (!styleRes.ok) {
+          console.warn(`Style fetch failed: ${styleRes.status}, using URL fallback`);
+        } else {
+          const styleJson = await styleRes.json();
+          if (styleJson.layers) {
+            styleJson.layers = styleJson.layers.filter((l: any) => l.id !== '3d_model_data' && l['source-layer'] !== '3d_model');
+          }
+          styleObj = styleJson;
         }
-        styleObj = styleJson;
       } catch (e) {
         console.warn('Failed to sanitize style JSON, falling back to URL', e);
       }
@@ -328,6 +344,21 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
         if (cancelled) return;
         setStatus('ready');
         loadPlacesForLocation(userLat, userLng, activeLocationLabel);
+      });
+
+      map.on('error', (e: any) => {
+        console.warn('Map error:', e);
+        if (e.error && e.error.message) {
+          console.warn('Map error message:', e.error.message);
+        }
+      });
+
+      map.on('styledata', () => {
+        // Handle style loading errors
+      });
+
+      map.on('idle', () => {
+        // Map has finished loading
       });
     }
 

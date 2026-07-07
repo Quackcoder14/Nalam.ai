@@ -298,15 +298,15 @@ export default function RecordsPage() {
         }
         .record-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,82,165,0.1); border-color: var(--primary); }
         .record-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
-        @media (max-width: 600px) { .record-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 600px) { .record-grid { grid-template-columns: 1fr; } }
       `}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         <button onClick={() => router.push('/dashboard')} className="glass-button" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <ArrowLeft size={16} /> Dashboard
         </button>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
           <h2 style={{ fontSize: '1.6rem', color: 'var(--deep-blue)', marginBottom: 2 }}>
             <FolderOpen size={22} style={{ verticalAlign: 'middle', marginRight: 8 }} />
             My Records
@@ -315,7 +315,7 @@ export default function RecordsPage() {
             {files.length} file{files.length !== 1 ? 's' : ''} stored · Encrypted & secure
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ position: 'relative' }}>
             <select
               value={sortBy}
@@ -364,19 +364,19 @@ export default function RecordsPage() {
             <ArrowUpDown size={12} style={{ transform: sortOrder === 'asc' ? 'rotate(180deg)' : 'none' }} />
             {sortOrder === 'asc' ? 'Oldest' : 'Newest'}
           </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '0.65rem 1.1rem',
+              background: 'linear-gradient(135deg,#0052A5,#0073D9)', color: 'white',
+              border: 'none', borderRadius: 12, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer',
+              opacity: uploading ? 0.7 : 1, fontSize: '0.88rem', fontFamily: 'inherit',
+            }}
+          >
+            {uploading ? <><div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> {uploadProgress}</> : <><Plus size={16} /> Upload File</>}
+          </button>
         </div>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '0.65rem 1.1rem',
-            background: 'linear-gradient(135deg,#0052A5,#0073D9)', color: 'white',
-            border: 'none', borderRadius: 12, fontWeight: 700, cursor: uploading ? 'not-allowed' : 'pointer',
-            opacity: uploading ? 0.7 : 1, fontSize: '0.88rem', fontFamily: 'inherit',
-          }}
-        >
-          {uploading ? <><div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> {uploadProgress}</> : <><Plus size={16} /> Upload File</>}
-        </button>
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} accept="image/*,.pdf,.doc,.docx" onChange={handleFileUpload} />
       </div>
 

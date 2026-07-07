@@ -1016,17 +1016,17 @@ export default function PatientDashboard() {
                 <div
                   style={{
                     padding: "0.85rem 1rem",
-                    background: "#E0F2FE",
-                    borderLeft: "4px solid #0EA5E9",
+                    background: "var(--primary-light)",
+                    borderLeft: "4px solid var(--primary)",
                     borderRadius: 8,
                     display: "flex",
                     alignItems: "flex-start",
                     gap: "0.65rem",
                   }}
                 >
-                  <ClipboardList size={16} color="#0EA5E9" style={{ marginTop: 3 }} />
+                  <ClipboardList size={16} color="var(--primary)" style={{ marginTop: 3 }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, color: "#0EA5E9", fontSize: "0.9rem", marginBottom: "0.2rem" }}>
+                    <div style={{ fontWeight: 700, color: "var(--primary)", fontSize: "0.9rem", marginBottom: "0.2rem" }}>
                       Symptom Intake Requested
                     </div>
                     <div style={{ fontSize: "0.8rem", color: "var(--charcoal)", lineHeight: 1.4 }}>
@@ -1039,7 +1039,7 @@ export default function PatientDashboard() {
                           setHideIntakeBanner(false);
                           setShowIntakeModal(true);
                         }}
-                        style={{ padding: "0.35rem 0.8rem", borderRadius: 6, border: "none", background: "#0EA5E9", color: "white", fontWeight: 700, fontSize: "0.78rem", cursor: "pointer" }}
+                        style={{ padding: "0.35rem 0.8rem", borderRadius: 6, border: "none", background: "var(--primary)", color: "white", fontWeight: 700, fontSize: "0.78rem", cursor: "pointer" }}
                       >Fill Now</button>
                       <button
                         onClick={() => {
@@ -1066,8 +1066,8 @@ export default function PatientDashboard() {
               ) : (
                 patientAlerts.map((alert) => {
                   const destination = getAlertDestination(alert);
-                  const panelColor = "#0EA5E9";
-                  const panelBg = "#E0F2FE";
+                  const panelColor = "var(--primary)";
+                  const panelBg = "var(--primary-light)";
                   return (
                     <div
                       key={alert.id}
@@ -1123,7 +1123,7 @@ export default function PatientDashboard() {
                           } catch {}
                         }}
                         style={{
-                          background: "rgba(14,165,233,0.12)",
+                          background: "rgba(0,82,165,0.12)",
                           padding: "0.35rem 0.65rem",
                           borderRadius: 6,
                           border: "none",
@@ -2807,7 +2807,7 @@ export default function PatientDashboard() {
               >
                 <div
                   style={{
-                    background: "linear-gradient(135deg,#1E3A5F,#0052A5)",
+                    background: "linear-gradient(135deg,var(--deep-blue),var(--primary))",
                     borderRadius: 16,
                     padding: "1rem 1.25rem",
                     boxShadow: "0 10px 40px rgba(0,82,165,0.4)",
