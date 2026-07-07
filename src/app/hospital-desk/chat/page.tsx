@@ -335,27 +335,22 @@ export default function DeskChat() {
           ) : (
             <>
               {/* Chat Header with condensed Patient Info */}
-              <div style={{ padding: '0.75rem 1.5rem', background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 2 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <button className="mobile-back-btn" onClick={() => setActivePatient(null)} style={{ background: 'transparent', border: 'none', padding: '0.5rem', cursor: 'pointer', color: 'var(--charcoal)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '-1rem', marginRight: '-0.5rem' }}>
-                    <ArrowLeft size={20} />
-                  </button>
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <User size={24} />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--deep-blue)' }}>{activePatient.name}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)', display: 'flex', gap: '0.5rem' }}>
-                      <span>ID: {activePatient.id}</span>
-                      <span>· {activePatient.gender}, {activePatient.dob}</span>
-                      {activePatient.blood_type && <span>· Blood: {activePatient.blood_type}</span>}
-                    </div>
+              <div style={{ padding: '0.6rem 1rem', background: 'var(--surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.5rem', zIndex: 2, flexWrap: 'nowrap', overflow: 'hidden' }}>
+                {/* Back + Avatar + Name (left, truncates) */}
+                <button className="mobile-back-btn" onClick={() => setActivePatient(null)} style={{ background: 'transparent', border: 'none', padding: '0.4rem', cursor: 'pointer', color: 'var(--charcoal)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <ArrowLeft size={20} />
+                </button>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <User size={20} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--deep-blue)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activePatient.name}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {activePatient.gender}{activePatient.dob ? `, ${activePatient.dob}` : ''}{activePatient.blood_type ? ` · ${activePatient.blood_type}` : ''}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--charcoal)', fontWeight: 600 }}>Staff ID: {staffId}</span>
-                  <button onClick={() => setShowMockProfile(true)} className="glass-button" style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>View Profile</button>
-                </div>
+                {/* View Profile button (right, always visible, shrinks last) */}
+                <button onClick={() => setShowMockProfile(true)} className="glass-button" style={{ fontSize: '0.78rem', padding: '0.35rem 0.7rem', flexShrink: 0, whiteSpace: 'nowrap' }}>View Profile</button>
               </div>
 
               {/* Messages Area */}

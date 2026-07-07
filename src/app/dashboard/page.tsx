@@ -3143,7 +3143,7 @@ export default function PatientDashboard() {
                       const audio = new Audio("/ringing.mp3");
                       audio.loop = true;
                       audio.play().catch(() => {});
-                      window.location.href = 'tel:100';
+                      window.location.href = 'tel:108';
                       setTimeout(() => {
                         audio.pause();
                         setCallingAmbulance(false);

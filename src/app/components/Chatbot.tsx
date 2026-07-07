@@ -283,10 +283,10 @@ export default function Chatbot({ userRole, patientData, records, intervention }
             position: 'fixed',
             bottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1.5rem)',
             right: '1.5rem',
-            width: isExpanded ? '600px' : '400px',
+            width: isExpanded ? '600px' : '380px',
             maxWidth: isExpanded ? 'calc(100vw - 48px)' : 'calc(100vw - 48px)',
-            height: isExpanded ? '700px' : '550px',
-            maxHeight: isExpanded ? 'calc(100vh - 48px)' : 'calc(100vh - 48px)',
+            height: isExpanded ? '580px' : '460px',
+            maxHeight: 'calc(100vh - var(--nav-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom) - 2.5rem)',
             background: 'var(--surface)',
             borderRadius: '16px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
@@ -386,6 +386,7 @@ export default function Chatbot({ userRole, patientData, records, intervention }
                 <Type size={18} color="white" />
               </button>
               <button
+                className="chatbot-expand-btn"
                 onClick={() => setIsExpanded(!isExpanded)}
                 style={{
                   background: 'rgba(255,255,255,0.2)',
@@ -629,13 +630,17 @@ export default function Chatbot({ userRole, patientData, records, intervention }
             bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1.5rem) !important;
             right: 0.75rem !important;
           }
+          .chatbot-expand-btn {
+            display: none !important;
+          }
           .chatbot-window-mobile {
-            bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1.5rem) !important;
-            right: 0.75rem !important;
-            width: calc(100vw - 1.5rem) !important;
-            max-width: calc(100vw - 1.5rem) !important;
-            height: calc(100vh - var(--bottom-nav-height) - env(safe-area-inset-bottom) - 3rem) !important;
-            max-height: calc(100vh - var(--bottom-nav-height) - env(safe-area-inset-bottom) - 3rem) !important;
+            bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 1rem) !important;
+            right: 1rem !important;
+            left: 1rem !important;
+            width: auto !important;
+            max-width: calc(100vw - 2rem) !important;
+            height: calc(100vh - var(--nav-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom) - 2.5rem) !important;
+            max-height: calc(100vh - var(--nav-height) - var(--bottom-nav-height) - env(safe-area-inset-bottom) - 2.5rem) !important;
           }
         }
       `}</style>
