@@ -320,3 +320,22 @@ model IntakeRequest {
   @@map("intake_requests")
 }
 
+// ─── Rook Wearable Vitals (Live via Webhook) ─────────────────────────────────
+model RookVitals {
+  id          String   @id @default(cuid())
+  patient_id  String
+  hr          Int?     // Heart rate (BPM)
+  spo2        Int?     // Blood oxygen (%)
+  resp        Int?     // Respiration rate (breaths/min)
+  temp        Float?   // Temperature (°C)
+  sys         Int?     // Systolic BP (mmHg)
+  dia         Int?     // Diastolic BP (mmHg)
+  steps       Int?     // Step count
+  calories    Int?     // Calories burned
+  data_source String?  // e.g., "Fitbit", "Garmin"
+  recorded_at DateTime // When the device recorded this
+  created_at  DateTime @default(now())
+
+  @@index([patient_id, recorded_at])
+  @@map("rook_vitals")
+}

@@ -578,12 +578,13 @@ export default function PatientDashboard() {
     const fetchRookVitals = async () => {
       try {
         const patientId = getPatientId();
-        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/vitals/rook?patientId=${patientId}`);
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/vitals/rook?patientId=${patientId}`, { skipCache: true });
         if (res.ok) {
           const data = await res.json();
-          if (data.vitals) {
+          if (data.vitals && data.source !== 'no_data') {
             setVitals(data.vitals);
           }
+          // If no_data, keep current vitals — UI will show "Waiting for device"
         }
       } catch (error) {
         console.error('Failed to fetch Rook vitals:', error);
@@ -591,7 +592,7 @@ export default function PatientDashboard() {
     };
 
     fetchRookVitals();
-    const iv = setInterval(fetchRookVitals, 30000); // Poll every 30 seconds
+    const iv = setInterval(fetchRookVitals, 15000); // Poll every 15 seconds for live feel
     return () => clearInterval(iv);
   }, [vitalsSource, rookConnected]);
 
