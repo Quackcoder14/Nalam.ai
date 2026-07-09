@@ -641,20 +641,6 @@ export default function HospitalDeskPage() {
               </span>
             )}
           </button>
-          <button 
-            className="glass-button" 
-            onClick={async () => {
-              await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/logout`, {
-                method: 'POST',
-              });
-              localStorage.clear();
-              sessionStorage.clear();
-              router.push('/');
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-red)', borderColor: 'var(--accent-red)' }}
-          >
-            <X size={15} /> {t('hdesk.logout')}
-          </button>
         </div>
       </div>
 
