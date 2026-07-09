@@ -6,6 +6,15 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 const OLA_API_KEY = process.env.NEXT_PUBLIC_OLA_MAPS_API_KEY || '';
 const DEFAULT_CENTER: [number, number] = [80.2512, 13.0604]; // Chennai fallback
 
+// Route ALL Ola Maps requests through our Next.js proxy to avoid CORS on desktop browsers.
+// The proxy (/api/ola-maps/...) adds the api_key server-side.
+function olaProxyUrl(path: string, params: Record<string, string> = {}): string {
+  const qp = new URLSearchParams(params);
+  return `/api/ola-maps/${path}${qp.toString() ? `?${qp.toString()}` : ''}`;
+}
+
+const PROXY_STYLE_URL = olaProxyUrl('tiles/vector/v1/styles/default-light-standard/style.json');
+
 const PLACE_TYPES = ['hospital', 'pharmacy', 'clinic', 'doctor', 'health', 'medical_store'] as const;
 type PlaceType = typeof PLACE_TYPES[number];
 
@@ -42,8 +51,8 @@ function dedupePlaces(places: NearbyPlace[]) {
 
 async function fetchNearby(lat: number, lng: number, type: PlaceType): Promise<NearbyPlace[]> {
   try {
-    // 15km radius, more predictions (page_token not supported so we max out slice)
-    const searchUrl = `https://api.olamaps.io/places/v1/nearbysearch?location=${lat},${lng}&radius=15000&types=${type}&api_key=${OLA_API_KEY}`;
+    // Use proxy so API key is added server-side (no CORS, no key exposure)
+    const searchUrl = olaProxyUrl('places/v1/nearbysearch', { location: `${lat},${lng}`, radius: '15000', types: type });
     const searchRes = await fetch(searchUrl);
     if (!searchRes.ok) {
       console.warn(`Ola nearbysearch ${searchRes.status} for type: ${type}`);
@@ -68,7 +77,7 @@ async function fetchNearby(lat: number, lng: number, type: PlaceType): Promise<N
             } as NearbyPlace;
           }
           // Fallback: details call for coordinates
-          const detailRes = await fetch(`https://api.olamaps.io/places/v1/details?place_id=${p.place_id}&api_key=${OLA_API_KEY}`);
+          const detailRes = await fetch(olaProxyUrl('places/v1/details', { place_id: p.place_id }));
           if (!detailRes.ok) return null;
           const detailData = await detailRes.json();
           if (detailData.status !== 'ok' || !detailData.result?.geometry?.location) return null;
@@ -98,7 +107,7 @@ async function geocodeLocation(query: string): Promise<{ lat: number; lng: numbe
   if (!cleanQuery) return null;
 
   try {
-    const geocodeUrl = `https://api.olamaps.io/places/v1/geocode?address=${encodeURIComponent(cleanQuery)}&api_key=${OLA_API_KEY}`;
+    const geocodeUrl = olaProxyUrl('places/v1/geocode', { address: cleanQuery });
     const res = await fetch(geocodeUrl);
     const data = await res.json();
     const match = data.geocodingResults?.[0] || data.results?.[0] || data.predictions?.[0];
@@ -109,12 +118,12 @@ async function geocodeLocation(query: string): Promise<{ lat: number; lng: numbe
   } catch {}
 
   try {
-    const autocompleteUrl = `https://api.olamaps.io/places/v1/autocomplete?input=${encodeURIComponent(cleanQuery)}&api_key=${OLA_API_KEY}`;
+    const autocompleteUrl = olaProxyUrl('places/v1/autocomplete', { input: cleanQuery });
     const res = await fetch(autocompleteUrl);
     const data = await res.json();
     const first = data.predictions?.[0];
     if (first?.place_id) {
-      const detailRes = await fetch(`https://api.olamaps.io/places/v1/details?place_id=${first.place_id}&api_key=${OLA_API_KEY}`);
+      const detailRes = await fetch(olaProxyUrl('places/v1/details', { place_id: first.place_id }));
       const detailData = await detailRes.json();
       const loc = detailData.result?.geometry?.location;
       if (loc?.lat && loc?.lng) {
@@ -295,13 +304,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
       center: [lng, lat],
       zoom: 14,
       attributionControl: false,
-      transformRequest: (url: string) => {
-        if (url.includes('api.olamaps.io') && !url.includes('api_key=')) {
-          const sep = url.includes('?') ? '&' : '?';
-          return { url: `${url}${sep}api_key=${OLA_API_KEY}` };
-        }
-        return { url };
-      },
+      // No transformRequest needed — style + tiles already go through proxy
     });
   }
 
@@ -333,41 +336,17 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
 
       const { lat, lng, label } = coordsRef.current;
 
-      // Step 2: Try to pre-fetch style JSON (sanitise problem layers)
-      // With a 5s abort so laptop CORS blocks don't hang the map
-      let styleArg: any = STYLE_URL;
-      try {
-        const ac = new AbortController();
-        const t = setTimeout(() => ac.abort(), 5000);
-        const styleRes = await fetch(STYLE_URL, { signal: ac.signal });
-        clearTimeout(t);
-        if (styleRes.ok) {
-          const styleJson = await styleRes.json();
-          if (styleJson.layers) {
-            styleJson.layers = styleJson.layers.filter(
-              (l: any) => l.id !== '3d_model_data' && l['source-layer'] !== '3d_model'
-            );
-          }
-          styleArg = styleJson;
-        }
-      } catch {
-        // CORS / timeout — MapLibre will load the URL directly via transformRequest
-        styleArg = STYLE_URL;
-      }
+      // Step 2: Style comes from our proxy — no CORS issues, no timeout race
+      const styleArg = PROXY_STYLE_URL;
       if (cancelled) return;
 
-      // Step 3: Create map
+      // Step 3: Create map using proxy style URL — no CORS, no fallback needed
       let map: any;
       try {
         map = await createMap(MapClass, NavigationControl, styleArg, lat, lng);
       } catch {
-        // Style JSON failed validation — fall back to URL string
-        try {
-          map = await createMap(MapClass, NavigationControl, STYLE_URL, lat, lng);
-        } catch {
-          setStatus('error');
-          return;
-        }
+        setStatus('error');
+        return;
       }
 
       if (cancelled) { map?.remove(); return; }
@@ -377,29 +356,12 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
       map.on('error', (e: any) => console.warn('MapLibre error:', e?.error?.message || e));
       mapRef.current = map;
 
-      // Fallback timeout: if 'load' never fires (can happen on desktop with CORS style),
-      // retry with the raw URL string after 12s
-      loadTimeoutId = setTimeout(async () => {
-        if (cancelled || status === 'ready') return;
-        console.warn('Map load timed out — retrying with URL-only style');
-        try { map.remove(); } catch {}
-        mapRef.current = null;
-        try {
-          const retryMap = await createMap(MapClass, NavigationControl, STYLE_URL, lat, lng);
-          retryMap.addControl(new NavigationControl(), 'top-right');
-          retryMap.on('click', () => setSelectedPlace(null));
-          retryMap.on('error', (e: any) => console.warn('Retry map error:', e?.error?.message || e));
-          retryMap.on('load', () => {
-            if (cancelled) return;
-            mapRef.current = retryMap;
-            setStatus('ready');
-            loadPlacesForLocation(lat, lng, label);
-          });
-          mapRef.current = retryMap;
-        } catch {
-          setStatus('error');
-        }
-      }, 12000);
+      // 15s timeout in case load event never fires
+      loadTimeoutId = setTimeout(() => {
+        if (cancelled) return;
+        console.warn('Map load event did not fire within 15s');
+        setStatus('error');
+      }, 15000);
 
       map.on('load', () => {
         if (cancelled) return;
