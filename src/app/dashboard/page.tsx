@@ -1963,12 +1963,14 @@ export default function PatientDashboard() {
                         setRookLoading(true);
                         try {
                           const patientId = getPatientId();
-                          const clientUuid = process.env.NEXT_PUBLIC_ROOK_CLIENT_UUID!;
-                          const secretKey  = process.env.NEXT_PUBLIC_ROOK_SECRET_KEY!;
-                          const token = btoa(`${clientUuid}:${secretKey}`);
                           const callbackUrl = `${window.location.origin}/rook-callback`;
 
-                          // Call Rook authorizer directly from the browser (avoids server-side WAF block)
+                          // 1. Fetch token securely from our backend (so secret key isn't exposed or undefined)
+                          const tokenRes = await apiFetch(`/api/patient/vitals/rook/token`);
+                          if (!tokenRes.ok) throw new Error('Failed to get Rook token from server');
+                          const { token } = await tokenRes.json();
+
+                          // 2. Call Rook authorizer directly from the browser (avoids server-side WAF block)
                           const res = await fetch(
                             `https://api.rook-connect.review/api/v1/user_id/${patientId}/data_source/${rookDataSource}/authorizer?redirect_url=${encodeURIComponent(callbackUrl)}`,
                             { headers: { 'Authorization': `Basic ${token}`, 'Accept': 'application/json' } }
