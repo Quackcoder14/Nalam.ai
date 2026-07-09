@@ -285,6 +285,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
 
   useEffect(() => {
     let cancelled = false;
+    let loadTimeout: NodeJS.Timeout | undefined;
 
     async function init() {
       let userLat = DEFAULT_CENTER[1];
@@ -358,7 +359,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
 
       // Fallback timeout: if 'load' never fires (can happen on desktop with CORS style),
       // retry with the raw URL string after 12s
-      const loadTimeout = setTimeout(() => {
+      loadTimeout = setTimeout(() => {
         if (status !== 'ready' && !cancelled) {
           console.warn('Map load timeout — trying with plain style URL');
           try {
@@ -421,7 +422,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
 
     return () => {
       cancelled = true;
-      if (typeof loadTimeout !== 'undefined') clearTimeout(loadTimeout);
+      if (loadTimeout) clearTimeout(loadTimeout);
       originMarkerRef.current?.remove();
       mapRef.current?.remove();
       mapRef.current = null;
