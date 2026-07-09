@@ -343,6 +343,33 @@ export default function PatientDashboard() {
   const [rookLoading, setRookLoading] = useState(false);
   const [rookDataSource, setRookDataSource] = useState('Fitbit');
 
+  useEffect(() => {
+    // Check if we just returned from Rook OAuth
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('rook') === 'connected' || localStorage.getItem('rookConnected') === 'true') {
+        setRookConnected(true);
+        setVitalsSource('rook');
+        // Clean up URL if needed
+        if (urlParams.get('rook') === 'connected') {
+          router.replace('/dashboard', { scroll: false });
+        }
+      } else {
+        // Otherwise, ask backend if authorized
+        apiFetch(`/api/patient/vitals/rook/connect?patientId=${getPatientId()}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.authorized) {
+              setRookConnected(true);
+              setVitalsSource('rook');
+              localStorage.setItem('rookConnected', 'true');
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, [router]);
+
   const [anomaly, setAnomaly] = useState<any>(null);
   const [anomalyLoading, setAL] = useState(false);
 
@@ -1932,13 +1959,11 @@ export default function PatientDashboard() {
                     setRookLoading(true);
                     try {
                       const patientId = getPatientId();
-                      const redirectUrl = window.location.hostname === 'localhost' 
-                        ? 'http://localhost:3000/dashboard' 
-                        : `${window.location.origin}/dashboard`;
+                      const baseUrl = window.location.origin;
                       
                       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/vitals/rook/connect`, {
                         method: 'POST',
-                        body: JSON.stringify({ patientId, dataSource: rookDataSource, redirectUrl }),
+                        body: JSON.stringify({ patientId, dataSource: rookDataSource, baseUrl }),
                       });
                       if (res.ok) {
                         const data = await res.json();
