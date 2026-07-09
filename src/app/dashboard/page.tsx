@@ -342,6 +342,7 @@ export default function PatientDashboard() {
   const [rookConnected, setRookConnected] = useState(false);
   const [rookLoading, setRookLoading] = useState(false);
   const [rookDataSource, setRookDataSource] = useState('Fitbit');
+  const router = useRouter();
 
   useEffect(() => {
     // Check if we just returned from Rook OAuth
@@ -380,7 +381,6 @@ export default function PatientDashboard() {
   const [demoScenario, setDemoScenario] = useState<string | null>(null);
   const [chatUnread, setChatUnread] = useState(0);
   const anomalyRef = useRef<any>(null);
-  const router = useRouter();
 
   // ── Intake Request (Pre-Consultation) polling ───────────────────────────────
   const [pendingIntake, setPendingIntake] = useState<any | null>(null);
