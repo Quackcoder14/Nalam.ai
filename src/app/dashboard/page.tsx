@@ -1935,50 +1935,108 @@ export default function PatientDashboard() {
             </div>
             {vitalsSource === 'rook' && (
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <button
-                  onClick={() => {
-                    if (rookConnected) return;
-                    const patientId = getPatientId();
-                    const clientUuid = process.env.NEXT_PUBLIC_ROOK_CLIENT_UUID;
-                    // Direct redirect to Rook's hosted Connection Page — no backend call needed
-                    const rookUrl = `https://connections.rook-connect.review/client_uuid/${clientUuid}/user_id/${patientId}`;
-                    window.location.href = rookUrl;
-                  }}
-                  disabled={rookConnected || rookLoading}
-                  style={{
-                    padding: "0.3rem 0.6rem",
-                    borderRadius: 6,
-                    border: "1px solid var(--primary)",
-                    background: rookConnected ? "var(--accent-green-bg)" : "var(--primary)",
-                    color: rookConnected ? "var(--accent-green)" : "white",
-                    fontSize: "0.75rem",
-                    fontWeight: 600,
-                    cursor: rookConnected ? "not-allowed" : "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {rookConnected ? '✓ Watch Connected' : '🔗 Connect Watch'}
-                </button>
-                {rookConnected && (
-                  <button
-                    onClick={() => {
-                      setRookConnected(false);
-                      localStorage.removeItem('rookConnected');
-                      setVitalsSource('simulate');
-                    }}
-                    title="Disconnect"
-                    style={{
-                      padding: "0.2rem 0.5rem",
-                      borderRadius: 6,
-                      border: "1px solid var(--border)",
-                      background: "transparent",
-                      color: "var(--foreground-muted)",
-                      fontSize: "0.7rem",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Disconnect
-                  </button>
+                {!rookConnected ? (
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <select
+                      value={rookDataSource}
+                      onChange={e => setRookDataSource(e.target.value)}
+                      style={{
+                        padding: "0.2rem 0.4rem",
+                        borderRadius: 6,
+                        border: "1px solid var(--border)",
+                        fontSize: "0.72rem",
+                        background: "white",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value="Fitbit">Fitbit</option>
+                      <option value="Garmin">Garmin</option>
+                      <option value="Oura">Oura</option>
+                      <option value="Withings">Withings</option>
+                      <option value="Whoop">Whoop</option>
+                      <option value="Polar">Polar</option>
+                      <option value="Dexcom">Dexcom</option>
+                    </select>
+                    <button
+                      disabled={rookLoading}
+                      onClick={async () => {
+                        setRookLoading(true);
+                        try {
+                          const patientId = getPatientId();
+                          const clientUuid = process.env.NEXT_PUBLIC_ROOK_CLIENT_UUID!;
+                          const secretKey  = process.env.NEXT_PUBLIC_ROOK_SECRET_KEY!;
+                          const token = btoa(`${clientUuid}:${secretKey}`);
+                          const callbackUrl = `${window.location.origin}/rook-callback`;
+
+                          // Call Rook authorizer directly from the browser (avoids server-side WAF block)
+                          const res = await fetch(
+                            `https://api.rook-connect.review/api/v1/user_id/${patientId}/data_source/${rookDataSource}/authorizer?redirect_url=${encodeURIComponent(callbackUrl)}`,
+                            { headers: { 'Authorization': `Basic ${token}`, 'Accept': 'application/json' } }
+                          );
+
+                          if (!res.ok) {
+                            const txt = await res.text();
+                            console.error('Rook authorizer error:', res.status, txt);
+                            alert(`Rook error ${res.status}. Check console for details.`);
+                            return;
+                          }
+
+                          const data = await res.json();
+                          if (data.authorized) {
+                            setRookConnected(true);
+                            localStorage.setItem('rookConnected', 'true');
+                          } else if (data.authorization_url) {
+                            window.location.href = data.authorization_url;
+                          } else {
+                            alert('No authorization URL returned. Check Rook portal settings.');
+                          }
+                        } catch (err: any) {
+                          console.error('Rook connect error:', err);
+                          alert(`Failed to connect: ${err.message}`);
+                        } finally {
+                          setRookLoading(false);
+                        }
+                      }}
+                      style={{
+                        padding: "0.3rem 0.6rem",
+                        borderRadius: 6,
+                        border: "1px solid var(--primary)",
+                        background: "var(--primary)",
+                        color: "white",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        cursor: rookLoading ? "not-allowed" : "pointer",
+                        opacity: rookLoading ? 0.6 : 1,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {rookLoading ? 'Connecting…' : '🔗 Connect Watch'}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-green)' }}>
+                      ✓ Watch Connected
+                    </span>
+                    <button
+                      onClick={() => {
+                        setRookConnected(false);
+                        localStorage.removeItem('rookConnected');
+                        setVitalsSource('simulate');
+                      }}
+                      style={{
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: 6,
+                        border: "1px solid var(--border)",
+                        background: "transparent",
+                        color: "var(--foreground-muted)",
+                        fontSize: "0.7rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
                 )}
               </div>
             )}
