@@ -338,6 +338,9 @@ export default function PatientDashboard() {
     dia: 80,
   });
   const vitalsRef = useRef(vitals);
+  const [vitalsSource, setVitalsSource] = useState<'simulate' | 'rook'>('simulate');
+  const [rookConnected, setRookConnected] = useState(false);
+  const [rookLoading, setRookLoading] = useState(false);
 
   const [anomaly, setAnomaly] = useState<any>(null);
   const [anomalyLoading, setAL] = useState(false);
@@ -527,6 +530,9 @@ export default function PatientDashboard() {
   }, []);
 
   useEffect(() => {
+    // Only run simulation when vitalsSource is 'simulate'
+    if (vitalsSource !== 'simulate') return;
+    
     const iv = setInterval(() => {
       setVitals({
         hr: Math.max(
@@ -562,7 +568,31 @@ export default function PatientDashboard() {
       });
     }, 2000);
     return () => clearInterval(iv);
-  }, [baseVitals]);
+  }, [baseVitals, vitalsSource]);
+
+  // Fetch vitals from Rook API when vitalsSource is 'rook'
+  useEffect(() => {
+    if (vitalsSource !== 'rook' || !rookConnected) return;
+    
+    const fetchRookVitals = async () => {
+      try {
+        const patientId = getPatientId();
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/vitals/rook?patientId=${patientId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.vitals) {
+            setVitals(data.vitals);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch Rook vitals:', error);
+      }
+    };
+
+    fetchRookVitals();
+    const iv = setInterval(fetchRookVitals, 30000); // Poll every 30 seconds
+    return () => clearInterval(iv);
+  }, [vitalsSource, rookConnected]);
 
   const showNewAlertImmediately = useCallback((alert: any) => {
     if (!alert?.id) return;
@@ -1830,22 +1860,107 @@ export default function PatientDashboard() {
           >
             <Activity size={17} /> {t("dashboard.liveVitals")}
           </h3>
-          <span
-            className="badge teal"
-            style={{ display: "flex", alignItems: "center", gap: 4 }}
-          >
-            <span
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {/* Vitals Source Toggle */}
+            <div
               style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "#22c55e",
-                display: "inline-block",
-                animation: "pulseGlow 1.4s infinite",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                background: "var(--surface-muted)",
+                padding: "0.3rem 0.5rem",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
               }}
-            />{" "}
-            {t("dashboard.syncing")}
-          </span>
+            >
+              <button
+                onClick={() => setVitalsSource('simulate')}
+                style={{
+                  padding: "0.3rem 0.6rem",
+                  borderRadius: 6,
+                  border: "none",
+                  background: vitalsSource === 'simulate' ? "var(--primary)" : "transparent",
+                  color: vitalsSource === 'simulate' ? "white" : "var(--foreground-muted)",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Simulate
+              </button>
+              <button
+                onClick={() => setVitalsSource('rook')}
+                style={{
+                  padding: "0.3rem 0.6rem",
+                  borderRadius: 6,
+                  border: "none",
+                  background: vitalsSource === 'rook' ? "var(--primary)" : "transparent",
+                  color: vitalsSource === 'rook' ? "white" : "var(--foreground-muted)",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Rook API
+              </button>
+            </div>
+            {vitalsSource === 'rook' && (
+              <button
+                onClick={async () => {
+                  setRookLoading(true);
+                  try {
+                    const patientId = getPatientId();
+                    const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/vitals/rook/connect`, {
+                      method: 'POST',
+                      body: JSON.stringify({ patientId }),
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.authUrl) {
+                        window.location.href = data.authUrl;
+                      } else {
+                        setRookConnected(true);
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Failed to connect Rook:', error);
+                  } finally {
+                    setRookLoading(false);
+                  }
+                }}
+                disabled={rookConnected || rookLoading}
+                style={{
+                  padding: "0.3rem 0.6rem",
+                  borderRadius: 6,
+                  border: "1px solid var(--primary)",
+                  background: rookConnected ? "var(--accent-green-bg)" : "var(--primary)",
+                  color: rookConnected ? "var(--accent-green)" : "white",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  cursor: rookConnected || rookLoading ? "not-allowed" : "pointer",
+                  opacity: rookLoading ? 0.6 : 1,
+                }}
+              >
+                {rookLoading ? 'Connecting...' : rookConnected ? '✓ Connected' : 'Connect Watch'}
+              </button>
+            )}
+            <span
+              className="badge teal"
+              style={{ display: "flex", alignItems: "center", gap: 4 }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "#22c55e",
+                  display: "inline-block",
+                  animation: "pulseGlow 1.4s infinite",
+                }}
+              />{" "}
+              {vitalsSource === 'rook' ? (rookConnected ? 'Live' : 'Disconnected') : t("dashboard.syncing")}
+            </span>
+          </div>
         </div>
         <div className="vitals-grid">
           {[
