@@ -1198,20 +1198,6 @@ export default function ClinicianPortal() {
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-orange)' }} />
           )}
         </button>
-        <button
-          className="glass-button"
-          onClick={async () => {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/logout`, {
-              method: 'POST',
-            });
-            localStorage.clear();
-            sessionStorage.clear();
-            router.push('/');
-          }}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-red)', borderColor: 'var(--accent-red)', fontSize: '0.8rem' }}
-        >
-          <X size={14} /> {t('clinician.logout')}
-        </button>
         </div>
       </div>
 
@@ -1219,7 +1205,8 @@ export default function ClinicianPortal() {
       {intakeToast && (
         <div style={{
           position: 'fixed', bottom: 24, right: 24, zIndex: 10000,
-          background: 'linear-gradient(135deg, #0052A5, #0077CC)',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
           borderRadius: 16, padding: '1rem 1.25rem',
           boxShadow: '0 8px 32px rgba(0,82,165,0.4)',
           display: 'flex', alignItems: 'flex-start', gap: '0.85rem',
@@ -1227,16 +1214,16 @@ export default function ClinicianPortal() {
         }}>
           <div style={{ fontSize: 28, flexShrink: 0 }}>🏥</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, color: 'white', fontSize: '0.9rem', marginBottom: '0.2rem' }}>New Intake Summary Routed</div>
-            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)', marginBottom: '0.65rem' }}>
+            <div style={{ fontWeight: 800, color: 'var(--foreground)', fontSize: '0.9rem', marginBottom: '0.2rem' }}>New Intake Summary Routed</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--foreground-muted)', marginBottom: '0.65rem' }}>
               Patient symptoms have been submitted and routed to you. Tap to review.
             </div>
             <button
               onClick={() => { viewIntakeDetails(intakeToast); setIntakeToast(null); }}
-              style={{ padding: '0.4rem 0.9rem', borderRadius: 8, border: 'none', background: 'white', color: '#0052A5', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+              style={{ padding: '0.4rem 0.9rem', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'white', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
             >View Intake</button>
           </div>
-          <button onClick={() => setIntakeToast(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
+          <button onClick={() => setIntakeToast(null)} style={{ background: 'none', border: 'none', color: 'var(--foreground-muted)', cursor: 'pointer', padding: 0, flexShrink: 0 }}>
             <X size={16} />
           </button>
         </div>

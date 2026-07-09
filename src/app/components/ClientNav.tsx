@@ -233,9 +233,7 @@ export default function ClientNav() {
                 <button className="drawer-item" onClick={() => nav('/xai')}>
                   <Brain size={18} /> {t('nav.xaiDashboard')}
                 </button>
-                <button className="drawer-item" onClick={() => nav('/search')}>
-                  <Search size={18} /> {t('nav.searchRecords')}
-                </button>
+
               </>
             )}
 

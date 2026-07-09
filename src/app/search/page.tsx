@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, FileText, Microscope, User, Calendar, Loader2, AlertCircle } from 'lucide-react';
+import { Search, FileText, Microscope, User, Calendar, Loader2, AlertCircle, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
 interface SearchRecord {
@@ -27,6 +27,7 @@ function SearchInner() {
   const [error, setError]       = useState('');
   const [searched, setSearched] = useState(false);
   const [searchedQuery, setSearchedQuery] = useState(searchParams.get('q') || '');
+  const [selectedRecord, setSelectedRecord] = useState<SearchRecord | null>(null);
 
   const runSearch = useCallback(async (q: string, f: string) => {
     if (q.trim().length < 2) return;
@@ -35,6 +36,13 @@ function SearchInner() {
       const params = new URLSearchParams({ q: q.trim(), field: f });
       const patientId = localStorage.getItem('nalamPatientId');
       if (patientId) params.set('patientId', patientId);
+      
+      const role = sessionStorage.getItem('nalamRole') || localStorage.getItem('nalamRole');
+      const branch = sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch');
+      if (role === 'hdesk' && branch) {
+         params.set('hospital', branch);
+      }
+      
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/search?${params}`);
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -132,11 +140,7 @@ function SearchInner() {
               key={rec.id ?? index} 
               className="glass-panel" 
               style={{ cursor: 'pointer', padding: '1.25rem', borderRadius: 14, transition: 'transform 0.2s, box-shadow 0.2s' }}
-              onClick={() => {
-                if (rec.patient_id) {
-                  router.push(`/hospital-desk?patientId=${rec.patient_id}`);
-                }
-              }}
+              onClick={() => setSelectedRecord(rec)}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
@@ -200,6 +204,61 @@ function SearchInner() {
           <Search size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
           <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>{t('search.noMatch')}</p>
           <p style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>{t('search.tryTips')}</p>
+        </div>
+      )}
+
+      {selectedRecord && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setSelectedRecord(null)}>
+          <div className="glass-panel slide-up" style={{ width: '100%', maxWidth: 600, background: 'var(--surface)', padding: '1.5rem', borderRadius: 16, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div>
+                {selectedRecord.patient_name && (
+                  <h3 style={{ fontSize: '1.2rem', color: 'var(--primary)', marginBottom: '0.2rem' }}>{selectedRecord.patient_name}</h3>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--foreground-muted)' }}>
+                  {typeIcon(selectedRecord.type)} {selectedRecord.type || 'Medical Record'}
+                  {selectedRecord.visit_date && (
+                    <>
+                      <span>·</span>
+                      <Calendar size={13} />
+                      {new Date(selectedRecord.visit_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => setSelectedRecord(null)} style={{ background: 'var(--surface-muted)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--charcoal)' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {selectedRecord.diagnosis && (
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>{t('search.diagnosis')}</div>
+                <div style={{ fontSize: '1rem', color: 'var(--foreground)', background: 'var(--surface-muted)', padding: '0.75rem', borderRadius: 8 }}>{selectedRecord.diagnosis}</div>
+              </div>
+            )}
+            
+            {selectedRecord.notes && (
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>{t('search.notes')}</div>
+                <div style={{ fontSize: '0.95rem', color: 'var(--foreground)', background: 'var(--surface-muted)', padding: '0.75rem', borderRadius: 8, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selectedRecord.notes}</div>
+              </div>
+            )}
+            
+            {selectedRecord.lab_results && (
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>{t('search.labResults')}</div>
+                <div style={{ fontSize: '0.9rem', color: 'var(--foreground)', background: 'var(--surface-muted)', padding: '0.75rem', borderRadius: 8, fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{selectedRecord.lab_results}</div>
+              </div>
+            )}
+            
+            {selectedRecord.provider && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.5rem', fontSize: '0.9rem', color: 'var(--foreground)', background: 'var(--primary-light)', padding: '0.75rem', borderRadius: 8, border: '1px solid var(--primary)' }}>
+                <User size={16} color="var(--primary)" />
+                <strong>{t('search.provider')}:</strong> {selectedRecord.provider}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

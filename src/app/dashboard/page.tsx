@@ -1809,29 +1809,6 @@ export default function PatientDashboard() {
               {pushEnabled ? <Bell size={13} /> : <BellOff size={13} />}
               {pushEnabled ? t("dashboard.alertsOn") : t("dashboard.enableAlerts")}
             </button>
-            <button
-              className="glass-button"
-              onClick={async () => {
-                // Call logout API
-                await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/auth/logout`, {
-                  method: "POST",
-                });
-                // Clear all localStorage and sessionStorage
-                localStorage.clear();
-                sessionStorage.clear();
-                // Redirect to home
-                router.push("/");
-              }}
-              style={{ 
-                display: "flex", 
-                alignItems: "center", 
-                gap: "0.35rem",
-                color: "var(--accent-red)",
-                borderColor: "var(--accent-red)"
-              }}
-            >
-              <X size={13} /> {t("dashboard.logout")}
-            </button>
           </div>
         )}
       </div>
@@ -2830,11 +2807,12 @@ export default function PatientDashboard() {
               >
                 <div
                   style={{
-                    background: "linear-gradient(135deg,var(--deep-blue),var(--primary))",
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
                     borderRadius: 16,
                     padding: "1rem 1.25rem",
-                    boxShadow: "0 10px 40px rgba(0,82,165,0.4)",
-                    color: "white",
+                    boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+                    color: "var(--foreground)",
                     display: "flex",
                     flexDirection: "column",
                     gap: "0.6rem",
@@ -2861,9 +2839,9 @@ export default function PatientDashboard() {
                     <button
                       onClick={() => dismissPopup(activePopup.id)}
                       style={{
-                        background: "rgba(255,255,255,0.15)",
-                        border: "none",
-                        color: "white",
+                        background: "var(--surface-muted)",
+                        border: "1px solid var(--border)",
+                        color: "var(--foreground-muted)",
                         borderRadius: 8,
                         width: 28,
                         height: 28,
@@ -2880,7 +2858,8 @@ export default function PatientDashboard() {
                   {otpCode && (
                     <div
                       style={{
-                        background: "rgba(255,255,255,0.12)",
+                        background: "var(--surface-muted)",
+                        border: "1px solid var(--border)",
                         borderRadius: 12,
                         padding: "0.75rem 1rem",
                         textAlign: "center",
@@ -2946,7 +2925,8 @@ export default function PatientDashboard() {
                 right: "1rem",
                 zIndex: 9998,
                 width: "min(420px, calc(100vw - 2rem))",
-                background: bg,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
                 borderLeft: `4px solid ${color}`,
                 borderRadius: 12,
                 padding: "0.85rem 1rem",

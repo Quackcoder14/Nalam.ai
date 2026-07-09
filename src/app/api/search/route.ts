@@ -14,6 +14,7 @@ function scoreMatch(record: Record<string, string>, queryTokens: string[]): numb
     record.lab_results,
     record.provider,
     record.type,
+    record.patient_name,
   ].join(' ');
 
   const textTokens = new Set(tokenise(searchableText));
@@ -40,6 +41,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') || '').trim();
     const patientId = searchParams.get('patientId');
+    const hospital = searchParams.get('hospital');
     const field = searchParams.get('field') || 'all'; // all | diagnosis | notes | labs | provider
 
     if (!q || q.length < 2) {
@@ -66,6 +68,13 @@ export async function GET(request: Request) {
       patientMap = patients.reduce((map, p) => ({ ...map, [p.id]: p.name }), {});
       const nested = await Promise.all(patients.map(p => getMedicalRecords(p.id)));
       records = nested.flat();
+      // Attach patient_name to records so it can be searched
+      records = records.map(r => ({ ...r, patient_name: patientMap[r.patient_id] }));
+    }
+
+    // Filter by hospital if provided
+    if (hospital) {
+      records = records.filter(r => r.provider?.toLowerCase().includes(hospital.toLowerCase()));
     }
 
     // Score each record
