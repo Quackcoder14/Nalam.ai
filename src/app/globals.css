@@ -498,13 +498,13 @@ a:hover { color: var(--primary-hover); }
   cursor: pointer;
   border-radius: 16px;
   border: 2px solid var(--border);
-  background: white;
+  background: var(--surface);
   padding: 1.25rem;
   transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
   text-align: left;
   display: block;
   width: 100%;
-  box-shadow: 0 2px 12px rgba(26,43,74,0.06);
+  box-shadow: var(--shadow-sm);
 }
 .feed-card:hover {
   transform: translateY(-4px);

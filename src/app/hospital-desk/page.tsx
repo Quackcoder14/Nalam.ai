@@ -521,7 +521,7 @@ export default function HospitalDeskPage() {
             parsed.patientId = criticalPopupAlert.patient_id;
             router.push(`/xai?${new URLSearchParams(parsed).toString()}`);
           }}
-          style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', width: 'calc(100% - 40px)', zIndex: 9999, background: 'var(--accent-red-bg)', border: '2px solid var(--accent-red)', borderRadius: 12, padding: '1rem 1.2rem', boxShadow: '0 8px 32px rgba(239,68,68,0.3)', display: 'flex', alignItems: 'flex-start', gap: '1rem', maxWidth: '400px', animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)', cursor: 'pointer' }}
+          style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', width: 'min(calc(100vw - 2rem), 400px)', zIndex: 9999, background: 'var(--surface)', border: '2px solid var(--accent-red)', borderRadius: 12, padding: '1rem 1.2rem', boxShadow: '0 8px 32px rgba(239,68,68,0.3)', display: 'flex', alignItems: 'flex-start', gap: '1rem', animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)', cursor: 'pointer' }}
         >
           <AlertTriangle size={24} color="var(--accent-red)" style={{ flexShrink: 0, marginTop: 4 }} />
           <div style={{ flex: 1 }}>
@@ -544,8 +544,9 @@ export default function HospitalDeskPage() {
         <div
           style={{
             position: 'fixed',
-            bottom: '1rem',
+            bottom: 'calc(var(--bottom-nav-height, 60px) + env(safe-area-inset-bottom) + 1rem)',
             right: '1rem',
+            left: '1rem',
             zIndex: 9999,
             background: 'var(--surface)',
             border: '2px solid var(--primary)',
@@ -555,7 +556,8 @@ export default function HospitalDeskPage() {
             display: 'flex',
             flexDirection: 'column',
             gap: '1rem',
-            maxWidth: '350px',
+            maxWidth: '400px',
+            margin: '0 auto',
             animation: 'pulseGlow 2s infinite',
           }}
         >

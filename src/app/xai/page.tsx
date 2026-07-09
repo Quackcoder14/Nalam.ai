@@ -369,8 +369,9 @@ function XAIDashboardInner() {
         <div
           style={{
             position: 'fixed',
-            bottom: '1rem',
+            bottom: 'calc(var(--bottom-nav-height, 60px) + env(safe-area-inset-bottom) + 1rem)',
             right: '1rem',
+            left: '1rem',
             zIndex: 9999,
             background: 'var(--surface)',
             border: '2px solid var(--primary)',
@@ -380,7 +381,8 @@ function XAIDashboardInner() {
             display: 'flex',
             flexDirection: 'column',
             gap: '1rem',
-            maxWidth: '350px',
+            maxWidth: '400px',
+            margin: '0 auto',
             animation: 'pulseGlow 2s infinite',
           }}
         >
