@@ -8,5 +8,7 @@ export async function POST() {
     path: '/',
     maxAge: 0,
   });
+  // Note: localStorage clearing must be done on the client side
+  // This is handled by the client calling this API and then clearing localStorage
   return res;
 }

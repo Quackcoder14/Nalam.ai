@@ -50,10 +50,20 @@ export async function GET(request: Request) {
 
     // Fetch records — either for one patient or all
     let records: any[] = [];
+    let patientMap: Record<string, string> = {};
+    
     if (patientId) {
       records = await getMedicalRecords(patientId);
+      // Get patient name for single patient
+      const patients = await getAllPatients();
+      const patient = patients.find(p => p.id === patientId);
+      if (patient) {
+        patientMap[patientId] = patient.name;
+      }
     } else {
       const patients = await getAllPatients();
+      // Create patient ID to name map
+      patientMap = patients.reduce((map, p) => ({ ...map, [p.id]: p.name }), {});
       const nested = await Promise.all(patients.map(p => getMedicalRecords(p.id)));
       records = nested.flat();
     }
@@ -80,6 +90,7 @@ export async function GET(request: Request) {
     const withHighlights = scored.map(({ _score, ...r }) => ({
       ...r,
       score: _score,
+      patient_name: patientMap[r.patient_id] || null,
       highlights: {
         diagnosis:   highlight(r.diagnosis || '',   queryTokens),
         notes:       highlight(r.notes || '',       queryTokens),

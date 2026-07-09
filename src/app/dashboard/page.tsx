@@ -1809,6 +1809,29 @@ export default function PatientDashboard() {
               {pushEnabled ? <Bell size={13} /> : <BellOff size={13} />}
               {pushEnabled ? t("dashboard.alertsOn") : t("dashboard.enableAlerts")}
             </button>
+            <button
+              className="glass-button"
+              onClick={async () => {
+                // Call logout API
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/auth/logout`, {
+                  method: "POST",
+                });
+                // Clear all localStorage and sessionStorage
+                localStorage.clear();
+                sessionStorage.clear();
+                // Redirect to home
+                router.push("/");
+              }}
+              style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "0.35rem",
+                color: "var(--accent-red)",
+                borderColor: "var(--accent-red)"
+              }}
+            >
+              <X size={13} /> {t("dashboard.logout")}
+            </button>
           </div>
         )}
       </div>

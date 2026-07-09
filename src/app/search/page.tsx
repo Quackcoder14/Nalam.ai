@@ -7,7 +7,7 @@ import { useLanguage } from '@/lib/i18n';
 interface SearchRecord {
   id: string; type: string; diagnosis?: string; notes?: string;
   lab_results?: string; provider?: string; visit_date?: string;
-  patient_id?: string; score: number;
+  patient_id?: string; patient_name?: string; score: number;
   highlights: { diagnosis: string; notes: string; lab_results: string; provider: string; };
 }
 
@@ -128,9 +128,30 @@ function SearchInner() {
       {results.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {results.map((rec, index) => (
-            <div key={rec.id ?? index} className="glass-panel" style={{ cursor: 'default', padding: '1.25rem', borderRadius: 14 }}>
+            <div 
+              key={rec.id ?? index} 
+              className="glass-panel" 
+              style={{ cursor: 'pointer', padding: '1.25rem', borderRadius: 14, transition: 'transform 0.2s, box-shadow 0.2s' }}
+              onClick={() => {
+                if (rec.patient_id) {
+                  router.push(`/hospital-desk?patientId=${rec.patient_id}`);
+                }
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.6rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {rec.patient_name && (
+                    <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--primary)' }}>{rec.patient_name}</span>
+                  )}
+                  {rec.patient_name && rec.type && <span style={{ color: 'var(--foreground-muted)' }}>·</span>}
                   {typeIcon(rec.type)}
                   <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--foreground)' }}>{rec.type || 'Medical Record'}</span>
                   <span style={{ padding: '0.15rem 0.6rem', borderRadius: 50, fontSize: '0.75rem', fontWeight: 600, background: 'var(--primary-light)', color: 'var(--primary)' }}>

@@ -263,7 +263,7 @@ function PatientChatInner() {
         {/* Chat Area */}
         <div className="glass-panel chat-main" style={{ flex: 1, flexDirection: 'column', overflow: 'hidden', padding: 0, position: 'relative' }}>
           {!selectedHospital && (
-            <div className="desktop-placeholder" style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(2px)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--charcoal)' }}>
+            <div className="desktop-placeholder" style={{ position: 'absolute', inset: 0, background: 'rgba(128,128,128,0.3)', backdropFilter: 'blur(2px)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--charcoal)' }}>
               <style>{`@media (max-width: 768px) { .desktop-placeholder { display: none !important; } }`}</style>
               <Building2 size={48} style={{ marginBottom: '1rem', opacity: 0.5 }} />
               <h3>Select a hospital to start chatting</h3>
@@ -288,7 +288,7 @@ function PatientChatInner() {
           </div>
 
           {/* Messages */}
-          <div ref={scrollContainerRef} onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#F8FAFC' }}>
+          <div ref={scrollContainerRef} onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: 'var(--surface-muted)' }}>
             {loading && messages.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--charcoal)', marginTop: '2rem' }}>Loading messages...</div>
             ) : messages.length === 0 ? (
@@ -306,7 +306,7 @@ function PatientChatInner() {
                         borderRadius: 16,
                         borderBottomRightRadius: isMe ? 4 : 16,
                         borderBottomLeftRadius: !isMe ? 4 : 16,
-                        background: isMe ? 'var(--primary)' : 'white',
+                        background: isMe ? 'var(--primary)' : 'var(--surface)',
                         color: isMe ? 'white' : 'var(--foreground)',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                         border: isMe ? 'none' : '1px solid var(--border)',
@@ -349,7 +349,7 @@ function PatientChatInner() {
           </div>
 
           {/* Input Area */}
-          <div style={{ padding: '1rem', borderTop: '1px solid var(--border)', background: 'white', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ padding: '1rem', borderTop: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <input 
               type="file" 
               ref={fileInputRef} 

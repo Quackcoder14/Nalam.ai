@@ -324,7 +324,7 @@ export default function DeskChat() {
         </div>
 
         {/* Right Panel: Chat Area */}
-        <div className="chat-right-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F8FAFC', position: 'relative' }}>
+        <div className="chat-right-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--surface-muted)', position: 'relative' }}>
 
           {!activePatient ? (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--charcoal)', background: 'var(--surface-muted)' }}>
@@ -358,7 +358,7 @@ export default function DeskChat() {
                 {loading && messages.length === 0 ? (
                   <div style={{ textAlign: 'center', color: 'var(--charcoal)', marginTop: '2rem' }}>Loading messages...</div>
                 ) : messages.length === 0 ? (
-                  <div style={{ textAlign: 'center', background: '#FFF3C4', color: '#856404', padding: '0.5rem 1rem', borderRadius: 8, margin: '1rem auto', fontSize: '0.85rem', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+                  <div style={{ textAlign: 'center', background: 'var(--accent-amber-bg)', color: 'var(--accent-amber)', padding: '0.5rem 1rem', borderRadius: 8, margin: '1rem auto', fontSize: '0.85rem', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
                     No messages yet. Send a message to start the conversation.
                   </div>
                 ) : (
@@ -374,7 +374,7 @@ export default function DeskChat() {
                             borderRadius: 16,
                             borderBottomRightRadius: isMe ? 4 : 16,
                             borderBottomLeftRadius: !isMe ? 4 : 16,
-                            background: isMe ? 'var(--primary)' : 'white',
+                            background: isMe ? 'var(--primary)' : 'var(--surface)',
                             color: isMe ? 'white' : 'var(--foreground)',
                             boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                             border: isMe ? 'none' : '1px solid var(--border)',

@@ -19,6 +19,28 @@ export default function HomePage() {
   const { lang, setLang, t } = useLanguage();
 
   useEffect(() => {
+    // Check if user is already logged in (using localStorage as persistent storage)
+    const existingRole = localStorage.getItem('nalamRole');
+    const existingLang = localStorage.getItem('nalamLang') as Lang | null;
+    
+    if (existingRole) {
+      // Restore language if previously chosen
+      if (existingLang === 'en' || existingLang === 'ta') {
+        setLang(existingLang);
+      }
+      
+      // Redirect to appropriate dashboard based on role
+      if (existingRole === 'patient') {
+        router.push('/dashboard');
+      } else if (existingRole === 'clinician') {
+        router.push('/clinician');
+      } else if (existingRole === 'hdesk') {
+        router.push('/hospital-desk');
+      }
+      return;
+    }
+    
+    // Not logged in, show splash/login flow
     const splashShown = sessionStorage.getItem('splashShown');
     const alreadyChoseLang = localStorage.getItem('nalamLangChosen');
     if (splashShown) { setPhase(alreadyChoseLang ? 'login' : 'language'); return; }

@@ -1198,6 +1198,20 @@ export default function ClinicianPortal() {
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-orange)' }} />
           )}
         </button>
+        <button
+          className="glass-button"
+          onClick={async () => {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/logout`, {
+              method: 'POST',
+            });
+            localStorage.clear();
+            sessionStorage.clear();
+            router.push('/');
+          }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-red)', borderColor: 'var(--accent-red)', fontSize: '0.8rem' }}
+        >
+          <X size={14} /> {t('clinician.logout')}
+        </button>
         </div>
       </div>
 
