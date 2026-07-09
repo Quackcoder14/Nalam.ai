@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getMedicalRecords, getAllPatients } from '@/lib/data';
+import { prisma } from '@/lib/prisma';
+import { decrypt } from '@/lib/crypto';
 
 // Simple tokeniser — splits on whitespace and punctuation, lowercases
 function tokenise(text: string): string[] {
@@ -15,6 +17,7 @@ function scoreMatch(record: Record<string, string>, queryTokens: string[]): numb
     record.provider,
     record.type,
     record.patient_name,
+    record.hospital,
   ].join(' ');
 
   const textTokens = new Set(tokenise(searchableText));
@@ -50,6 +53,25 @@ export async function GET(request: Request) {
 
     const queryTokens = tokenise(q);
 
+    // Build doctor-hospital mapping to infer hospital from provider name
+    const doctors = await prisma.doctor.findMany();
+    const docToHospital: Record<string, string> = {};
+    for (const doc of doctors) {
+      const docName = decrypt(doc.full_name_enc);
+      if (docName) {
+        docToHospital[docName] = doc.hospital;
+        docToHospital[docName.replace(/^Dr\.\s*/i, '')] = doc.hospital;
+      }
+    }
+    
+    function getHospitalForProvider(provider: string) {
+       if (!provider) return '';
+       for (const [docName, hosp] of Object.entries(docToHospital)) {
+         if (provider.includes(docName)) return hosp;
+       }
+       return provider; // Fallback to provider string (it might already be the hospital desk name)
+    }
+
     // Fetch records — either for one patient or all
     let records: any[] = [];
     let patientMap: Record<string, string> = {};
@@ -60,7 +82,7 @@ export async function GET(request: Request) {
       const patients = await getAllPatients();
       const patient = patients.find(p => p.id === patientId);
       if (patient) {
-        patientMap[patientId] = patient.name;
+        records = records.map(r => ({ ...r, patient_name: patient.name }));
       }
     } else {
       const patients = await getAllPatients();
@@ -72,9 +94,12 @@ export async function GET(request: Request) {
       records = records.map(r => ({ ...r, patient_name: patientMap[r.patient_id] }));
     }
 
+    // Attach inferred hospital to all records
+    records = records.map(r => ({ ...r, hospital: getHospitalForProvider(r.provider || '') }));
+
     // Filter by hospital if provided
     if (hospital) {
-      records = records.filter(r => r.provider?.toLowerCase().includes(hospital.toLowerCase()));
+      records = records.filter(r => r.hospital?.toLowerCase().includes(hospital.toLowerCase()));
     }
 
     // Score each record
