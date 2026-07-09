@@ -53,23 +53,44 @@ export async function GET(request: Request) {
 
     const queryTokens = tokenise(q);
 
-    // Build doctor-hospital mapping to infer hospital from provider name
+    // Build doctor-to-hospital mapping using BOTH encrypted name and unencrypted hospital
+    // Doctor.hospital is a plain string, Doctor.full_name_enc needs decryption
+    // But we fall back gracefully if decrypt fails
     const doctors = await prisma.doctor.findMany();
     const docToHospital: Record<string, string> = {};
     for (const doc of doctors) {
-      const docName = decrypt(doc.full_name_enc);
-      if (docName) {
-        docToHospital[docName] = doc.hospital;
-        docToHospital[docName.replace(/^Dr\.\s*/i, '')] = doc.hospital;
+
+      try {
+        const docName = decrypt(doc.full_name_enc);
+        if (docName) {
+          docToHospital[docName.toLowerCase()] = doc.hospital;
+          // Also map the name without "Dr." prefix
+          docToHospital[docName.replace(/^dr\.?\s*/i, '').toLowerCase()] = doc.hospital;
+        }
+      } catch {
+        // If decrypt fails, skip (seed data may be plain text in dev)
+      }
+      // Also try treating full_name_enc as plain text (for seed data)
+      const plainName = doc.full_name_enc;
+      if (plainName && !plainName.includes(':')) {
+        docToHospital[plainName.toLowerCase()] = doc.hospital;
+        docToHospital[plainName.replace(/^dr\.?\s*/i, '').toLowerCase()] = doc.hospital;
       }
     }
     
-    function getHospitalForProvider(provider: string) {
-       if (!provider) return '';
-       for (const [docName, hosp] of Object.entries(docToHospital)) {
-         if (provider.includes(docName)) return hosp;
-       }
-       return provider; // Fallback to provider string (it might already be the hospital desk name)
+    function getHospitalForProvider(provider: string): string {
+      if (!provider) return '';
+      const lowerProvider = provider.toLowerCase();
+      // Try to find a doctor whose name is contained in the provider string
+      for (const [docName, hosp] of Object.entries(docToHospital)) {
+        if (docName && lowerProvider.includes(docName)) return hosp;
+      }
+      // If provider string directly contains a known hospital name, use it
+      const knownHospitals = ['apollo hospital', 'kauvery hospital', 'govt hospital'];
+      for (const h of knownHospitals) {
+        if (lowerProvider.includes(h)) return h;
+      }
+      return ''; // Unknown hospital
     }
 
     // Fetch records — either for one patient or all
