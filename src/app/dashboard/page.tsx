@@ -341,6 +341,7 @@ export default function PatientDashboard() {
   const [vitalsSource, setVitalsSource] = useState<'simulate' | 'rook'>('simulate');
   const [rookConnected, setRookConnected] = useState(false);
   const [rookLoading, setRookLoading] = useState(false);
+  const [rookDataSource, setRookDataSource] = useState('Fitbit');
 
   const [anomaly, setAnomaly] = useState<any>(null);
   const [anomalyLoading, setAL] = useState(false);
@@ -1905,44 +1906,69 @@ export default function PatientDashboard() {
               </button>
             </div>
             {vitalsSource === 'rook' && (
-              <button
-                onClick={async () => {
-                  setRookLoading(true);
-                  try {
-                    const patientId = getPatientId();
-                    const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/vitals/rook/connect`, {
-                      method: 'POST',
-                      body: JSON.stringify({ patientId }),
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      if (data.authUrl) {
-                        window.location.href = data.authUrl;
-                      } else {
-                        setRookConnected(true);
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <select
+                  value={rookDataSource}
+                  onChange={(e) => setRookDataSource(e.target.value)}
+                  disabled={rookConnected || rookLoading}
+                  style={{
+                    padding: "0.2rem 0.5rem",
+                    borderRadius: 6,
+                    border: "1px solid var(--border)",
+                    fontSize: "0.75rem",
+                    background: "white",
+                    cursor: rookConnected || rookLoading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  <option value="Fitbit">Fitbit</option>
+                  <option value="Garmin">Garmin</option>
+                  <option value="Oura">Oura</option>
+                  <option value="Apple Health">Apple Health</option>
+                  <option value="Withings">Withings</option>
+                </select>
+                <button
+                  onClick={async () => {
+                    setRookLoading(true);
+                    try {
+                      const patientId = getPatientId();
+                      const redirectUrl = window.location.hostname === 'localhost' 
+                        ? 'http://localhost:3000/dashboard' 
+                        : `${window.location.origin}/dashboard`;
+                      
+                      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/vitals/rook/connect`, {
+                        method: 'POST',
+                        body: JSON.stringify({ patientId, dataSource: rookDataSource, redirectUrl }),
+                      });
+                      if (res.ok) {
+                        const data = await res.json();
+                        if (data.authUrl) {
+                          window.location.href = data.authUrl;
+                        } else {
+                          setRookConnected(true);
+                        }
                       }
+                    } catch (error) {
+                      console.error('Failed to connect Rook:', error);
+                    } finally {
+                      setRookLoading(false);
                     }
-                  } catch (error) {
-                    console.error('Failed to connect Rook:', error);
-                  } finally {
-                    setRookLoading(false);
-                  }
-                }}
-                disabled={rookConnected || rookLoading}
-                style={{
-                  padding: "0.3rem 0.6rem",
-                  borderRadius: 6,
-                  border: "1px solid var(--primary)",
-                  background: rookConnected ? "var(--accent-green-bg)" : "var(--primary)",
-                  color: rookConnected ? "var(--accent-green)" : "white",
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  cursor: rookConnected || rookLoading ? "not-allowed" : "pointer",
-                  opacity: rookLoading ? 0.6 : 1,
-                }}
-              >
-                {rookLoading ? 'Connecting...' : rookConnected ? '✓ Connected' : 'Connect Watch'}
-              </button>
+                  }}
+                  disabled={rookConnected || rookLoading}
+                  style={{
+                    padding: "0.3rem 0.6rem",
+                    borderRadius: 6,
+                    border: "1px solid var(--primary)",
+                    background: rookConnected ? "var(--accent-green-bg)" : "var(--primary)",
+                    color: rookConnected ? "var(--accent-green)" : "white",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    cursor: rookConnected || rookLoading ? "not-allowed" : "pointer",
+                    opacity: rookLoading ? 0.6 : 1,
+                  }}
+                >
+                  {rookLoading ? 'Connecting...' : rookConnected ? '✓ Connected' : 'Connect Watch'}
+                </button>
+              </div>
             )}
             <span
               className="badge teal"
