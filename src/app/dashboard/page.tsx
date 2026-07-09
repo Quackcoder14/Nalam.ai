@@ -1965,16 +1965,30 @@ export default function PatientDashboard() {
                         method: 'POST',
                         body: JSON.stringify({ patientId, dataSource: rookDataSource, baseUrl }),
                       });
-                      if (res.ok) {
-                        const data = await res.json();
-                        if (data.authUrl) {
-                          window.location.href = data.authUrl;
+                      const data = await res.json();
+                      
+                      if (!res.ok) {
+                        // 403 on local dev = Rook WAF blocks non-Vercel IPs — works fine on production
+                        if (res.status === 403) {
+                          alert('⚠️ Rook API blocked this request (403).\n\nThis is expected in local development — Rook only allows server-side calls from whitelisted IPs.\n\nTest this feature on your Vercel deployment instead.');
                         } else {
-                          setRookConnected(true);
+                          alert(`Connection failed: ${data.error || res.status}`);
                         }
+                        return;
+                      }
+                      
+                      if (data.authorized) {
+                        // Already connected — no need to redirect
+                        setRookConnected(true);
+                        localStorage.setItem('rookConnected', 'true');
+                      } else if (data.authUrl) {
+                        window.location.href = data.authUrl;
+                      } else {
+                        alert(`Unexpected response from Rook: ${JSON.stringify(data)}`);
                       }
                     } catch (error) {
                       console.error('Failed to connect Rook:', error);
+                      alert('Network error connecting to Rook. Check console.');
                     } finally {
                       setRookLoading(false);
                     }
