@@ -109,8 +109,23 @@ export async function GET(request: Request) {
       const patients = await getAllPatients();
       // Create patient ID to name map
       patientMap = patients.reduce((map, p) => ({ ...map, [p.id]: p.name }), {});
-      const nested = await Promise.all(patients.map(p => getMedicalRecords(p.id)));
-      records = nested.flat();
+      
+      // Fetch all records at once to use only ONE connection
+      const allRows = await prisma.medicalRecord.findMany({
+        orderBy: { date: 'desc' }
+      });
+      
+      records = allRows.map(r => ({
+        record_id: r.id,
+        patient_id: r.patient_id,
+        date: r.date,
+        type: decrypt(r.type_enc),
+        provider: decrypt(r.provider_enc),
+        diagnosis: decrypt(r.diagnosis_enc),
+        notes: decrypt(r.notes_enc ?? ''),
+        lab_results: decrypt(r.lab_results_enc ?? '')
+      }));
+      
       // Attach patient_name to records so it can be searched
       records = records.map(r => ({ ...r, patient_name: patientMap[r.patient_id] }));
     }
