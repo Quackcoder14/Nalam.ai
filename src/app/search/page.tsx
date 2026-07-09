@@ -35,15 +35,17 @@ function SearchInner() {
     try {
       const role = sessionStorage.getItem('nalamRole') || localStorage.getItem('nalamRole');
       const branch = sessionStorage.getItem('nalamHdeskBranch') || localStorage.getItem('nalamHdeskBranch');
+      const params = new URLSearchParams({ q: q.trim(), field: f });
       
       if (role === 'hdesk') {
         // Hospital desk: search all patients, filter by branch
         if (branch) params.set('hospital', branch);
       } else {
-        // Patient: only search own records
+        // Patient/clinician: only search own records
         const patientId = localStorage.getItem('nalamPatientId');
         if (patientId) params.set('patientId', patientId);
       }
+
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/search?${params}`);
       if (!res.ok) throw new Error(await res.text());
