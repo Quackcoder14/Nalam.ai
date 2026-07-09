@@ -1935,63 +1935,14 @@ export default function PatientDashboard() {
             </div>
             {vitalsSource === 'rook' && (
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <select
-                  value={rookDataSource}
-                  onChange={(e) => setRookDataSource(e.target.value)}
-                  disabled={rookConnected || rookLoading}
-                  style={{
-                    padding: "0.2rem 0.5rem",
-                    borderRadius: 6,
-                    border: "1px solid var(--border)",
-                    fontSize: "0.75rem",
-                    background: "white",
-                    cursor: rookConnected || rookLoading ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <option value="Fitbit">Fitbit</option>
-                  <option value="Garmin">Garmin</option>
-                  <option value="Oura">Oura</option>
-                  <option value="Apple Health">Apple Health</option>
-                  <option value="Withings">Withings</option>
-                </select>
                 <button
-                  onClick={async () => {
-                    setRookLoading(true);
-                    try {
-                      const patientId = getPatientId();
-                      const baseUrl = window.location.origin;
-                      
-                      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/vitals/rook/connect`, {
-                        method: 'POST',
-                        body: JSON.stringify({ patientId, dataSource: rookDataSource, baseUrl }),
-                      });
-                      const data = await res.json();
-                      
-                      if (!res.ok) {
-                        // 403 on local dev = Rook WAF blocks non-Vercel IPs — works fine on production
-                        if (res.status === 403) {
-                          alert('⚠️ Rook API blocked this request (403).\n\nThis is expected in local development — Rook only allows server-side calls from whitelisted IPs.\n\nTest this feature on your Vercel deployment instead.');
-                        } else {
-                          alert(`Connection failed: ${data.error || res.status}`);
-                        }
-                        return;
-                      }
-                      
-                      if (data.authorized) {
-                        // Already connected — no need to redirect
-                        setRookConnected(true);
-                        localStorage.setItem('rookConnected', 'true');
-                      } else if (data.authUrl) {
-                        window.location.href = data.authUrl;
-                      } else {
-                        alert(`Unexpected response from Rook: ${JSON.stringify(data)}`);
-                      }
-                    } catch (error) {
-                      console.error('Failed to connect Rook:', error);
-                      alert('Network error connecting to Rook. Check console.');
-                    } finally {
-                      setRookLoading(false);
-                    }
+                  onClick={() => {
+                    if (rookConnected) return;
+                    const patientId = getPatientId();
+                    const clientUuid = process.env.NEXT_PUBLIC_ROOK_CLIENT_UUID;
+                    // Direct redirect to Rook's hosted Connection Page — no backend call needed
+                    const rookUrl = `https://connections.rook-connect.review/client_uuid/${clientUuid}/user_id/${patientId}`;
+                    window.location.href = rookUrl;
                   }}
                   disabled={rookConnected || rookLoading}
                   style={{
@@ -2002,12 +1953,33 @@ export default function PatientDashboard() {
                     color: rookConnected ? "var(--accent-green)" : "white",
                     fontSize: "0.75rem",
                     fontWeight: 600,
-                    cursor: rookConnected || rookLoading ? "not-allowed" : "pointer",
-                    opacity: rookLoading ? 0.6 : 1,
+                    cursor: rookConnected ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {rookLoading ? 'Connecting...' : rookConnected ? '✓ Connected' : 'Connect Watch'}
+                  {rookConnected ? '✓ Watch Connected' : '🔗 Connect Watch'}
                 </button>
+                {rookConnected && (
+                  <button
+                    onClick={() => {
+                      setRookConnected(false);
+                      localStorage.removeItem('rookConnected');
+                      setVitalsSource('simulate');
+                    }}
+                    title="Disconnect"
+                    style={{
+                      padding: "0.2rem 0.5rem",
+                      borderRadius: 6,
+                      border: "1px solid var(--border)",
+                      background: "transparent",
+                      color: "var(--foreground-muted)",
+                      fontSize: "0.7rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Disconnect
+                  </button>
+                )}
               </div>
             )}
             <span
