@@ -342,6 +342,7 @@ export default function PatientDashboard() {
   const [rookConnected, setRookConnected] = useState(false);
   const [rookLoading, setRookLoading] = useState(false);
   const [rookDataSource, setRookDataSource] = useState('Fitbit');
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -1890,156 +1891,62 @@ export default function PatientDashboard() {
             <Activity size={17} /> {t("dashboard.liveVitals")}
           </h3>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            {/* Vitals Source Toggle */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                background: "var(--surface-muted)",
-                padding: "0.3rem 0.5rem",
-                borderRadius: 8,
-                border: "1px solid var(--border)",
-              }}
-            >
+            {!rookConnected ? (
               <button
-                onClick={() => setVitalsSource('simulate')}
+                onClick={() => setShowDeviceModal(true)}
                 style={{
-                  padding: "0.3rem 0.6rem",
-                  borderRadius: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  padding: "0.4rem 0.7rem",
+                  borderRadius: 8,
                   border: "none",
-                  background: vitalsSource === 'simulate' ? "var(--primary)" : "transparent",
-                  color: vitalsSource === 'simulate' ? "white" : "var(--foreground-muted)",
+                  background: "var(--primary)",
+                  color: "white",
                   fontSize: "0.75rem",
                   fontWeight: 600,
                   cursor: "pointer",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+                  transition: "background 0.2s"
                 }}
               >
-                Simulate
+                {t('rook.connectWatch')}
               </button>
-              <button
-                onClick={() => setVitalsSource('rook')}
+            ) : (
+              <div
                 style={{
-                  padding: "0.3rem 0.6rem",
-                  borderRadius: 6,
-                  border: "none",
-                  background: vitalsSource === 'rook' ? "var(--primary)" : "transparent",
-                  color: vitalsSource === 'rook' ? "white" : "var(--foreground-muted)",
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  background: "var(--surface-muted)",
+                  padding: "0.3rem 0.5rem",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
                 }}
               >
-                Rook API
-              </button>
-            </div>
-            {vitalsSource === 'rook' && (
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                {!rookConnected ? (
-                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                    <select
-                      value={rookDataSource}
-                      onChange={e => setRookDataSource(e.target.value)}
-                      style={{
-                        padding: "0.2rem 0.4rem",
-                        borderRadius: 6,
-                        border: "1px solid var(--border)",
-                        fontSize: "0.72rem",
-                        background: "white",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <option value="Fitbit">Fitbit</option>
-                      <option value="Garmin">Garmin</option>
-                      <option value="Oura">Oura</option>
-                      <option value="Withings">Withings</option>
-                      <option value="Whoop">Whoop</option>
-                      <option value="Polar">Polar</option>
-                      <option value="Dexcom">Dexcom</option>
-                    </select>
-                    <button
-                      disabled={rookLoading}
-                      onClick={async () => {
-                        setRookLoading(true);
-                        try {
-                          const patientId = getPatientId();
-                          const callbackUrl = `${window.location.origin}/rook-callback`;
-
-                          // 1. Fetch token securely from our backend (so secret key isn't exposed or undefined)
-                          const tokenRes = await apiFetch(`/api/patient/vitals/rook/token`);
-                          if (!tokenRes.ok) throw new Error('Failed to get Rook token from server');
-                          const { token } = await tokenRes.json();
-
-                          // 2. Call Rook authorizer directly from the browser (avoids server-side WAF block)
-                          const res = await fetch(
-                            `https://api.rook-connect.review/api/v1/user_id/${patientId}/data_source/${rookDataSource}/authorizer?redirect_url=${encodeURIComponent(callbackUrl)}`,
-                            { headers: { 'Authorization': `Basic ${token}`, 'Accept': 'application/json' } }
-                          );
-
-                          if (!res.ok) {
-                            const txt = await res.text();
-                            console.error('Rook authorizer error:', res.status, txt);
-                            alert(`Rook error ${res.status}. Check console for details.`);
-                            return;
-                          }
-
-                          const data = await res.json();
-                          if (data.authorized) {
-                            setRookConnected(true);
-                            localStorage.setItem('rookConnected', 'true');
-                          } else if (data.authorization_url) {
-                            window.location.href = data.authorization_url;
-                          } else {
-                            alert('No authorization URL returned. Check Rook portal settings.');
-                          }
-                        } catch (err: any) {
-                          console.error('Rook connect error:', err);
-                          alert(`Failed to connect: ${err.message}`);
-                        } finally {
-                          setRookLoading(false);
-                        }
-                      }}
-                      style={{
-                        padding: "0.3rem 0.6rem",
-                        borderRadius: 6,
-                        border: "1px solid var(--primary)",
-                        background: "var(--primary)",
-                        color: "white",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        cursor: rookLoading ? "not-allowed" : "pointer",
-                        opacity: rookLoading ? 0.6 : 1,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {rookLoading ? 'Connecting…' : '🔗 Connect Watch'}
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-green)' }}>
-                      ✓ Watch Connected
-                    </span>
-                    <button
-                      onClick={() => {
-                        setRookConnected(false);
-                        localStorage.removeItem('rookConnected');
-                        setVitalsSource('simulate');
-                      }}
-                      style={{
-                        padding: "0.2rem 0.5rem",
-                        borderRadius: 6,
-                        border: "1px solid var(--border)",
-                        background: "transparent",
-                        color: "var(--foreground-muted)",
-                        fontSize: "0.7rem",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                )}
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-green)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-green)', display: 'inline-block' }}></span>
+                  {t('rook.watchConnected')}
+                </span>
+                <button
+                  onClick={() => {
+                    setRookConnected(false);
+                    localStorage.removeItem('rookConnected');
+                    setVitalsSource('simulate');
+                  }}
+                  title="Disconnect"
+                  style={{
+                    padding: "0.2rem 0.5rem",
+                    borderRadius: 6,
+                    border: "1px solid var(--border)",
+                    background: "transparent",
+                    color: "var(--foreground-muted)",
+                    fontSize: "0.7rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  {t('rook.disconnect')}
+                </button>
               </div>
             )}
             <span
@@ -3523,6 +3430,150 @@ export default function PatientDashboard() {
         patientId={getPatientId()}
         isHospitalDesk={false}
       />
+
+    {/* Device Selection Modal */}
+    {showDeviceModal && (
+      <div
+        className="modal-backdrop"
+        onClick={() => setShowDeviceModal(false)}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "center",
+          zIndex: 10000,
+          padding: "1rem",
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "var(--surface)",
+            width: "100%",
+            maxWidth: 400,
+            borderRadius: "20px",
+            padding: "1.5rem",
+            boxShadow: "0 -10px 40px rgba(0,0,0,0.2)",
+            animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+            color: "var(--foreground)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem" }}>
+            <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "var(--foreground)" }}>
+              {t('rook.selectDevice')}
+            </h3>
+            <button
+              onClick={() => setShowDeviceModal(false)}
+              style={{ background: "transparent", border: "none", fontSize: "1.2rem", color: "var(--foreground-muted)", cursor: "pointer", padding: "0.5rem" }}
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "60vh", overflowY: "auto" }}>
+            {['Fitbit', 'Garmin', 'Oura', 'Withings', 'Whoop', 'Polar', 'Dexcom'].map(device => (
+              <button
+                key={device}
+                disabled={rookLoading}
+                onClick={async () => {
+                  setRookLoading(true);
+                  setRookDataSource(device);
+                  try {
+                    const patientId = getPatientId();
+                    const callbackUrl = `${window.location.origin}/rook-callback`;
+
+                    const tokenRes = await apiFetch(`/api/patient/vitals/rook/token`);
+                    if (!tokenRes.ok) throw new Error('Failed to get Rook token from server');
+                    const { token } = await tokenRes.json();
+
+                    const res = await fetch(
+                      `https://api.rook-connect.review/api/v1/user_id/${patientId}/data_source/${device}/authorizer?redirect_url=${encodeURIComponent(callbackUrl)}`,
+                      { headers: { 'Authorization': `Basic ${token}`, 'Accept': 'application/json' } }
+                    );
+
+                    if (!res.ok) {
+                      const txt = await res.text();
+                      alert(`Rook error ${res.status}. Check console for details.`);
+                      setRookLoading(false);
+                      return;
+                    }
+
+                    const data = await res.json();
+                    if (data.authorized) {
+                      setRookConnected(true);
+                      localStorage.setItem('rookConnected', 'true');
+                      setShowDeviceModal(false);
+                    } else if (data.authorization_url) {
+                      window.location.href = data.authorization_url;
+                    } else {
+                      alert('No authorization URL returned. Check Rook portal settings.');
+                    }
+                  } catch (err: any) {
+                    alert(`Failed to connect: ${err.message}`);
+                  } finally {
+                    setRookLoading(false);
+                  }
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.9rem 1rem",
+                  borderRadius: 12,
+                  border: `1px solid var(--border)`,
+                  background: "var(--surface)",
+                  color: "var(--foreground)",
+                  fontSize: "1rem",
+                  fontWeight: 500,
+                  cursor: rookLoading ? "not-allowed" : "pointer",
+                  opacity: rookLoading ? 0.6 : 1,
+                  transition: "all 0.2s ease"
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = "var(--surface-muted)";
+                  e.currentTarget.style.borderColor = "var(--primary)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = "var(--surface)";
+                  e.currentTarget.style.borderColor = "var(--border)";
+                }}
+              >
+                {device}
+                {rookLoading && rookDataSource === device ? (
+                  <span style={{ fontSize: "0.8rem", color: "var(--primary)" }}>{t('rook.connecting')}</span>
+                ) : (
+                  <span style={{ color: "var(--primary)", fontSize: "1.2rem" }}>→</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <style>{`
+            @keyframes slideUp {
+              from { transform: translateY(100%); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+            @media (min-width: 768px) {
+              .modal-backdrop {
+                align-items: center !important;
+              }
+              .modal-backdrop > div {
+                animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+              }
+            }
+            @keyframes popIn {
+              from { transform: scale(0.95); opacity: 0; }
+              to { transform: scale(1); opacity: 1; }
+            }
+          `}</style>
+        </div>
+      </div>
+    )}
 
     {/* Chatbot */}
     <Chatbot
