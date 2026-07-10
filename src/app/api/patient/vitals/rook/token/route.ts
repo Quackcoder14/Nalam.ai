@@ -5,7 +5,10 @@ export async function GET() {
   const secretKey  = process.env.NEXT_PUBLIC_ROOK_SECRET_KEY;
   
   if (!clientUuid || !secretKey) {
-    return NextResponse.json({ error: 'Rook credentials not configured on server' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Rook credentials not configured on server', 
+      details: 'Missing NEXT_PUBLIC_ROOK_CLIENT_UUID or NEXT_PUBLIC_ROOK_SECRET_KEY in environment variables (check Vercel settings)'
+    }, { status: 500 });
   }
 
   const token = Buffer.from(`${clientUuid}:${secretKey}`).toString('base64');
