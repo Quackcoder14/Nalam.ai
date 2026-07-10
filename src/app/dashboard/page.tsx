@@ -3489,6 +3489,7 @@ export default function PatientDashboard() {
           justifyContent: "center",
           zIndex: 10000,
           padding: "1rem",
+          paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
         }}
       >
         <div
@@ -3502,6 +3503,9 @@ export default function PatientDashboard() {
             boxShadow: "0 -10px 40px rgba(0,0,0,0.2)",
             animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
             color: "var(--foreground)",
+            display: "flex",
+            flexDirection: "column",
+            maxHeight: "85vh",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.2rem" }}>
@@ -3515,8 +3519,7 @@ export default function PatientDashboard() {
               ✕
             </button>
           </div>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "60vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", overflowY: "auto", paddingRight: "0.2rem" }}>
             {['Fitbit', 'Garmin', 'Oura', 'Withings', 'Whoop', 'Polar', 'Dexcom'].map(device => (
               <button
                 key={device}
