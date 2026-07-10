@@ -1891,64 +1891,99 @@ export default function PatientDashboard() {
             <Activity size={17} /> {t("dashboard.liveVitals")}
           </h3>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            {!rookConnected ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                background: "var(--surface-muted)",
+                padding: "0.3rem 0.5rem",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+              }}
+            >
               <button
-                onClick={() => setShowDeviceModal(true)}
+                onClick={() => setVitalsSource('simulate')}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.4rem",
-                  padding: "0.4rem 0.7rem",
-                  borderRadius: 8,
+                  padding: "0.3rem 0.6rem",
+                  borderRadius: 6,
                   border: "none",
-                  background: "var(--primary)",
-                  color: "white",
+                  background: vitalsSource === 'simulate' ? "var(--primary)" : "transparent",
+                  color: vitalsSource === 'simulate' ? "white" : "var(--foreground-muted)",
                   fontSize: "0.75rem",
                   fontWeight: 600,
                   cursor: "pointer",
-                  boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-                  transition: "background 0.2s"
                 }}
               >
-                {t('rook.connectWatch')}
+                {t('rook.simulate') || 'Simulate'}
               </button>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  background: "var(--surface-muted)",
-                  padding: "0.3rem 0.5rem",
-                  borderRadius: 8,
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent-green)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-green)', display: 'inline-block' }}></span>
-                  {t('rook.watchConnected')}
-                </span>
+
+              {!rookConnected ? (
                 <button
-                  onClick={() => {
-                    setRookConnected(false);
-                    localStorage.removeItem('rookConnected');
-                    setVitalsSource('simulate');
-                  }}
-                  title="Disconnect"
+                  onClick={() => setShowDeviceModal(true)}
                   style={{
-                    padding: "0.2rem 0.5rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    padding: "0.3rem 0.6rem",
                     borderRadius: 6,
-                    border: "1px solid var(--border)",
-                    background: "transparent",
-                    color: "var(--foreground-muted)",
-                    fontSize: "0.7rem",
+                    border: "none",
+                    background: "var(--primary)",
+                    color: "white",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
                     cursor: "pointer",
+                    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+                    transition: "background 0.2s"
                   }}
                 >
-                  {t('rook.disconnect')}
+                  {t('rook.connectWatch')}
                 </button>
-              </div>
-            )}
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <button
+                    onClick={() => setVitalsSource('rook')}
+                    style={{
+                      padding: "0.3rem 0.6rem",
+                      borderRadius: 6,
+                      border: "none",
+                      background: vitalsSource === 'rook' ? "var(--primary)" : "transparent",
+                      color: vitalsSource === 'rook' ? "white" : "var(--foreground-muted)",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.3rem"
+                    }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: vitalsSource === 'rook' ? 'white' : 'var(--accent-green)', display: 'inline-block' }}></span>
+                    {t('rook.watchConnected')}
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setRookConnected(false);
+                      localStorage.removeItem('rookConnected');
+                      setVitalsSource('simulate');
+                    }}
+                    title={t('rook.disconnect')}
+                    style={{
+                      padding: "0.2rem 0.4rem",
+                      borderRadius: 6,
+                      border: "1px solid var(--border)",
+                      background: "transparent",
+                      color: "var(--foreground-muted)",
+                      fontSize: "0.7rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
             <span
               className="badge teal"
               style={{ display: "flex", alignItems: "center", gap: 4 }}
