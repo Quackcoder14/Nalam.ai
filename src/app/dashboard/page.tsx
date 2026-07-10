@@ -1895,9 +1895,9 @@ export default function PatientDashboard() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "0.4rem",
+                gap: "0.2rem",
                 background: "var(--surface-muted)",
-                padding: "0.3rem 0.5rem",
+                padding: "0.2rem",
                 borderRadius: 8,
                 border: "1px solid var(--border)",
               }}
@@ -1908,14 +1908,16 @@ export default function PatientDashboard() {
                   padding: "0.3rem 0.6rem",
                   borderRadius: 6,
                   border: "none",
-                  background: vitalsSource === 'simulate' ? "var(--primary)" : "transparent",
-                  color: vitalsSource === 'simulate' ? "white" : "var(--foreground-muted)",
+                  background: vitalsSource === 'simulate' ? "var(--surface)" : "transparent",
+                  color: vitalsSource === 'simulate' ? "var(--foreground)" : "var(--foreground-muted)",
+                  boxShadow: vitalsSource === 'simulate' ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
                   fontSize: "0.75rem",
                   fontWeight: 600,
                   cursor: "pointer",
+                  transition: "all 0.2s"
                 }}
               >
-                {t('rook.simulate') || 'Simulate'}
+                {t('rook.simulate')}
               </button>
 
               {!rookConnected ? (
@@ -1928,36 +1930,38 @@ export default function PatientDashboard() {
                     padding: "0.3rem 0.6rem",
                     borderRadius: 6,
                     border: "none",
-                    background: "var(--primary)",
-                    color: "white",
+                    background: vitalsSource === 'rook' ? "var(--surface)" : "transparent",
+                    color: vitalsSource === 'rook' ? "var(--foreground)" : "var(--foreground-muted)",
+                    boxShadow: vitalsSource === 'rook' ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
                     fontSize: "0.75rem",
                     fontWeight: 600,
                     cursor: "pointer",
-                    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-                    transition: "background 0.2s"
+                    transition: "all 0.2s"
                   }}
                 >
                   {t('rook.connectWatch')}
                 </button>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                   <button
                     onClick={() => setVitalsSource('rook')}
                     style={{
                       padding: "0.3rem 0.6rem",
                       borderRadius: 6,
                       border: "none",
-                      background: vitalsSource === 'rook' ? "var(--primary)" : "transparent",
-                      color: vitalsSource === 'rook' ? "white" : "var(--foreground-muted)",
+                      background: vitalsSource === 'rook' ? "var(--surface)" : "transparent",
+                      color: vitalsSource === 'rook' ? "var(--foreground)" : "var(--foreground-muted)",
+                      boxShadow: vitalsSource === 'rook' ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
                       fontSize: "0.75rem",
                       fontWeight: 600,
                       cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
-                      gap: "0.3rem"
+                      gap: "0.3rem",
+                      transition: "all 0.2s"
                     }}
                   >
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: vitalsSource === 'rook' ? 'white' : 'var(--accent-green)', display: 'inline-block' }}></span>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-green)', display: 'inline-block' }}></span>
                     {t('rook.watchConnected')}
                   </button>
                   
@@ -1971,12 +1975,15 @@ export default function PatientDashboard() {
                     style={{
                       padding: "0.2rem 0.4rem",
                       borderRadius: 6,
-                      border: "1px solid var(--border)",
+                      border: "none",
                       background: "transparent",
                       color: "var(--foreground-muted)",
                       fontSize: "0.7rem",
                       cursor: "pointer",
+                      transition: "color 0.2s"
                     }}
+                    onMouseOver={(e) => e.currentTarget.style.color = "var(--error)"}
+                    onMouseOut={(e) => e.currentTarget.style.color = "var(--foreground-muted)"}
                   >
                     ✕
                   </button>
