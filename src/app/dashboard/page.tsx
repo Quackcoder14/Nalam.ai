@@ -1983,7 +1983,6 @@ export default function PatientDashboard() {
                 </div>
               )}
             </div>
-          </div>
             <span
               className="badge teal"
               style={{ display: "flex", alignItems: "center", gap: 4 }}
