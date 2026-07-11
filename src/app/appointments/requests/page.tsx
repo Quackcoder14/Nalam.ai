@@ -17,6 +17,7 @@ const STATUS_META: Record<string, { labelKey: string; color: string; bg: string;
   reschedule_patient_rejected:{ labelKey: 'req.statusRescheduleRejected',  color: '#71717A', bg: '#F4F4F5', icon: XCircle },
   rejected:                  { labelKey: 'req.statusRejected',              color: '#C62828', bg: '#FFEBEE', icon: XCircle },
   cancelled:                 { labelKey: 'req.statusCancelled',             color: '#71717A', bg: '#F4F4F5', icon: XCircle },
+  finished:                  { labelKey: 'req.statusCompleted',             color: '#71717A', bg: '#F4F4F5', icon: CheckCircle },
 };
 
 const URGENCY_COLORS: Record<string, { color: string; bg: string }> = {
@@ -37,7 +38,7 @@ function formatDateTime(iso: string): string {
 }
 
 function isGreyedOut(status: string) {
-  return status === 'reschedule_patient_rejected' || status === 'rejected' || status === 'cancelled';
+  return status === 'reschedule_patient_rejected' || status === 'rejected' || status === 'cancelled' || status === 'finished';
 }
 
 function StatusStepper({ status }: { status: string }) {
@@ -51,6 +52,13 @@ function StatusStepper({ status }: { status: string }) {
   const currentIdx = isTerminal ? -1
     : ['pending_reschedule', 'reschedule_accepted'].includes(status) ? 2
     : STATUS_STEPS.indexOf(status);
+
+  if (status === 'finished') return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: '#F4F4F5', border: '1px solid #D4D4D8' }}>
+      <CheckCircle size={15} color="#71717A" />
+      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#71717A' }}>{t('req.statusCompleted')}</span>
+    </div>
+  );
 
   if (status === 'rejected') return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 8, background: '#FFEBEE', border: '1px solid rgba(198,40,40,0.25)' }}>

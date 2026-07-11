@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import Groq from 'groq-sdk';
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(request: Request) {
   try {
@@ -10,13 +13,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
     }
 
-    // For now, return a placeholder response
-    // In production, this would call a speech-to-text service like OpenAI Whisper, Google Speech-to-Text, etc.
-    // For now, we'll just return a mock response since we don't have a speech-to-text service configured
+    const transcription = await groq.audio.transcriptions.create({
+      file: audio,
+      model: 'whisper-large-v3',
+      language: lang,
+    });
     
     return NextResponse.json({ 
-      text: '[Voice transcription not configured - speech-to-text service needed]',
-      error: 'Speech-to-text service not configured'
+      text: transcription.text,
     });
   } catch (error) {
     console.error('Transcription error:', error);

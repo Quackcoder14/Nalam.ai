@@ -1244,13 +1244,20 @@ export default function ClinicianPortal() {
         </button>
         <button
           className="glass-button"
-          onClick={() => { setShowAppointments(p => !p); if (!showAppointments) fetchAppointments(); }}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: showAppointments ? 'var(--primary)' : 'var(--surface)', color: showAppointments ? 'white' : 'var(--primary)', fontSize: '0.8rem' }}
+          onClick={() => { setShowAppointments(p => !p); setSortApt('upcoming'); if (!showAppointments) fetchAppointments(); }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: showAppointments && sortApt !== 'past' ? 'var(--primary)' : 'var(--surface)', color: showAppointments && sortApt !== 'past' ? 'white' : 'var(--primary)', fontSize: '0.8rem' }}
         >
-          <Clock size={14} /> {showAppointments ? t('clinician.hideApts') : t('clinician.appointments')}
+          <Clock size={14} /> {showAppointments && sortApt !== 'past' ? t('clinician.hideApts') : t('clinician.appointments')}
           {appointments.length > 0 && !showAppointments && (
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-orange)' }} />
           )}
+        </button>
+        <button
+          className="glass-button"
+          onClick={() => { setShowAppointments(true); setSortApt('past'); fetchAppointments(); }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: showAppointments && sortApt === 'past' ? 'var(--primary)' : 'var(--surface)', color: showAppointments && sortApt === 'past' ? 'white' : 'var(--primary)', fontSize: '0.8rem' }}
+        >
+          <ClipboardList size={14} /> {t('clinician.pastAppointments')}
         </button>
         </div>
       </div>
