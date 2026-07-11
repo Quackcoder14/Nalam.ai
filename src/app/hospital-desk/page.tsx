@@ -12,6 +12,7 @@ interface OcrResult {
   rawText: string; medications: string[]; diagnoses: string[];
   labValues: Record<string, string>; structuredSummary: string;
   confidence: number; durationMs: number;
+  filename?: string; patientName?: string;
 }
 
 function timeAgo(iso: string) {
