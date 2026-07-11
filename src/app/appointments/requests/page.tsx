@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, AlertTriangle, CheckCircle, Clock, XCircle, ChevronRight, Activity, Paperclip, Trash2, RefreshCw, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, Calendar, AlertTriangle, CheckCircle, Clock, XCircle, ChevronRight, Activity, Paperclip, Trash2, RefreshCw, ArrowUpDown, ClipboardList } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import WhatsAppButton from '@/app/components/WhatsAppButton';
 import { apiFetch } from '@/lib/apiFetch';
