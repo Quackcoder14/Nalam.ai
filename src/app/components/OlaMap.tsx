@@ -5,7 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 const OLA_API_KEY = process.env.NEXT_PUBLIC_OLA_MAPS_API_KEY || '';
 const DEFAULT_CENTER: [number, number] = [80.2512, 13.0604]; // Chennai fallback
-type PlaceType = 'hospital' | 'pharmacy' | 'clinic' | 'doctor' | 'medical_store';
+type PlaceType = 'hospital' | 'pharmacy' | 'clinic' | 'doctor' | 'medical_store' | 'health';
 
 interface NearbyPlace {
   place_id: string;
