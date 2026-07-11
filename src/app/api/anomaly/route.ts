@@ -73,31 +73,50 @@ export async function POST(request: Request) {
 
     if (data.is_anomaly && (data.severity === 'critical' || data.severity === 'warning')) {
       try {
-        const existingAlert = await prisma.clinicalAlert.findFirst({
-          where: {
-            patient_id: patientId,
-            severity: data.severity,
-            title: dbTitle,
-            message: dbMessage,
-            is_read: false,
-          },
-          orderBy: { created_at: 'desc' },
-        });
+        // Resolve which hospitals this specific patient has consented to
+        const patient = await prisma.patient.findUnique({ where: { id: patientId } });
+        const hospitals: string[] = [];
+        if (patient?.consent_emergency) hospitals.push('Apollo Hospital');
+        if (patient?.consent_specialist) hospitals.push('Kauvery Hospital');
+        if (patient?.consent_research) hospitals.push('Govt Hospital');
+        const targetHospital = hospitals.length > 0 ? hospitals.join(',') : null;
 
-        if (existingAlert) {
-          alertForClient = existingAlert;
+        // If the patient has opted out of ALL hospitals, do NOT create any hospital-side alert.
+        // Still return the anomaly info to the patient's own dashboard.
+        if (targetHospital === null) {
+          // No alert to create — patient has opted out of all hospital notifications
         } else {
-          alertForClient = await prisma.clinicalAlert.create({
-            data: {
+          // Dedup: skip creating if an identical unread alert already exists for the same hospital set
+          const existingAlert = await prisma.clinicalAlert.findFirst({
+            where: {
               patient_id: patientId,
               severity: data.severity,
               title: dbTitle,
               message: dbMessage,
-              // @ts-ignore - broadcast field will exist after migration
-              broadcast: true, // Anomaly alerts should be broadcast to all hospitals
-            }
+              is_read: false,
+              // @ts-ignore
+              hospital: targetHospital,
+            },
+            orderBy: { created_at: 'desc' },
           });
-          alertCreated = true;
+
+          if (existingAlert) {
+            alertForClient = existingAlert;
+          } else {
+            alertForClient = await prisma.clinicalAlert.create({
+              data: {
+                patient_id: patientId,
+                severity: data.severity,
+                title: dbTitle,
+                message: dbMessage,
+                // @ts-ignore
+                hospital: targetHospital,
+                // @ts-ignore
+                broadcast: false, // Route specifically to consented hospitals only
+              }
+            });
+            alertCreated = true;
+          }
         }
 
         if (body.notifyNative === true && alertCreated) {

@@ -32,7 +32,7 @@ export async function GET(request: Request) {
         const isBroadcast = alert.broadcast;
         
         // Show alerts from this hospital OR broadcast alerts OR legacy alerts without hospital
-        return alertHospital === hospital || isBroadcast === true || alertHospital === null;
+        return (alertHospital && alertHospital.includes(hospital)) || isBroadcast === true || alertHospital === null;
       });
     }
 

@@ -131,6 +131,9 @@ export default function ViewRequests() {
   // Rejection modals
   const [rejectConfirmApt, setRejectConfirmApt]   = useState<any | null>(null);
   const [showContactModal, setShowContactModal]    = useState<any | null>(null);
+  
+  // Session data masking
+  const [showSessionData, setShowSessionData] = useState<Record<string, boolean>>({});
 
   const fetchAppointments = useCallback(async (forceRefetch = false) => {
     setLoading(true);
@@ -386,6 +389,65 @@ export default function ViewRequests() {
                             </span>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Session Data (Finished Appointments) */}
+                    {apt.status === 'finished' && (
+                      <div style={{ marginBottom: '1rem', padding: '1rem', borderRadius: 12, background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
+                        <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+                          <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--deep-blue)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <ClipboardList size={16} /> Consultation Details
+                          </h4>
+                          <button
+                            onClick={() => setShowSessionData(p => ({ ...p, [apt.id]: !p[apt.id] }))}
+                            className="glass-button" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                          >
+                            {showSessionData[apt.id] ? 'Hide Details' : 'View Details'}
+                          </button>
+                        </div>
+                        
+                        {showSessionData[apt.id] ? (
+                          <div className="fade-in" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {apt.sessionNotes && (
+                              <div>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Doctor Notes</div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.6, padding: '0.5rem', background: 'white', borderRadius: 6, border: '1px solid var(--border)' }}>{apt.sessionNotes}</div>
+                              </div>
+                            )}
+                            {apt.sessionPrescriptions && apt.sessionPrescriptions.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Prescriptions</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                  {apt.sessionPrescriptions.map((p: any, i: number) => (
+                                    <div key={i} style={{ padding: '0.4rem 0.6rem', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600 }}>
+                                      💊 {p.name} {p.dosage ? ` - ${p.dosage}` : ''}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {apt.sessionDocuments && apt.sessionDocuments.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Session Documents</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                  {apt.sessionDocuments.map((d: any, i: number) => (
+                                    <div key={i} style={{ padding: '0.4rem 0.6rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600 }}>
+                                      {d.type === 'image' ? '🖼' : '📄'} {d.name}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {!apt.sessionNotes && (!apt.sessionPrescriptions || apt.sessionPrescriptions.length === 0) && (!apt.sessionDocuments || apt.sessionDocuments.length === 0) && (
+                              <div style={{ fontSize: '0.85rem', color: 'var(--charcoal-light)', fontStyle: 'italic' }}>No session details recorded.</div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--charcoal-light)' }}>
+                            Contains sensitive consultation details. Click to view.
+                          </div>
+                        )}
                       </div>
                     )}
 

@@ -191,6 +191,11 @@ model Appointment {
   reschedule_reason_enc     String?   @db.Text
   reschedule_proposed_date  String?
   reschedule_proposed_time  String?
+  session_notes_enc         String?   @db.Text
+  session_prescriptions_enc String?   @db.Text
+  session_documents_enc     String?   @db.Text
+  session_started_at        DateTime?
+  finished_at               DateTime?
   created_at                DateTime  @default(now())
   approved_at               DateTime?
   scheduled_at              DateTime?

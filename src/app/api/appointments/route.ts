@@ -208,7 +208,10 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { id, status, hdeskNote, rescheduleDate, rescheduleTime, rescheduleReason } = body;
+    const { 
+      id, status, hdeskNote, rescheduleDate, rescheduleTime, rescheduleReason,
+      sessionNotes, sessionPrescriptions, sessionDocuments, sessionStartedAt
+    } = body;
 
     if (!id || !status) {
       return NextResponse.json({ error: 'id and status required' }, { status: 400 });
@@ -222,8 +225,13 @@ export async function PATCH(request: Request) {
 
     const updateData: Record<string, unknown> = { status };
     if (hdeskNote !== undefined) updateData.hdesk_note_enc = encrypt(hdeskNote);
+    if (sessionNotes !== undefined) updateData.session_notes_enc = encrypt(sessionNotes);
+    if (sessionPrescriptions !== undefined) updateData.session_prescriptions_enc = encrypt(JSON.stringify(sessionPrescriptions));
+    if (sessionDocuments !== undefined) updateData.session_documents_enc = encrypt(JSON.stringify(sessionDocuments));
+    if (sessionStartedAt !== undefined) updateData.session_started_at = new Date(sessionStartedAt);
     if (status === 'approved')  updateData.approved_at = new Date();
     if (status === 'scheduled') updateData.scheduled_at = new Date();
+    if (status === 'finished')  updateData.finished_at = new Date();
 
     if (status === 'pending_reschedule') {
       if (!rescheduleDate || !rescheduleTime || !rescheduleReason) {
@@ -335,13 +343,19 @@ export async function PATCH(request: Request) {
       include: { patient: true },
     });
 
-    // Notify patient when appointment is approved, scheduled, or rejected.
-    if (status === 'approved' || status === 'scheduled' || status === 'rejected') {
+    // Notify patient when appointment is approved, scheduled, rejected or finished.
+    if (status === 'approved' || status === 'scheduled' || status === 'rejected' || status === 'finished') {
       if (status === 'approved' || status === 'scheduled') {
         const label = status === 'approved' ? 'Approved ✅' : 'Scheduled 🗓️';
         sendPushToUser(row.patient_id, {
           title: `Appointment ${label}`,
           body: `Your appointment with ${row.doctor_name} on ${row.date}${row.time ? ` at ${row.time}` : ''} has been ${status}.`,
+          url: '/appointments/requests',
+        }).catch(() => {});
+      } else if (status === 'finished') {
+        sendPushToUser(row.patient_id, {
+          title: 'Appointment Finished ✅',
+          body: `Your appointment with ${row.doctor_name} on ${row.date} has finished. You can now view the session details.`,
           url: '/appointments/requests',
         }).catch(() => {});
       } else {
@@ -435,6 +449,11 @@ function mapRowToApt(row: Record<string, unknown> & {
     rescheduleProposedDate: row.reschedule_proposed_date,
     rescheduleProposedTime: row.reschedule_proposed_time,
     preRescheduleStatus: row.pre_reschedule_status,
+    sessionNotes: row.session_notes_enc ? decrypt(row.session_notes_enc as string) : '',
+    sessionPrescriptions: row.session_prescriptions_enc ? JSON.parse(decrypt(row.session_prescriptions_enc as string)) : [],
+    sessionDocuments: row.session_documents_enc ? JSON.parse(decrypt(row.session_documents_enc as string)) : [],
+    sessionStartedAt: row.session_started_at ? (row.session_started_at as Date).toISOString() : null,
+    finishedAt: row.finished_at ? (row.finished_at as Date).toISOString() : null,
     createdAt: (row.created_at as Date).toISOString(),
     approvedAt: row.approved_at ? (row.approved_at as Date).toISOString() : null,
     scheduledAt: row.scheduled_at ? (row.scheduled_at as Date).toISOString() : null,

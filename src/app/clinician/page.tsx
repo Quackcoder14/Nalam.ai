@@ -703,6 +703,9 @@ export default function ClinicianPortal() {
   const [aptProcessing, setAptProcessing]       = useState<string | null>(null);
   const [sortApt, setSortApt]                   = useState<'newest' | 'oldest' | 'upcoming' | 'past'>('newest');
 
+  // Session data masking
+  const [showSessionData, setShowSessionData] = useState<Record<string, boolean>>({});
+
   const [rescheduleApt, setRescheduleApt] = useState<any>(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
@@ -713,6 +716,16 @@ export default function ClinicianPortal() {
   const [showContextOtpModal, setShowContextOtpModal] = useState(false);
   const [pendingContextPatientId, setPendingContextPatientId] = useState('');
   const [savingSession, setSavingSession] = useState(false);
+
+  // Session Workspace State
+  const [beginAptId, setBeginAptId] = useState<string | null>(null);
+  const [activeSession, setActiveSession] = useState<any>(null);
+  const [sessionNotes, setSessionNotes] = useState('');
+  const [sessionPrescriptions, setSessionPrescriptions] = useState<any[]>([]);
+  const [attachNoteOpen, setAttachNoteOpen] = useState(false);
+  const [isRecordingNote, setIsRecordingNote] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const [recordingIndicator, setRecordingIndicator] = useState(false);
 
   // Intake State
   const [routedIntakes, setRoutedIntakes] = useState<any[]>([]);
@@ -913,7 +926,7 @@ export default function ClinicianPortal() {
     }
     
     setLoadingContext(true);
-    const clinicianName = role === 'emergency' ? 'Dr. Dhanush (ER Attending)' : role === 'research' ? 'BioPharm Research Lab' : 'Dr. Monissha (Cardiology)';
+    const clinicianName = doctorName || (role === 'emergency' ? 'ER Attending' : role === 'research' ? 'BioPharm Research Lab' : 'Specialist');
     
     try {
       // First validate patient exists
@@ -956,9 +969,17 @@ export default function ClinicianPortal() {
 
   const fetchContextData = async (targetPatientId: string) => {
     setShowContextOtpModal(false);
+    
+    // Check if this was triggered by Begin Appointment
+    if (beginAptId) {
+      const apt = appointments.find(a => a.id === beginAptId);
+      if (apt) setActiveSession(apt);
+      setBeginAptId(null);
+    }
+
     setLoadingContext(true);
     setPatientId(targetPatientId);
-    const clinicianName = role === 'emergency' ? 'Dr. Dhanush (ER Attending)' : role === 'research' ? 'BioPharm Research Lab' : 'Dr. Monissha (Cardiology)';
+    const clinicianName = doctorName || (role === 'emergency' ? 'ER Attending' : role === 'research' ? 'BioPharm Research Lab' : 'Specialist');
 
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${targetPatientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`);
@@ -987,6 +1008,33 @@ export default function ClinicianPortal() {
         method: 'POST',
         body: JSON.stringify({ patientId })
       });
+
+      // Save active session to appointment
+      if (activeSession) {
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            id: activeSession.id,
+            status: 'finished',
+            sessionNotes,
+            sessionPrescriptions,
+            sessionStartedAt: beginAptId ? new Date().toISOString() : null,
+          })
+        });
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || 'Failed to save session');
+        }
+        
+        setActiveSession(null);
+        setSessionNotes('');
+        setSessionPrescriptions([]);
+        setAttachNoteOpen(false);
+        setBeginAptId(null);
+        fetchAppointments();
+      }
+
       alert(t('clinician.sessionSaved'));
       setData(null);
       setPatientId('');
@@ -1000,7 +1048,8 @@ export default function ClinicianPortal() {
       setLoadingNav(false);
       clearChatbotContext();
     } catch (e) {
-      alert(t('clinician.sessionSaveFailed'));
+      console.error('Session save error:', e);
+      alert(t('clinician.sessionSaveFailed') + ': ' + (e instanceof Error ? e.message : 'Unknown error'));
     } finally {
       setSavingSession(false);
     }
@@ -1074,7 +1123,7 @@ export default function ClinicianPortal() {
     }
   };
 
-  const handlePrescriptionUpload = async (prescription: any) => {
+    const handlePrescriptionUpload = async (prescription: any) => {
     const { t } = useLanguage();
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/prescriptions`, {
@@ -1085,6 +1134,11 @@ export default function ClinicianPortal() {
         const error = await res.json();
         throw new Error(error.error || 'Failed to upload prescription');
       }
+      
+      if (activeSession) {
+        setSessionPrescriptions(prev => [...prev, prescription]);
+      }
+
       alert(t('clinician.prescriptionUploaded'));
       setShowPrescription(false);
     } catch (error) {
@@ -1100,7 +1154,7 @@ export default function ClinicianPortal() {
     // If language changes and we already have data loaded, auto-refetch the text-heavy AI calls
     if (data) {
       // Refetch the records timeline
-      const clinicianName = role === 'emergency' ? 'Dr. Dhanush (ER Attending)' : role === 'research' ? 'BioPharm Research Lab' : 'Dr. Monissha (Cardiology)';
+      const clinicianName = doctorName || (role === 'emergency' ? 'ER Attending' : role === 'research' ? 'BioPharm Research Lab' : 'Specialist');
       apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/clinician/request-context?id=${patientId}&contextType=${role}&clinician=${encodeURIComponent(clinicianName)}&lang=${lang}`)
         .then(r => r.json())
         .then(result => { if (result.data) setData(result.data); })
@@ -1383,14 +1437,81 @@ export default function ClinicianPortal() {
                         </div>
                       ) : (apt.status === 'approved' || apt.status === 'scheduled') && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+                          <button disabled={aptProcessing === apt.id} onClick={() => {
+                            setBeginAptId(apt.id);
+                            setPatientSearchInput(apt.patientId); // to trigger auto fetch
+                            setPendingContextPatientId(apt.patientId);
+                            setShowContextOtpModal(true);
+                          }} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: 'var(--primary)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(0,82,165,0.3)', width: '100%' }}>
+                            {t('apt.beginAppointment')}
+                          </button>
                           {apt.status === 'approved' && (
-                            <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'scheduled')} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: 'var(--accent-green)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 3px 10px rgba(34,197,94,0.3)', width: '100%' }}>
+                            <button disabled={aptProcessing === apt.id} onClick={() => handleAptAction(apt.id, 'scheduled')} style={{ padding: '0.6rem 1.25rem', borderRadius: 8, background: 'var(--accent-green)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', width: '100%' }}>
                               {aptProcessing === apt.id ? t('clinician.updating') : t('clinician.markScheduled')}
                             </button>
                           )}
                           <button disabled={aptProcessing === apt.id} onClick={() => { setRescheduleApt(apt); setRescheduleDate(''); setRescheduleTime(''); setRescheduleReason(''); }} style={{ padding: '0.5rem 1rem', borderRadius: 8, background: 'var(--surface-muted)', color: 'var(--charcoal)', border: '1px solid var(--border)', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', width: '100%' }}>
                             {t('clinician.proposeReschedule')}
                           </button>
+                        </div>
+                      )}
+
+                      {/* Session Data (Finished Appointments) */}
+                      {apt.status === 'finished' && (
+                        <div style={{ marginTop: '0.75rem', width: '100%', padding: '1rem', borderRadius: 12, background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
+                          <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+                            <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--deep-blue)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <ClipboardList size={16} /> Consultation Details
+                            </h4>
+                            <button
+                              onClick={() => setShowSessionData(p => ({ ...p, [apt.id]: !p[apt.id] }))}
+                              className="glass-button" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                            >
+                              {showSessionData[apt.id] ? 'Hide Details' : 'View Details'}
+                            </button>
+                          </div>
+                          
+                          {showSessionData[apt.id] ? (
+                            <div className="fade-in" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                              {apt.sessionNotes && (
+                                <div>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Doctor Notes</div>
+                                  <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.6, padding: '0.5rem', background: 'white', borderRadius: 6, border: '1px solid var(--border)' }}>{apt.sessionNotes}</div>
+                                </div>
+                              )}
+                              {apt.sessionPrescriptions && apt.sessionPrescriptions.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Prescriptions</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    {apt.sessionPrescriptions.map((p: any, i: number) => (
+                                      <div key={i} style={{ padding: '0.4rem 0.6rem', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600 }}>
+                                        💊 {p.name} {p.dosage ? ` - ${p.dosage}` : ''}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {apt.sessionDocuments && apt.sessionDocuments.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Session Documents</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    {apt.sessionDocuments.map((d: any, i: number) => (
+                                      <div key={i} style={{ padding: '0.4rem 0.6rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600 }}>
+                                        {d.type === 'image' ? '🖼' : '📄'} {d.name}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {!apt.sessionNotes && (!apt.sessionPrescriptions || apt.sessionPrescriptions.length === 0) && (!apt.sessionDocuments || apt.sessionDocuments.length === 0) && (
+                                <div style={{ fontSize: '0.85rem', color: 'var(--charcoal-light)', fontStyle: 'italic' }}>No session details recorded.</div>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--charcoal-light)' }}>
+                              Contains sensitive consultation details. Click to view.
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1480,7 +1601,7 @@ export default function ClinicianPortal() {
           patientId={patientId}
           patientName={data.patient.name}
           requestorId={doctorId}
-          requestorName={role === 'emergency' ? 'Dr. Dhanush (ER)' : 'Dr. Monissha (Cardiology)'}
+          requestorName={doctorName || (role === 'emergency' ? 'ER Attending' : 'Specialist')}
           onClose={() => setShowRecordsModal(false)}
         />
       )}
@@ -1488,7 +1609,7 @@ export default function ClinicianPortal() {
       {showContextOtpModal && (
         <ContextOtpModal
           patientId={pendingContextPatientId}
-          requestorName={role === 'emergency' ? 'Dr. Dhanush (ER)' : 'Dr. Monissha (Cardiology)'}
+          requestorName={doctorName || (role === 'emergency' ? 'ER Attending' : 'Specialist')}
           onClose={() => setShowContextOtpModal(false)}
           onSuccess={() => fetchContextData(pendingContextPatientId)}
         />
@@ -1579,6 +1700,77 @@ export default function ClinicianPortal() {
                 {t('clinician.viewPatientRecords')}
               </button>
 
+              {/* Active Session Workspace */}
+              {activeSession && (
+                <div style={{ marginTop: '1rem', padding: '1rem', background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', fontWeight: 800, marginBottom: '1rem' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444', animation: 'pulseGlow 2s infinite' }} />
+                    {t('apt.activeSession')} — {activeSession.patientName}
+                  </div>
+                  
+                  {/* Notes Field */}
+                  <div style={{ marginBottom: '1rem' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', display: 'block', marginBottom: '0.4rem', textTransform: 'uppercase' }}>{t('apt.sessionNotes')}</label>
+                    <div style={{ position: 'relative' }}>
+                      <textarea 
+                        value={sessionNotes}
+                        onChange={e => setSessionNotes(e.target.value)}
+                        placeholder={t('apt.noteModal.placeholder')}
+                        rows={4}
+                        style={{ width: '100%', padding: '0.75rem', paddingRight: '2.5rem', borderRadius: 8, border: '1px solid var(--border)', background: 'white', fontFamily: 'inherit', fontSize: '0.88rem', resize: 'vertical' }}
+                      />
+                      <button
+                        onClick={async () => {
+                          if (isRecordingNote) {
+                            mediaRecorderRef.current?.stop();
+                            setIsRecordingNote(false);
+                            setRecordingIndicator(false);
+                          } else {
+                            try {
+                              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                              const mr = new MediaRecorder(stream);
+                              const chunks: Blob[] = [];
+                              mr.ondataavailable = (e) => chunks.push(e.data);
+                              mr.onstop = async () => {
+                                const blob = new Blob(chunks, { type: 'audio/webm' });
+                                const formData = new FormData();
+                                formData.append('audio', blob, 'note.webm');
+                                formData.append('lang', lang);
+                                try {
+                                  const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
+                                  const data = await res.json();
+                                  if (data.text) {
+                                    setSessionNotes(prev => prev ? prev + ' ' + data.text : data.text);
+                                  }
+                                } catch {}
+                                stream.getTracks().forEach(t => t.stop());
+                                setRecordingIndicator(false);
+                              };
+                              mr.start();
+                              mediaRecorderRef.current = mr;
+                              setIsRecordingNote(true);
+                              setRecordingIndicator(true);
+                            } catch { alert('Microphone access denied.'); }
+                          }
+                        }}
+                        style={{
+                          position: 'absolute', right: '0.5rem', top: '0.5rem',
+                          background: isRecordingNote ? 'var(--accent-red)' : 'var(--surface-muted)',
+                          color: isRecordingNote ? 'white' : 'var(--primary)',
+                          border: 'none', borderRadius: '50%', width: 32, height: 32,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', transition: 'all 0.2s',
+                          animation: recordingIndicator ? 'pulseGlow 1.5s infinite' : 'none'
+                        }}
+                        title="Voice Input"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line></svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Prescription Section */}
               <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0' }}>
                 <button
@@ -1637,7 +1829,7 @@ export default function ClinicianPortal() {
                     fontFamily: 'inherit'
                   }}
                 >
-                  {savingSession ? t('clinician.saving') : t('clinician.saveCloseSession')}
+                  {savingSession ? t('apt.sessionSaving') : t('apt.saveCloseSession')}
                 </button>
               </div>
             </div>

@@ -97,7 +97,16 @@ export default function IntakeModal({ intakeId, patientId, lang = 'en', onClose,
           const data = await res.json();
           const text = data.text || '';
           if (step === 0) setSymptoms(prev => prev ? prev + ' ' + text : text);
-          else if (currentQ) setAnswers(prev => ({ ...prev, [currentQ.id]: text }));
+          else if (currentQ) {
+            setAnswers(prev => {
+              const currentAns = prev[currentQ.id];
+              if (currentQ.type === 'choice' && (currentAns === 'Other' || currentAns === 'பிற' || (currentQ.id === 'current_meds' && currentAns && (currentAns.startsWith('Yes') || currentAns.startsWith('ஆம்'))))) {
+                setOtherText(o => ({ ...o, [currentQ.id]: ((o[currentQ.id] || '') + ' ' + text).trim() }));
+                return prev;
+              }
+              return { ...prev, [currentQ.id]: text };
+            });
+          }
         } catch {}
         stream.getTracks().forEach(t => t.stop());
       };
@@ -120,8 +129,8 @@ export default function IntakeModal({ intakeId, patientId, lang = 'en', onClose,
     const fullQuestionnaire: Record<string, string> = {};
     INTAKE_QUESTIONS.forEach(q => {
       const ans = answers[q.id];
-      if (ans === 'Other' || ans === 'பிற') {
-        fullQuestionnaire[q.question] = otherText[q.id] || 'Other';
+      if (ans === 'Other' || ans === 'பிற' || (q.id === 'current_meds' && ans && (ans.startsWith('Yes') || ans.startsWith('ஆம்')))) {
+        fullQuestionnaire[q.question] = `${ans}: ${otherText[q.id] || 'Other'}`;
       } else {
         fullQuestionnaire[q.question] = ans || 'Not answered';
       }
@@ -147,7 +156,7 @@ export default function IntakeModal({ intakeId, patientId, lang = 'en', onClose,
     if (currentQ) {
       const ans = answers[currentQ.id];
       if (!ans) return false;
-      if ((ans === 'Other' || ans === 'பிற') && !otherText[currentQ.id]?.trim()) return false;
+      if ((ans === 'Other' || ans === 'பிற' || (currentQ.id === 'current_meds' && (ans.startsWith('Yes') || ans.startsWith('ஆம்')))) && !otherText[currentQ.id]?.trim()) return false;
       return true;
     }
     return true;
@@ -262,7 +271,7 @@ export default function IntakeModal({ intakeId, patientId, lang = 'en', onClose,
                 {(isTa ? currentQ.optionsTa! : currentQ.options).map((opt, i) => {
                   const val = currentQ.options![i];
                   const isSelected = answers[currentQ.id] === val;
-                  const isOther = val === 'Other';
+                  const isOther = val === 'Other' || val === 'பிற' || (currentQ.id === 'current_meds' && (val.startsWith('Yes') || val.startsWith('ஆம்')));
                   return (
                     <div key={i}>
                       <button
@@ -273,13 +282,45 @@ export default function IntakeModal({ intakeId, patientId, lang = 'en', onClose,
                         {isSelected && <CheckCircle size={16} />}
                       </button>
                       {isSelected && isOther && (
-                        <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
-                          <input
-                            value={otherText[currentQ.id] || ''}
-                            onChange={e => setOtherText(p => ({ ...p, [currentQ.id]: e.target.value }))}
-                            placeholder={isTa ? 'குறிப்பிடவும்...' : 'Please specify...'}
-                            style={{ flex: 1, ...inputStyle }}
-                          />
+                        <div style={{ marginTop: '0.5rem', background: 'var(--surface)', padding: '0.75rem', borderRadius: 10, border: '1px solid var(--border)' }}>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--foreground)', marginBottom: '0.5rem', fontWeight: 600 }}>
+                            {currentQ.id === 'current_meds' ? (isTa ? 'எந்த மருந்து?' : 'Which medicine?') : (isTa ? 'தயவுசெய்து குறிப்பிடவும்:' : 'Please specify:')}
+                          </p>
+                          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                            <button onClick={() => setInputMode('text')} style={modeBtn(inputMode === 'text')}><Keyboard size={12} />{isTa ? 'தட்டச்சு' : 'Type'}</button>
+                            <button onClick={() => setInputMode('voice')} style={modeBtn(inputMode === 'voice')}><Volume2 size={12} />{isTa ? 'குரல்' : 'Voice'}</button>
+                          </div>
+                          
+                          {inputMode === 'text' ? (
+                            <input
+                              value={otherText[currentQ.id] || ''}
+                              onChange={e => setOtherText(p => ({ ...p, [currentQ.id]: e.target.value }))}
+                              placeholder={isTa ? 'இங்கே தட்டச்சு செய்யவும்...' : 'Type here...'}
+                              style={{ ...inputStyle, background: 'var(--surface-muted)' }}
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'var(--surface-muted)', padding: '0.5rem', borderRadius: 8 }}>
+                              <button
+                                onClick={recording ? stopRecording : startRecording}
+                                style={{
+                                  width: 40, height: 40, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                                  background: recording ? 'var(--accent-red)' : 'var(--primary)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                  animation: recording ? 'pulseGlow 1.5s infinite' : 'none',
+                                }}
+                              >
+                                {recording ? <MicOff size={18} color="white" /> : <Mic size={18} color="white" />}
+                              </button>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)', margin: '0 0 0.2rem 0' }}>
+                                  {recording ? (isTa ? 'பேசுங்கள்...' : 'Speaking...') : (isTa ? 'தட்டி பதிவு செய்யவும்' : 'Tap to record')}
+                                </p>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {otherText[currentQ.id] || (isTa ? 'எதுவும் பதிவாகவில்லை' : 'No input yet')}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -346,7 +387,7 @@ export default function IntakeModal({ intakeId, patientId, lang = 'en', onClose,
 
             {INTAKE_QUESTIONS.map(q => {
               const ans = answers[q.id];
-              const displayAns = (ans === 'Other' || ans === 'பிற') ? (otherText[q.id] || 'Other') : (ans || '—');
+              const displayAns = (ans === 'Other' || ans === 'பிற' || (q.id === 'current_meds' && ans && (ans.startsWith('Yes') || ans.startsWith('ஆம்')))) ? `${ans} - ${otherText[q.id] || 'Other'}` : (ans || '—');
               return (
                 <div key={q.id} style={{ background: 'var(--surface-muted)', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '0.5rem' }}>
                   <p style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--foreground-subtle)', marginBottom: '0.2rem' }}>

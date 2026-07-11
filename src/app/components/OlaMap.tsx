@@ -5,7 +5,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 const OLA_API_KEY = process.env.NEXT_PUBLIC_OLA_MAPS_API_KEY || '';
 const DEFAULT_CENTER: [number, number] = [80.2512, 13.0604]; // Chennai fallback
-type PlaceType = 'hospital' | 'pharmacy' | 'clinic' | 'doctor' | 'health' | 'medical_store';
+type PlaceType = 'hospital' | 'pharmacy';
 
 interface NearbyPlace {
   place_id: string;
@@ -55,7 +55,7 @@ async function fetchNearby(lat: number, lng: number, type: PlaceType): Promise<N
       searchData.predictions.slice(0, 30).map(async (p: any) => {
         try {
           const predLoc = p.geometry?.location;
-          if (predLoc?.lat && predLoc?.lng) {
+          if (predLoc?.lat != null && predLoc?.lng != null) {
             return {
               place_id: p.place_id,
               name: p.structured_formatting?.main_text || p.name || 'Unknown',
@@ -266,16 +266,12 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
     originEl.style.cssText = `width:18px;height:18px;border-radius:50%;background:#0052A5;border:3px solid white;box-shadow:0 0 0 5px rgba(0,82,165,0.2);flex-shrink:0;`;
     originMarkerRef.current = new Marker({ element: originEl }).setLngLat([lng, lat]).addTo(mapRef.current);
 
-    const [hospitals, pharmacies, clinics, doctors, health, medicalStores] = await Promise.all([
+    const [hospitals, pharmacies] = await Promise.all([
       fetchNearby(lat, lng, 'hospital'),
       fetchNearby(lat, lng, 'pharmacy'),
-      fetchNearby(lat, lng, 'clinic'),
-      fetchNearby(lat, lng, 'doctor'),
-      fetchNearby(lat, lng, 'health'),
-      fetchNearby(lat, lng, 'medical_store'),
     ]);
 
-    const allPlaces = dedupePlaces([...hospitals, ...pharmacies, ...clinics, ...doctors, ...health, ...medicalStores]);
+    const allPlaces = dedupePlaces([...hospitals, ...pharmacies]);
     placesRef.current = allPlaces;
     setLocationLabel(label);
     renderMarkers(mapRef.current, allPlaces, filter, Marker, setSelectedPlace);

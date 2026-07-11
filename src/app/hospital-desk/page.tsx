@@ -125,9 +125,13 @@ export default function HospitalDeskPage() {
   const [scanEmergencyVisit, setScanEmergencyVisit] = useState(false);
   const [scanDiagnosis, setScanDiagnosis] = useState('');
   const [scanLabResults, setScanLabResults] = useState('');
+  const [scanAptId, setScanAptId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const TIMELINE_LIMIT = parseInt(process.env.NEXT_PUBLIC_TIMELINE_LIMIT || '10', 10);
+  
+  // Session data masking
+  const [showSessionData, setShowSessionData] = useState<Record<string, boolean>>({});
 
   const fetchAlerts = useCallback(async () => {
     try {
@@ -431,6 +435,25 @@ export default function HospitalDeskPage() {
       if (data.success) {
         setImported(true);
         await loadPatient();
+
+        if (scanAptId && result) {
+          try {
+            const apt = appointments.find(a => a.id === scanAptId);
+            const existingDocs = apt?.sessionDocuments || [];
+            await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/appointments`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                id: scanAptId,
+                status: apt?.status || 'approved',
+                sessionDocuments: [...existingDocs, { name: result.filename || file?.name || 'Scan', type: 'document', url: preview, date: new Date().toISOString() }],
+              })
+            });
+          } catch (e) {
+            console.error('Failed to link document to appointment', e);
+          }
+          setScanAptId(null);
+        }
+
         // Also save the scanned document to the patient's records gallery
         if (preview) {
           await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/patient/files`, {
@@ -881,6 +904,66 @@ export default function HospitalDeskPage() {
                       {apt.attachments?.length > 0 && (
                         <div style={{ marginBottom: '0.75rem' }}><div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: 4 }}>{t('hdesk.attachments')}</div><div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>{apt.attachments.map((a:any, i:number) => <span key={i} style={{ padding: '0.2rem 0.6rem', borderRadius: 8, background: 'var(--surface-muted)', border: '1px solid var(--border)', fontSize: '0.78rem' }}>{a.type === 'image' ? '🖼' : '📄'} {a.name}</span>)}</div></div>
                       )}
+
+                      {/* Session Data (Finished Appointments) */}
+                      {apt.status === 'finished' && (
+                        <div style={{ marginBottom: '1rem', padding: '1rem', borderRadius: 12, background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
+                          <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
+                            <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--deep-blue)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <ClipboardList size={16} /> Consultation Details
+                            </h4>
+                            <button
+                              onClick={() => setShowSessionData(p => ({ ...p, [apt.id]: !p[apt.id] }))}
+                              className="glass-button" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
+                            >
+                              {showSessionData[apt.id] ? 'Hide Details' : 'View Details'}
+                            </button>
+                          </div>
+                          
+                          {showSessionData[apt.id] ? (
+                            <div className="fade-in" style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                              {apt.sessionNotes && (
+                                <div>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Doctor Notes</div>
+                                  <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.6, padding: '0.5rem', background: 'white', borderRadius: 6, border: '1px solid var(--border)' }}>{apt.sessionNotes}</div>
+                                </div>
+                              )}
+                              {apt.sessionPrescriptions && apt.sessionPrescriptions.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Prescriptions</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    {apt.sessionPrescriptions.map((p: any, i: number) => (
+                                      <div key={i} style={{ padding: '0.4rem 0.6rem', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600 }}>
+                                        💊 {p.name} {p.dosage ? ` - ${p.dosage}` : ''}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {apt.sessionDocuments && apt.sessionDocuments.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--charcoal)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Session Documents</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    {apt.sessionDocuments.map((d: any, i: number) => (
+                                      <div key={i} style={{ padding: '0.4rem 0.6rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600 }}>
+                                        {d.type === 'image' ? '🖼' : '📄'} {d.name}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {!apt.sessionNotes && (!apt.sessionPrescriptions || apt.sessionPrescriptions.length === 0) && (!apt.sessionDocuments || apt.sessionDocuments.length === 0) && (
+                                <div style={{ fontSize: '0.85rem', color: 'var(--charcoal-light)', fontStyle: 'italic' }}>No session details recorded.</div>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--charcoal-light)' }}>
+                              Contains sensitive consultation details. Click to view.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {apt.status === 'pending' && (
                         <>
                           <div style={{ marginBottom: '0.75rem' }}>
@@ -896,6 +979,18 @@ export default function HospitalDeskPage() {
                             </button>
                           </div>
                         </>
+                      )}
+                      {apt.status !== 'pending' && apt.status !== 'rejected' && apt.status !== 'cancelled' && (
+                        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+                          <button disabled={aptProcessing === apt.id} onClick={() => {
+                            setPatientId(apt.patientId);
+                            setScanAptId(apt.id);
+                            setActiveTab('scanner');
+                            setShowContextOtp(true);
+                          }} style={{ padding: '0.5rem 1rem', borderRadius: 8, background: 'var(--surface-muted)', color: 'var(--charcoal)', border: '1px solid var(--border)', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <ScanLine size={14} /> {t('apt.attachDocument')}
+                          </button>
+                        </div>
                       )}
                       {apt.status === 'pending_reschedule' && (
                         <div style={{ marginBottom: '0.75rem', padding: '1rem', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 8 }}>
