@@ -76,9 +76,9 @@ export async function POST(request: Request) {
         // Resolve which hospitals this specific patient has consented to
         const patient = await prisma.patient.findUnique({ where: { id: patientId } });
         const hospitals: string[] = [];
-        if (patient?.consent_emergency) hospitals.push('Apollo Hospital');
-        if (patient?.consent_specialist) hospitals.push('Kauvery Hospital');
-        if (patient?.consent_research) hospitals.push('Govt Hospital');
+        if (patient?.consent_emergency === true) hospitals.push('Apollo Hospital');
+        if (patient?.consent_specialist === true) hospitals.push('Kauvery Hospital');
+        if (patient?.consent_research === true) hospitals.push('Govt Hospital');
         const targetHospital = hospitals.length > 0 ? hospitals.join(',') : null;
 
         // If the patient has opted out of ALL hospitals, do NOT create any hospital-side alert.
