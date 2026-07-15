@@ -877,7 +877,6 @@ const translations: Record<Lang, Record<string, string>> = {
     'nav.doctorsCalendar': 'மருத்துவர் நாட்காட்டி',
     'nav.addPatient': 'நோயாளி சேர்',
     'nav.addDoctor': 'மருத்துவர் சேர்',
-    'nav.familyMembers': 'குடும்ப உறுப்பினர்கள்',
 
     // ── Family Dashboard (all strings) ──────────────────────────────────
     'family.myFamily': 'என் குடும்பம்',
