@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Clock, Trash2, RefreshCw, Bell } from 'lucide-react';
+import { X, Clock, Trash2, RefreshCw, Bell, Shield } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { apiFetch } from '@/lib/apiFetch';
 
@@ -185,7 +185,25 @@ export default function PastNotifications({ isOpen, onClose, patientId, isHospit
                               {alert.title}
                             </div>
                             <div style={{ fontSize: '0.85rem', color: 'var(--foreground)', lineHeight: 1.5, marginBottom: '0.5rem' }}>
-                              {alert.message}
+                              {alert.severity === 'family_link_request' ? (() => {
+                                try {
+                                  const parsed = JSON.parse(alert.message);
+                                  return (
+                                    <div>
+                                      <div style={{ marginBottom: '0.75rem', lineHeight: 1.6 }}>
+                                        {(parsed.text || alert.message).replace(/\*\*/g, '')}
+                                      </div>
+                                      {parsed.inviteCode && (
+                                        <div style={{ background: '#0052A5', borderRadius: 12, padding: '0.65rem 1rem', textAlign: 'center' }}>
+                                          <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.75)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.2rem' }}>One-Time Access Code</div>
+                                          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'white', letterSpacing: '0.35em', fontFamily: 'monospace' }}>{parsed.inviteCode}</div>
+                                          <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.65)', marginTop: '0.2rem' }}>Share this with the family member</div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                } catch { return alert.message; }
+                              })() : alert.message}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--foreground-muted)' }}>
                               <Clock size={12} />

@@ -261,7 +261,12 @@ export default function FamilyDashboard() {
                         <span style={{ fontSize: '0.72rem', color: 'var(--charcoal)' }}>{new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                       <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.15rem' }}>{a.title}</div>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', lineHeight: 1.5, margin: 0 }}>{a.message}</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', lineHeight: 1.5, margin: 0 }}>
+                        {a.severity === 'family_link_request' ? (() => {
+                          try { const p = JSON.parse(a.message); return (p.text || a.message).replace(/\*\*/g, ''); } catch { return a.message; }
+                        })() : a.message}
+                      </p>
+
                     </div>
                   </div>
                 );
