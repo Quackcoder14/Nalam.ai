@@ -33,6 +33,11 @@ export default function FamilyDashboard() {
   const [addError, setAddError] = useState<string | null>(null);
   const [addLoading, setAddLoading] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
+  const [pendingLinkId, setPendingLinkId] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpSuccess, setOtpSuccess] = useState(false);
 
   const router = useRouter();
   const { t, lang } = useLanguage();
@@ -87,6 +92,7 @@ export default function FamilyDashboard() {
         setAddError(data.error || 'Failed to add patient');
       } else {
         setAddSuccess(true);
+        setPendingLinkId(data.linkId);
         loadData();
       }
     } catch {
@@ -96,6 +102,22 @@ export default function FamilyDashboard() {
     }
   };
 
+  const handleVerifyOtp = async (linkId: string) => {
+    if (otpCode.trim().length !== 6) { setOtpError('Enter the 6-digit code'); return; }
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const res = await apiFetch('/api/patient/family-links', {
+        method: 'PATCH',
+        body: JSON.stringify({ linkId, action: 'approve_by_code', inviteCode: otpCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setOtpError(data.error || 'Invalid code'); }
+      else { setOtpSuccess(true); loadData(true); }
+    } catch { setOtpError('Network error'); }
+    finally { setOtpLoading(false); }
+  };
+
   const closeAddModal = () => {
     setShowAddModal(false);
     setAddSuccess(false);
@@ -103,6 +125,10 @@ export default function FamilyDashboard() {
     setNewPatientId('');
     setNewNickname('');
     setNewRelation('');
+    setPendingLinkId(null);
+    setOtpCode('');
+    setOtpError(null);
+    setOtpSuccess(false);
   };
 
   const getStatusColor = (patient: any) => {
@@ -341,13 +367,50 @@ export default function FamilyDashboard() {
             </div>
 
             {addSuccess ? (
-              <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-                <CheckCircle size={48} color="#059669" style={{ margin: '0 auto 1rem' }} />
-                <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.5rem' }}>Request Sent!</h4>
-                <p style={{ fontSize: '0.9rem', color: 'var(--charcoal)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                  A one-time code has been sent to the patient's notification panel. Ask them to enter the 6-digit code shown in their dashboard notifications to approve your request.
-                </p>
-                <button onClick={closeAddModal} style={{ padding: '0.75rem 2rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem' }}>Done</button>
+              <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                {otpSuccess ? (
+                  <>
+                    <CheckCircle size={48} color="#059669" style={{ margin: '0 auto 1rem' }} />
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.5rem' }}>Access Granted! 🎉</h4>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--charcoal)', marginBottom: '1.5rem' }}>You now have full access to this patient's health data.</p>
+                    <button onClick={closeAddModal} style={{ padding: '0.75rem 2rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem' }}>Done</button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                      <Shield size={28} color="#0052A5" />
+                    </div>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.5rem' }}>Request Sent!</h4>
+                    <p style={{ fontSize: '0.88rem', color: 'var(--charcoal)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+                      Ask the patient to check their <strong>Notifications</strong> in their dashboard — they will see a 6-digit code. Enter it below to activate access.
+                    </p>
+                    <div style={{ background: 'var(--surface-muted)', borderRadius: 16, padding: '1.25rem', marginBottom: '1rem', textAlign: 'left' }}>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Enter 6-Digit Code</label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="● ● ● ● ● ●"
+                        style={{
+                          width: '100%', padding: '1rem', border: `2px solid ${otpError ? '#FECACA' : 'var(--border)'}`,
+                          borderRadius: 12, fontSize: '1.6rem', fontWeight: 800, textAlign: 'center',
+                          letterSpacing: '0.4em', background: 'var(--surface)', color: 'var(--foreground)',
+                          boxSizing: 'border-box', fontFamily: 'monospace',
+                        }}
+                      />
+                      {otpError && <div style={{ marginTop: '0.5rem', fontSize: '0.82rem', color: '#B91C1C', fontWeight: 600 }}>⚠️ {otpError}</div>}
+                    </div>
+                    <button
+                      onClick={() => pendingLinkId && handleVerifyOtp(pendingLinkId)}
+                      disabled={otpLoading || otpCode.length !== 6}
+                      style={{ width: '100%', padding: '1rem', background: otpCode.length === 6 ? 'linear-gradient(135deg, #059669, #10B981)' : 'var(--surface-muted)', color: otpCode.length === 6 ? 'white' : 'var(--charcoal)', border: 'none', borderRadius: 12, fontSize: '1rem', fontWeight: 700, cursor: otpCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}
+                    >
+                      {otpLoading ? 'Verifying...' : 'Confirm Access'}
+                    </button>
+                    <button onClick={closeAddModal} style={{ marginTop: '0.75rem', width: '100%', padding: '0.75rem', background: 'none', border: '1px solid var(--border)', borderRadius: 12, fontSize: '0.9rem', fontWeight: 600, color: 'var(--charcoal)', cursor: 'pointer' }}>Do it later</button>
+                  </>
+                )}
               </div>
             ) : (
               <>

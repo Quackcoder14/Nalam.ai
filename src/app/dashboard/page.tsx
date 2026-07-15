@@ -1194,6 +1194,19 @@ export default function PatientDashboard() {
                         >
                           {alert.message}
                         </div>
+                        {alert.severity === 'family_link_request' && (() => {
+                          try {
+                            const meta = typeof alert.meta === 'string' ? JSON.parse(alert.meta) : alert.meta;
+                            if (meta?.inviteCode) return (
+                              <div style={{ marginTop: '0.75rem', background: '#0052A5', borderRadius: 12, padding: '0.75rem 1rem', textAlign: 'center' }}>
+                                <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.75)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.3rem' }}>Your One-Time Code</div>
+                                <div style={{ fontSize: '2rem', fontWeight: 900, color: 'white', letterSpacing: '0.35em', fontFamily: 'monospace' }}>{meta.inviteCode}</div>
+                                <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)', marginTop: '0.3rem' }}>Share this with the family member requesting access</div>
+                              </div>
+                            );
+                          } catch {}
+                          return null;
+                        })()}
                       </div>
                       <button
                         onClick={async (event) => {

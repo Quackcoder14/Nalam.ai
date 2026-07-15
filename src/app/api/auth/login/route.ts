@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/prisma';
@@ -14,33 +15,33 @@ const CREDENTIALS: Record<string, {
   branch?: string;
   clinicianRole?: string;
 }> = {
-  'karthik@nalam.ai':  { password: '123', role: 'patient',   staffId: 'P001',              name: 'Karthik' },
+  'karthik@nalam.ai': { password: '123', role: 'patient', staffId: 'P001', name: 'Karthik' },
   // More patients
-  'priya@nalam.ai':    { password: '123', role: 'patient',   staffId: 'P002',              name: 'Priya Sharma' },
-  'ramesh@nalam.ai':   { password: '123', role: 'patient',   staffId: 'P003',              name: 'Ramesh Kumar' },
-  'anitha@nalam.ai':   { password: '123', role: 'patient',   staffId: 'P004',              name: 'Anitha Devi' },
-  'suresh@nalam.ai':   { password: '123', role: 'patient',   staffId: 'P005',              name: 'Suresh Babu' },
-  'divya@nalam.ai':    { password: '123', role: 'patient',   staffId: 'P006',              name: 'Divya Lakshmi' },
-  'vijay@nalam.ai':    { password: '123', role: 'patient',   staffId: 'P007',              name: 'Vijay Kumar' },
-  'kavitha@nalam.ai':  { password: '123', role: 'patient',   staffId: 'P008',              name: 'Kavitha Rajan' },
-  'arun@nalam.ai':     { password: '123', role: 'patient',   staffId: 'P009',              name: 'Arun Prakash' },
-  'meena@nalam.ai':    { password: '123', role: 'patient',   staffId: 'P010',              name: 'Meena Sundaram' },
-  'monissha@nalam.ai': { password: '123', role: 'clinician',  staffId: 'dr_monissha', clinicianRole: 'specialist', name: 'Dr. Monissha' },
-  'dhanush@nalam.ai':  { password: '123', role: 'clinician',  staffId: 'dr_dhanush',  clinicianRole: 'emergency', name: 'Dr. Dhanush' },
+  'priya@nalam.ai': { password: '123', role: 'patient', staffId: 'P002', name: 'Priya Sharma' },
+  'ramesh@nalam.ai': { password: '123', role: 'patient', staffId: 'P003', name: 'Ramesh Kumar' },
+  'anitha@nalam.ai': { password: '123', role: 'patient', staffId: 'P004', name: 'Anitha Devi' },
+  'suresh@nalam.ai': { password: '123', role: 'patient', staffId: 'P005', name: 'Suresh Babu' },
+  'divya@nalam.ai': { password: '123', role: 'patient', staffId: 'P006', name: 'Divya Lakshmi' },
+  'vijay@nalam.ai': { password: '123', role: 'patient', staffId: 'P007', name: 'Vijay Kumar' },
+  'kavitha@nalam.ai': { password: '123', role: 'patient', staffId: 'P008', name: 'Kavitha Rajan' },
+  'arun@nalam.ai': { password: '123', role: 'patient', staffId: 'P009', name: 'Arun Prakash' },
+  'meena@nalam.ai': { password: '123', role: 'patient', staffId: 'P010', name: 'Meena Sundaram' },
+  'monissha@nalam.ai': { password: '123', role: 'clinician', staffId: 'dr_monissha', clinicianRole: 'specialist', name: 'Dr. Monissha' },
+  'dhanush@nalam.ai': { password: '123', role: 'clinician', staffId: 'dr_dhanush', clinicianRole: 'emergency', name: 'Dr. Dhanush' },
   // Apollo Hospital doctors
-  'dr.arun@nalam.ai':     { password: '123', role: 'clinician',  staffId: 'dr_arun',     clinicianRole: 'specialist', name: 'Dr. Arun' },
-  'dr.kavitha@nalam.ai':  { password: '123', role: 'clinician',  staffId: 'dr_kavitha',  clinicianRole: 'specialist', name: 'Dr. Kavitha' },
-  'dr.suresh@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_suresh',   clinicianRole: 'specialist', name: 'Dr. Suresh' },
+  'dr.arun@nalam.ai': { password: '123', role: 'clinician', staffId: 'dr_arun', clinicianRole: 'specialist', name: 'Dr. Arun' },
+  'dr.kavitha@nalam.ai': { password: '123', role: 'clinician', staffId: 'dr_kavitha', clinicianRole: 'specialist', name: 'Dr. Kavitha' },
+  'dr.suresh@nalam.ai': { password: '123', role: 'clinician', staffId: 'dr_suresh', clinicianRole: 'specialist', name: 'Dr. Suresh' },
   // Kauvery Hospital doctors
-  'dr.venkat@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_venkat',   clinicianRole: 'specialist', name: 'Dr. Venkat' },
-  'dr.priya@nalam.ai':    { password: '123', role: 'clinician',  staffId: 'dr_priya',    clinicianRole: 'specialist', name: 'Dr. Priya' },
-  'dr.ramesh@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_ramesh',   clinicianRole: 'specialist', name: 'Dr. Ramesh' },
+  'dr.venkat@nalam.ai': { password: '123', role: 'clinician', staffId: 'dr_venkat', clinicianRole: 'specialist', name: 'Dr. Venkat' },
+  'dr.priya@nalam.ai': { password: '123', role: 'clinician', staffId: 'dr_priya', clinicianRole: 'specialist', name: 'Dr. Priya' },
+  'dr.ramesh@nalam.ai': { password: '123', role: 'clinician', staffId: 'dr_ramesh', clinicianRole: 'specialist', name: 'Dr. Ramesh' },
   // Govt Hospital doctors
-  'dr.anita@nalam.ai':    { password: '123', role: 'clinician',  staffId: 'dr_anita',    clinicianRole: 'specialist', name: 'Dr. Anita' },
+  'dr.anita@nalam.ai': { password: '123', role: 'clinician', staffId: 'dr_anita', clinicianRole: 'specialist', name: 'Dr. Anita' },
   // Hospital desk logins (username + staff ID + password)
-  'apollo@nalam.ai':   { password: '123', role: 'hdesk', staffId: '', branch: 'Apollo Hospital', name: 'Apollo Hospital Staff' },
-  'kauvery@nalam.ai':  { password: '123', role: 'hdesk', staffId: '', branch: 'Kauvery Hospital', name: 'Kauvery Hospital Staff' },
-  'govt@nalam.ai':     { password: '123', role: 'hdesk', staffId: '', branch: 'Govt Hospital', name: 'Govt Hospital Staff' },
+  'apollo@nalam.ai': { password: '123', role: 'hdesk', staffId: '', branch: 'Apollo Hospital', name: 'Apollo Hospital Staff' },
+  'kauvery@nalam.ai': { password: '123', role: 'hdesk', staffId: '', branch: 'Kauvery Hospital', name: 'Kauvery Hospital Staff' },
+  'govt@nalam.ai': { password: '123', role: 'hdesk', staffId: '', branch: 'Govt Hospital', name: 'Govt Hospital Staff' },
 };
 
 // Staff IDs allowed for each hospital username
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
     const { username, password, hdeskStaffId } = await request.json();
     const uname = (username ?? '').toLowerCase().trim();
     const cred = CREDENTIALS[uname];
-    
+
     let resolvedRole: 'patient' | 'clinician' | 'hdesk' | 'family' | null = null;
     let resolvedStaffId = '';
     let branch = undefined;
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     // Handle hospital desk login with username, staff ID, and password
     if (hdeskStaffId && password) {
       const hdeskStaffIdUpper = hdeskStaffId.toUpperCase().trim();
-      
+
       // Check if the username exists in credentials and is a hospital desk login
       if (CREDENTIALS[uname] && CREDENTIALS[uname].role === 'hdesk') {
         // Validate password and check if staff ID is allowed for this username
@@ -123,7 +124,7 @@ export async function POST(request: Request) {
       role: resolvedRole,
       staffId: resolvedStaffId,
       ...(resolvedRole === 'family' ? { familyId: resolvedStaffId } : {}),
-      ...(branch        ? { branch }              : {}),
+      ...(branch ? { branch } : {}),
       ...(clinicianRole ? { clinicianRole } : {}),
     }, JWT_SECRET, { expiresIn: '30d' });
 
