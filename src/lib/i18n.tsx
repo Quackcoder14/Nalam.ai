@@ -76,11 +76,6 @@ const translations: Record<Lang, Record<string, string>> = {
     'nav.addDoctor': 'Add Doctor',
     'nav.familyMembers': 'Family Members',
 
-    // ── Family Dashboard ──────────────────────────────────────────────────
-    'family.myFamily': 'My Family',
-    'family.members': 'Family Members',
-    'family.noMembers': 'No family members yet',
-    'family.addMember': 'Add Member',
 
     // ── Patient Dashboard ─────────────────────────────────────────────────
     'dashboard.loading': 'Loading your Health Vault...',
