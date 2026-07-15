@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Heart, LogOut, LayoutDashboard, Stethoscope,
   Search, Moon, Sun, Menu, X, Brain, Calendar,
-  MessageSquare, Building2, Globe, Shield, Network, UserPlus, ClipboardPlus, FolderOpen, CalendarDays, Bell
+  MessageSquare, Building2, Globe, Shield, Network, UserPlus, ClipboardPlus, FolderOpen, CalendarDays, Bell, Users
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -226,6 +226,9 @@ export default function ClientNav() {
                 </button>
                 <button className="drawer-item" onClick={() => { setDrawerOpen(false); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('openPastNotifications')); }}>
                   <Bell size={18} /> {t('nav.pastNotifications')}
+                </button>
+                <button className={`drawer-item${isActive('/dashboard/family') ? ' active' : ''}`} onClick={() => nav('/dashboard/family')}>
+                  <Users size={18} /> Family Members
                 </button>
               </>
             )}

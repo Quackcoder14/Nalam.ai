@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Heart, UserPlus, Bell, Activity, ChevronRight, ShieldAlert, X, Shield,
-  CheckCircle, Calendar, ChevronDown,
+  CheckCircle, Calendar, ChevronDown, RotateCcw, Trash2, KeyRound, RefreshCw,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { apiFetch } from '@/lib/apiFetch';
@@ -38,6 +38,12 @@ export default function FamilyDashboard() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [otpSuccess, setOtpSuccess] = useState(false);
+  const [activeOtpLinkId, setActiveOtpLinkId] = useState<string | null>(null);
+  const [inlineOtp, setInlineOtp] = useState<Record<string, string>>({});
+  const [inlineOtpLoading, setInlineOtpLoading] = useState<string | null>(null);
+  const [inlineOtpError, setInlineOtpError] = useState<Record<string, string>>({});
+  const [resendLoading, setResendLoading] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState<string | null>(null);
 
   const router = useRouter();
   const { t, lang } = useLanguage();
@@ -129,6 +135,48 @@ export default function FamilyDashboard() {
     setOtpCode('');
     setOtpError(null);
     setOtpSuccess(false);
+  };
+
+  const handleResend = async (linkId: string) => {
+    setResendLoading(linkId);
+    try {
+      const res = await apiFetch('/api/family/patients/resend', {
+        method: 'POST',
+        body: JSON.stringify({ linkId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Failed to resend'); }
+      else { await loadData(); }
+    } catch { alert('Network error'); }
+    finally { setResendLoading(null); }
+  };
+
+  const handleCancel = async (linkId: string) => {
+    if (!confirm('Cancel this request? The patient will no longer see the code.')) return;
+    setCancelLoading(linkId);
+    try {
+      const res = await apiFetch(`/api/patient/family-links?linkId=${linkId}`, { method: 'DELETE' });
+      if (res.ok) await loadData();
+      else { const d = await res.json(); alert(d.error || 'Failed to cancel'); }
+    } catch { alert('Network error'); }
+    finally { setCancelLoading(null); }
+  };
+
+  const handleInlineVerify = async (linkId: string) => {
+    const code = (inlineOtp[linkId] || '').trim();
+    if (code.length !== 6) { setInlineOtpError(prev => ({ ...prev, [linkId]: 'Enter the 6-digit code' })); return; }
+    setInlineOtpLoading(linkId);
+    setInlineOtpError(prev => ({ ...prev, [linkId]: '' }));
+    try {
+      const res = await apiFetch('/api/patient/family-links', {
+        method: 'PATCH',
+        body: JSON.stringify({ linkId, action: 'approve_by_code', inviteCode: code }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setInlineOtpError(prev => ({ ...prev, [linkId]: data.error || 'Invalid code' })); }
+      else { setActiveOtpLinkId(null); await loadData(true); }
+    } catch { setInlineOtpError(prev => ({ ...prev, [linkId]: 'Network error' })); }
+    finally { setInlineOtpLoading(null); }
   };
 
   const getStatusColor = (patient: any) => {
@@ -234,22 +282,78 @@ export default function FamilyDashboard() {
         {pendingLinks.length > 0 && (
           <div style={{ marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Shield size={18} color="var(--charcoal)" /> Pending Approvals ({pendingLinks.length})
+              <Shield size={18} color="var(--charcoal)" /> Pending Approvals
+              <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.75rem', fontWeight: 700, borderRadius: 20, padding: '0.15rem 0.6rem' }}>{pendingLinks.length}</span>
             </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {pendingLinks.map(l => (
-                <div key={l.linkId} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontWeight: 600, color: 'var(--foreground)' }}>Patient ID: {l.patientId}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)', marginTop: 2 }}>
-                      {l.relation || 'Family member'} • Requested {new Date(l.requestedAt).toLocaleDateString()}
+                <div key={l.linkId} style={{ background: 'var(--surface)', border: '1.5px solid #FDE68A', borderRadius: 16, padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '0.95rem' }}>Patient ID: {l.patientId}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)', marginTop: 2 }}>
+                        {l.relation || 'Family member'} • Requested {new Date(l.requestedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </div>
+                      <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', background: '#FEF3C7', color: '#92400E', borderRadius: 8, padding: '0.3rem 0.6rem', display: 'inline-block', fontWeight: 600 }}>
+                        ⏳ Waiting for patient to share the code
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--charcoal)', marginTop: 4, fontStyle: 'italic' }}>
-                      Waiting for patient to enter the code sent to their dashboard
-                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#FEF3C7', color: '#D97706', padding: '0.3rem 0.6rem', borderRadius: 8, flexShrink: 0 }}>Pending</span>
                   </div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 600, background: '#FEF3C7', color: '#D97706', padding: '0.3rem 0.6rem', borderRadius: 8 }}>
-                    Pending
+
+                  {/* Inline OTP entry toggle */}
+                  {activeOtpLinkId === l.linkId ? (
+                    <div style={{ background: 'var(--surface-muted)', borderRadius: 12, padding: '1rem', marginBottom: '0.75rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Enter 6-Digit Code from Patient</label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={inlineOtp[l.linkId] || ''}
+                        onChange={e => setInlineOtp(prev => ({ ...prev, [l.linkId]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                        placeholder="● ● ● ● ● ●"
+                        style={{
+                          width: '100%', padding: '0.85rem', border: `2px solid ${inlineOtpError[l.linkId] ? '#FECACA' : 'var(--border)'}`,
+                          borderRadius: 10, fontSize: '1.5rem', fontWeight: 800, textAlign: 'center',
+                          letterSpacing: '0.4em', background: 'var(--surface)', color: 'var(--foreground)',
+                          boxSizing: 'border-box', fontFamily: 'monospace',
+                        }}
+                      />
+                      {inlineOtpError[l.linkId] && <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: '#B91C1C', fontWeight: 600 }}>⚠️ {inlineOtpError[l.linkId]}</div>}
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                        <button
+                          onClick={() => handleInlineVerify(l.linkId)}
+                          disabled={inlineOtpLoading === l.linkId || (inlineOtp[l.linkId] || '').length !== 6}
+                          style={{ flex: 1, padding: '0.7rem', background: (inlineOtp[l.linkId] || '').length === 6 ? 'linear-gradient(135deg,#059669,#10B981)' : 'var(--surface-muted)', color: (inlineOtp[l.linkId] || '').length === 6 ? 'white' : 'var(--charcoal)', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.88rem' }}
+                        >
+                          {inlineOtpLoading === l.linkId ? 'Verifying…' : 'Confirm Access'}
+                        </button>
+                        <button onClick={() => setActiveOtpLinkId(null)} style={{ padding: '0.7rem 1rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', color: 'var(--charcoal)' }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Action row */}
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => setActiveOtpLinkId(activeOtpLinkId === l.linkId ? null : l.linkId)}
+                      style={{ flex: 1, padding: '0.6rem 0.75rem', background: '#EFF6FF', color: '#1D4ED8', border: '1.5px solid #BFDBFE', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                    >
+                      <KeyRound size={13} /> Enter Code
+                    </button>
+                    <button
+                      onClick={() => handleResend(l.linkId)}
+                      disabled={resendLoading === l.linkId}
+                      style={{ flex: 1, padding: '0.6rem 0.75rem', background: 'var(--surface-muted)', color: 'var(--charcoal)', border: '1px solid var(--border)', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: resendLoading === l.linkId ? 0.6 : 1 }}
+                    >
+                      <RotateCcw size={13} /> {resendLoading === l.linkId ? 'Resending…' : 'Resend'}
+                    </button>
+                    <button
+                      onClick={() => handleCancel(l.linkId)}
+                      disabled={cancelLoading === l.linkId}
+                      style={{ flex: 1, padding: '0.6rem 0.75rem', background: '#FEF2F2', color: '#B91C1C', border: '1.5px solid #FECACA', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: cancelLoading === l.linkId ? 0.6 : 1 }}
+                    >
+                      <Trash2 size={13} /> {cancelLoading === l.linkId ? 'Cancelling…' : 'Cancel'}
+                    </button>
                   </div>
                 </div>
               ))}

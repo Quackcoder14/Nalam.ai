@@ -25,6 +25,8 @@ export async function GET(request: Request) {
     nickname: link.nickname_enc ? decrypt(link.nickname_enc) : null,
     relation: link.relation_enc ? decrypt(link.relation_enc) : null,
     status: link.consent_status,
+    inviteCode: link.invite_code,
+    inviteCodeExpiresAt: link.invite_code_expires_at,
     requestedAt: link.requested_at,
     consentedAt: link.consented_at,
   }));
@@ -91,3 +93,27 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ success: true, status: updated.consent_status });
 }
 
+/* ── DELETE /api/patient/family-links ─ family member cancels a pending request ── */
+export async function DELETE(request: Request) {
+  const auth = requireRole(request, ['family', 'patient']);
+  if (!auth.ok) return auth.response;
+
+  const { searchParams } = new URL(request.url);
+  const linkId = searchParams.get('linkId');
+  if (!linkId) return NextResponse.json({ error: 'linkId required' }, { status: 400 });
+
+  const link = await prisma.familyPatientLink.findUnique({ where: { id: linkId } });
+  if (!link) return NextResponse.json({ error: 'Link not found' }, { status: 404 });
+
+  // Family member can only delete their own pending link
+  if (auth.session.role === 'family' && link.family_id !== auth.session.staffId) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+  }
+  // Patient can only delete links on their account
+  if (auth.session.role === 'patient' && link.patient_id !== auth.session.staffId) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
+  }
+
+  await prisma.familyPatientLink.delete({ where: { id: linkId } });
+  return NextResponse.json({ success: true });
+}
