@@ -806,15 +806,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'hdesk.hospitalDesk': 'Hospital Desk',
     'hdesk.staffId': 'Staff ID',
     'xai.call': 'Call',
-    'family.myFamily': "My Family",
-    'family.addMember': "Add Member",
-    'family.members': "Family Members",
-    'family.noMembers': "No family members yet",
-    'family.registerTitle': "Create Family Account",
-    'family.registerDesc': "Securely manage your family's health",
-    'family.createAccount': "Create Account",
-    'family.passwordMismatch': "Passwords do not match",
-    'family.passwordTooShort': "Password must be at least 6 characters",
+
   },
 
   ta: {
