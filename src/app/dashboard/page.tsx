@@ -288,14 +288,31 @@ export default function PatientDashboard() {
     specialist: false,
     research: false,
   });
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [pastNotifications, setPastNotifications] = useState<any[]>([]);
   const [patientAlerts, setPatientAlerts] = useState<any[]>([]);
+  const [familyLinks, setFamilyLinks] = useState<any[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [showAudit, setShowAudit] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [intervention, setIntervention] = useState<any>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [fhirData, setFhirData] = useState<any>(null);
   const [fhirLoading, setFhirLoading] = useState(false);
+
+  const handleFamilyLinkAction = async (linkId: string, action: 'approve' | 'revoke') => {
+    try {
+      const res = await apiFetch('/api/patient/family-links', {
+        method: 'PATCH',
+        body: JSON.stringify({ linkId, action })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFamilyLinks(prev => prev.map(l => l.id === linkId ? { ...l, status: data.status } : l));
+      }
+    } catch (e) {
+      console.error('Failed to update family link', e);
+    }
+  };
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [dismissedPopups, setDismissedPopups] = useState<Set<string>>(
@@ -805,40 +822,43 @@ export default function PatientDashboard() {
     (async () => {
       try {
         const patientId = getPatientId();
-        const res = await apiFetch(
-          `${process.env.NEXT_PUBLIC_API_URL || ""}/api/patient?id=${patientId}&lang=${lang}`,
-        );
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-        const data = await res.json();
-        setPatient(data.patient);
-        setRecords(data.records || []);
-        setConsent({
-          emergency: data.patient.consent_emergency === "true",
-          specialist: data.patient.consent_specialist === "true",
-          research: data.patient.consent_research === "true",
-        });
-        const ir = await apiFetch(
-          `${process.env.NEXT_PUBLIC_API_URL || ""}/api/agents/intervention`,
-          {
+        const fRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/patient?id=${patientId}&lang=${lang}`);
+        const alRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/notify/alerts?patientId=${patientId}&lang=${lang}`);
+        const mRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/chat/unread?patientId=${patientId}&role=patient`);
+        
+        const [fData, alData, mData, lData] = await Promise.all([
+          fRes.ok ? fRes.json() : null,
+          alRes.ok ? alRes.json() : null,
+          mRes.ok ? mRes.json() : null,
+          apiFetch(`/api/patient/family-links?patientId=${patientId}`).then(r => r.ok ? r.json() : { links: [] })
+        ]);
+
+        if (fData?.patient) {
+          setPatient(fData.patient);
+          setConsent({
+            emergency: fData.patient.consent_emergency === "true" || fData.patient.consent_emergency === true,
+            specialist: fData.patient.consent_specialist === "true" || fData.patient.consent_specialist === true,
+            research: fData.patient.consent_research === "true" || fData.patient.consent_research === true,
+          });
+          setRecords(fData.records || []);
+          const ir = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/agents/intervention`, {
             method: "POST",
-            body: JSON.stringify({
-              patient: data.patient,
-              records: data.records,
-              lang,
-            }),
-          },
-        );
-        if (ir.ok) setIntervention(await ir.json());
-        const ar = await apiFetch(
-          `${process.env.NEXT_PUBLIC_API_URL || ""}/api/abha?patientId=${patientId}`,
-        );
-        if (ar.ok) setAbha(await ar.json());
+            body: JSON.stringify({ patient: fData.patient, records: fData.records, lang }),
+          });
+          if (ir.ok) setIntervention(await ir.json());
+          const ar = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/abha?patientId=${patientId}`);
+          if (ar.ok) setAbha(await ar.json());
+        }
+        if (lData?.links) {
+          setFamilyLinks(lData.links);
+        }
+        if (alData?.alerts) setPatientAlerts(alData.alerts);
+        if (mData?.unreadCount) setChatUnread(mData.unreadCount);
       } catch (e) {
         console.error(e);
       }
     })();
     fetchAudit();
-    fetchAlerts();
     const auditIv = setInterval(fetchAudit, 15000);
     const alertIv = setInterval(() => fetchAlerts(), 4000);
     return () => {
@@ -2194,6 +2214,62 @@ export default function PatientDashboard() {
           </div>
         </div>
       </section>
+
+      {/* ── FAMILY ACCESS SECTION ── */}
+      {familyLinks.length > 0 && (
+          <section className="glass-panel slide-up stagger-2" style={{ marginTop: '1rem', padding: '1.25rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--deep-blue)', fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem' }}>
+              <Heart size={17} color="var(--primary)" /> Family Access
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {familyLinks.map(link => (
+                <div key={link.id} style={{ padding: '0.8rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--deep-blue)', fontSize: '0.85rem' }}>{link.familyName}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', marginTop: 2 }}>{link.relation}</div>
+                  </div>
+                  <div>
+                    {link.status === 'pending' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <input 
+                            type="text" 
+                            placeholder="Enter 6-digit code" 
+                            maxLength={6}
+                            id={`code-${link.id}`}
+                            style={{ padding: '0.3rem 0.6rem', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.75rem', width: '100px', textAlign: 'center' }} 
+                          />
+                          <button onClick={() => {
+                            const code = (document.getElementById(`code-${link.id}`) as HTMLInputElement)?.value;
+                            if (code?.length === 6) {
+                              fetch('/api/patient/family-links', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ linkId: link.id, action: 'approve_by_code', inviteCode: code })
+                              }).then(() => window.location.reload());
+                            } else {
+                              alert('Please enter the 6-digit code');
+                            }
+                          }} style={{ padding: '0.3rem 0.6rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>Approve</button>
+                          <button onClick={() => handleFamilyLinkAction(link.id, 'revoke')} style={{ padding: '0.3rem 0.6rem', background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>Deny</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: link.status === 'approved' ? 'var(--accent-teal)' : 'var(--accent-red)' }}>
+                          {link.status === 'approved' ? 'Active' : 'Revoked'}
+                        </span>
+                        {link.status === 'approved' && (
+                          <button onClick={() => handleFamilyLinkAction(link.id, 'revoke')} style={{ padding: '0.3rem 0.6rem', background: 'transparent', color: '#DC2626', border: '1px solid #FECACA', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>Revoke</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
       {/* ── AUDIT LOG ── */}
       {showAudit && (

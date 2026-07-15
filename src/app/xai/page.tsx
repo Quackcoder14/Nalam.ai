@@ -130,7 +130,7 @@ function XAIDashboardInner() {
         .then(data => { if (data.patient) setPatient(data.patient); })
         .catch(() => {});
     }
-  }, [patientId]);
+  }, [patientId, lang]);
 
   // Check for pending acknowledgment alert from sessionStorage
   useEffect(() => {
@@ -354,8 +354,23 @@ function XAIDashboardInner() {
       )}
 
       <style>{`
-        .spin { animation: spin 1s linear infinite; } 
+        .spin { animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulseGlow {
+          0%, 100% { box-shadow: 0 8px 24px rgba(239,68,68,0.4); }
+          50% { box-shadow: 0 8px 32px rgba(239,68,68,0.75), 0 0 0 8px rgba(239,68,68,0.12); }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(24px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes heartbeat {
+          0%, 100% { transform: scale(1); }
+          14% { transform: scale(1.15); }
+          28% { transform: scale(1); }
+          42% { transform: scale(1.1); }
+          70% { transform: scale(1); }
+        }
         @media (max-width: 640px) {
           .ambulance-button-mobile {
             bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 5.75rem) !important;

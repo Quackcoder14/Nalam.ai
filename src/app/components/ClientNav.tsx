@@ -100,9 +100,14 @@ export default function ClientNav() {
     { icon: Building2, label: t('nav.desk'), path: '/hospital-desk' },
   ];
 
+  const familyBottomItems = [
+    { icon: Heart, label: t('family.myFamily'), path: '/family' },
+  ];
+
   const bottomItems =
     role === 'patient' ? patientBottomItems :
     role === 'clinician' ? clinicianBottomItems :
+    role === 'family' ? familyBottomItems :
     hdeskBottomItems;
 
   return (
@@ -121,7 +126,7 @@ export default function ClientNav() {
       }}>
         {/* Brand */}
         <a
-          href={role === 'clinician' ? '/clinician' : role === 'hdesk' ? '/hospital-desk' : '/dashboard'}
+          href={role === 'clinician' ? '/clinician' : role === 'hdesk' ? '/hospital-desk' : role === 'family' ? '/family' : '/dashboard'}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', flexShrink: 0 }}
         >
           <div style={{
@@ -172,7 +177,7 @@ export default function ClientNav() {
               <div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>nalam<span style={{ color: 'var(--accent-orange)' }}>.ai</span></div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--charcoal)', fontWeight: 600, textTransform: 'capitalize', marginTop: 2 }}>
-                  {role === 'patient' ? '🧑 Patient' : role === 'clinician' ? '👨‍⚕️ Clinician' : '🏥 Hospital Desk'}
+                  {role === 'patient' ? '🧑 Patient' : role === 'clinician' ? '👨‍⚕️ Clinician' : role === 'family' ? '👨‍👩‍👧 Family' : '🏥 Hospital Desk'}
                 </div>
               </div>
             </div>
@@ -256,6 +261,14 @@ export default function ClientNav() {
                 </button>
                 <button className="drawer-item" onClick={() => { setDrawerOpen(false); if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('openPastNotifications')); }}>
                   <Bell size={18} /> {t('nav.pastNotifications')}
+                </button>
+              </>
+            )}
+
+            {role === 'family' && (
+              <>
+                <button className={`drawer-item${isActive('/family') ? ' active' : ''}`} onClick={() => nav('/family')}>
+                  <Heart size={18} /> {t('family.myFamily')}
                 </button>
               </>
             )}

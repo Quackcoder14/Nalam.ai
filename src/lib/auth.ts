@@ -2,12 +2,13 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'nalam-dev-secret-CHANGE-IN-PRODUCTION';
 
-export type NalamRole = 'patient' | 'clinician' | 'hdesk';
+export type NalamRole = 'patient' | 'clinician' | 'hdesk' | 'family';
 
 export interface SessionPayload {
   sub: string;          // username / email
   role: NalamRole;
-  staffId: string;      // for desk: their email; for clinician: their doctor ID
+  staffId: string;      // for desk: their email; for clinician: their doctor ID; for family: familyAccount.id
+  familyId?: string;    // same as staffId for family role, for clarity
   branch?: string;      // for hdesk: hospital name
   clinicianRole?: string; // 'specialist' | 'emergency' | 'research'
   iat?: number;
@@ -82,4 +83,17 @@ export function signSessionCookie(payload: Omit<SessionPayload, 'iat' | 'exp'>):
 /* ── Cookie that expires immediately (logout) ────────────────────────── */
 export function clearSessionCookie(): string {
   return 'nalam_token=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0';
+}
+
+/* ── Check if family has approved access to a patient ────────────────── */
+export async function assertFamilyAccess(patientId: string, familyAccountId: string): Promise<boolean> {
+  const { prisma } = await import('./prisma');
+  const link = await prisma.familyPatientLink.findFirst({
+    where: {
+      patient_id: patientId,
+      family_id: familyAccountId,
+      consent_status: 'approved',
+    },
+  });
+  return !!link;
 }

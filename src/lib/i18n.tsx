@@ -741,6 +741,15 @@ const translations: Record<Lang, Record<string, string>> = {
     'hdesk.hospitalDesk': 'Hospital Desk',
     'hdesk.staffId': 'Staff ID',
     'xai.call': 'Call',
+    'family.myFamily': "My Family",
+    'family.addMember': "Add Member",
+    'family.members': "Family Members",
+    'family.noMembers': "No family members yet",
+    'family.registerTitle': "Create Family Account",
+    'family.registerDesc': "Securely manage your family's health",
+    'family.createAccount': "Create Account",
+    'family.passwordMismatch': "Passwords do not match",
+    'family.passwordTooShort': "Password must be at least 6 characters",
   },
 
   ta: {
@@ -1487,7 +1496,16 @@ const translations: Record<Lang, Record<string, string>> = {
     'rook.disconnect': 'இணைப்பை துண்டிக்க',
     'rook.selectDevice': 'உங்கள் சாதனத்தை தேர்ந்தெடுக்கவும்:',
     'rook.cancel': 'ரத்து செய்',
-  },
+    'family.myFamily': "என் குடும்பம்",
+    'family.addMember': "உறுப்பினரைச் சேர்",
+    'family.members': "குடும்ப உறுப்பினர்கள்",
+    'family.noMembers': "இன்னும் உறுப்பினர்கள் இல்லை",
+    'family.registerTitle': "குடும்ப கணக்கை உருவாக்கவும்",
+    'family.registerDesc': "உங்கள் குடும்பத்தின் ஆரோக்கியத்தைப் பாதுகாப்பாக நிர்வகிக்கவும்",
+    'family.createAccount': "கணக்கை உருவாக்கு",
+    'family.passwordMismatch': "கடவுச்சொற்கள் பொருந்தவில்லை",
+    'family.passwordTooShort': "கடவுச்சொல் குறைந்தபட்சம் 6 எழுத்துகள் இருக்க வேண்டும்",
+  }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

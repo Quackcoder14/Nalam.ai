@@ -15,18 +15,28 @@ const CREDENTIALS: Record<string, {
   clinicianRole?: string;
 }> = {
   'karthik@nalam.ai':  { password: '123', role: 'patient',   staffId: 'P001',              name: 'Karthik' },
+  // More patients
+  'priya@nalam.ai':    { password: '123', role: 'patient',   staffId: 'P002',              name: 'Priya Sharma' },
+  'ramesh@nalam.ai':   { password: '123', role: 'patient',   staffId: 'P003',              name: 'Ramesh Kumar' },
+  'anitha@nalam.ai':   { password: '123', role: 'patient',   staffId: 'P004',              name: 'Anitha Devi' },
+  'suresh@nalam.ai':   { password: '123', role: 'patient',   staffId: 'P005',              name: 'Suresh Babu' },
+  'divya@nalam.ai':    { password: '123', role: 'patient',   staffId: 'P006',              name: 'Divya Lakshmi' },
+  'vijay@nalam.ai':    { password: '123', role: 'patient',   staffId: 'P007',              name: 'Vijay Kumar' },
+  'kavitha@nalam.ai':  { password: '123', role: 'patient',   staffId: 'P008',              name: 'Kavitha Rajan' },
+  'arun@nalam.ai':     { password: '123', role: 'patient',   staffId: 'P009',              name: 'Arun Prakash' },
+  'meena@nalam.ai':    { password: '123', role: 'patient',   staffId: 'P010',              name: 'Meena Sundaram' },
   'monissha@nalam.ai': { password: '123', role: 'clinician',  staffId: 'dr_monissha', clinicianRole: 'specialist', name: 'Dr. Monissha' },
   'dhanush@nalam.ai':  { password: '123', role: 'clinician',  staffId: 'dr_dhanush',  clinicianRole: 'emergency', name: 'Dr. Dhanush' },
   // Apollo Hospital doctors
-  'arun@nalam.ai':     { password: '123', role: 'clinician',  staffId: 'dr_arun',     clinicianRole: 'specialist', name: 'Dr. Arun' },
-  'kavitha@nalam.ai':  { password: '123', role: 'clinician',  staffId: 'dr_kavitha',  clinicianRole: 'specialist', name: 'Dr. Kavitha' },
-  'suresh@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_suresh',   clinicianRole: 'specialist', name: 'Dr. Suresh' },
+  'dr.arun@nalam.ai':     { password: '123', role: 'clinician',  staffId: 'dr_arun',     clinicianRole: 'specialist', name: 'Dr. Arun' },
+  'dr.kavitha@nalam.ai':  { password: '123', role: 'clinician',  staffId: 'dr_kavitha',  clinicianRole: 'specialist', name: 'Dr. Kavitha' },
+  'dr.suresh@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_suresh',   clinicianRole: 'specialist', name: 'Dr. Suresh' },
   // Kauvery Hospital doctors
-  'venkat@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_venkat',   clinicianRole: 'specialist', name: 'Dr. Venkat' },
-  'priya@nalam.ai':    { password: '123', role: 'clinician',  staffId: 'dr_priya',    clinicianRole: 'specialist', name: 'Dr. Priya' },
-  'ramesh@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_ramesh',   clinicianRole: 'specialist', name: 'Dr. Ramesh' },
+  'dr.venkat@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_venkat',   clinicianRole: 'specialist', name: 'Dr. Venkat' },
+  'dr.priya@nalam.ai':    { password: '123', role: 'clinician',  staffId: 'dr_priya',    clinicianRole: 'specialist', name: 'Dr. Priya' },
+  'dr.ramesh@nalam.ai':   { password: '123', role: 'clinician',  staffId: 'dr_ramesh',   clinicianRole: 'specialist', name: 'Dr. Ramesh' },
   // Govt Hospital doctors
-  'anita@nalam.ai':    { password: '123', role: 'clinician',  staffId: 'dr_anita',    clinicianRole: 'specialist', name: 'Dr. Anita' },
+  'dr.anita@nalam.ai':    { password: '123', role: 'clinician',  staffId: 'dr_anita',    clinicianRole: 'specialist', name: 'Dr. Anita' },
   // Hospital desk logins (username + staff ID + password)
   'apollo@nalam.ai':   { password: '123', role: 'hdesk', staffId: '', branch: 'Apollo Hospital', name: 'Apollo Hospital Staff' },
   'kauvery@nalam.ai':  { password: '123', role: 'hdesk', staffId: '', branch: 'Kauvery Hospital', name: 'Kauvery Hospital Staff' },
@@ -46,11 +56,12 @@ export async function POST(request: Request) {
     const uname = (username ?? '').toLowerCase().trim();
     const cred = CREDENTIALS[uname];
     
-    let resolvedRole: 'patient' | 'clinician' | 'hdesk' | null = null;
+    let resolvedRole: 'patient' | 'clinician' | 'hdesk' | 'family' | null = null;
     let resolvedStaffId = '';
     let branch = undefined;
     let clinicianRole = undefined;
     let patientName: string | null = null;
+    let familyName: string | null = null;
 
     // Handle hospital desk login with username, staff ID, and password
     if (hdeskStaffId && password) {
@@ -78,19 +89,27 @@ export async function POST(request: Request) {
       if (cred.role === 'clinician' && (cred as any).name) patientName = (cred as any).name;
       if (cred.role === 'hdesk' && (cred as any).name) patientName = (cred as any).name || null;
     } else {
-      // Try querying Patient table by ID (username is now the patient ID)
-      const patient = await prisma.patient.findUnique({ where: { id: uname } });
-      if (patient && patient.password_hash && verifyPassword(password, patient.password_hash)) {
-        resolvedRole = 'patient';
-        resolvedStaffId = patient.id;
-        patientName = decrypt(patient.name_enc);
+      // Try querying FamilyAccount table by email
+      const family = await prisma.familyAccount.findUnique({ where: { email: uname } });
+      if (family && family.password_hash && verifyPassword(password, family.password_hash)) {
+        resolvedRole = 'family';
+        resolvedStaffId = family.id;
+        familyName = decrypt(family.name_enc);
       } else {
-        // Try querying Doctor table by ID (username is now the doctor ID)
-        const doctor = await prisma.doctor.findUnique({ where: { id: uname } });
-        if (doctor && doctor.password_hash && verifyPassword(password, doctor.password_hash)) {
-          resolvedRole = 'clinician';
-          resolvedStaffId = doctor.id;
-          patientName = decrypt(doctor.full_name_enc);
+        // Try querying Patient table by ID (username is now the patient ID)
+        const patient = await prisma.patient.findUnique({ where: { id: uname } });
+        if (patient && patient.password_hash && verifyPassword(password, patient.password_hash)) {
+          resolvedRole = 'patient';
+          resolvedStaffId = patient.id;
+          patientName = decrypt(patient.name_enc);
+        } else {
+          // Try querying Doctor table by ID (username is now the doctor ID)
+          const doctor = await prisma.doctor.findUnique({ where: { id: uname } });
+          if (doctor && doctor.password_hash && verifyPassword(password, doctor.password_hash)) {
+            resolvedRole = 'clinician';
+            resolvedStaffId = doctor.id;
+            patientName = decrypt(doctor.full_name_enc);
+          }
         }
       }
     }
@@ -103,6 +122,7 @@ export async function POST(request: Request) {
       sub: uname,
       role: resolvedRole,
       staffId: resolvedStaffId,
+      ...(resolvedRole === 'family' ? { familyId: resolvedStaffId } : {}),
       ...(branch        ? { branch }              : {}),
       ...(clinicianRole ? { clinicianRole } : {}),
     }, JWT_SECRET, { expiresIn: '30d' });
@@ -111,9 +131,11 @@ export async function POST(request: Request) {
       success: true,
       role: resolvedRole,
       staffId: resolvedStaffId,
+      ...(resolvedRole === 'family' ? { familyId: resolvedStaffId } : {}),
       branch: branch ?? null,
       clinicianRole: clinicianRole ?? null,
       patientName: patientName ?? null,
+      familyName: familyName ?? null,
       token, // also return the raw JWT so clients can use Bearer auth as fallback
     });
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import Groq from 'groq-sdk';
+import { getSessionFromRequest, assertFamilyAccess } from '@/lib/auth';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const translateCache = new Map<string, any[]>();
@@ -13,6 +14,15 @@ export async function GET(request: Request) {
     const fast = searchParams.get('fast') === '1';
     const past = searchParams.get('past') === '1';
     const hospital = searchParams.get('hospital')?.trim(); // Hospital/branch for per-desk routing
+
+    if (patientId) {
+      const session = getSessionFromRequest(request);
+      if (session?.role === 'family') {
+        if (!(await assertFamilyAccess(patientId, session.staffId))) {
+          return NextResponse.json({ error: 'Not authorized to view alerts for this patient' }, { status: 403 });
+        }
+      }
+    }
 
     let alerts = await prisma.clinicalAlert.findMany({
       where: {

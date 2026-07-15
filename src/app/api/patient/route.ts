@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getPatientById, getMedicalRecords, getAllPatients } from '@/lib/data';
 import Groq from 'groq-sdk';
+import { getSessionFromRequest, assertFamilyAccess } from '@/lib/auth';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -15,6 +16,15 @@ export async function GET(request: Request) {
 
     if (!id) {
       return NextResponse.json({ error: 'Patient ID is required' }, { status: 400 });
+    }
+
+    if (id !== 'ALL') {
+      const session = getSessionFromRequest(request);
+      if (session?.role === 'family') {
+        if (!(await assertFamilyAccess(id, session.staffId))) {
+          return NextResponse.json({ error: 'Not authorized to view this patient' }, { status: 403 });
+        }
+      }
     }
 
     if (id === 'ALL') {

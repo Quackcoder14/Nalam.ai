@@ -31,8 +31,8 @@ export async function POST(request: Request) {
       data: { used: true },
     });
 
-    // Generate 6-digit OTP
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    // Generate 6-digit OTP using cryptographically secure random
+    const otp = String(crypto.randomInt(100000, 1000000));
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
     const otpRecord = await prisma.recordsOtp.create({

@@ -39,11 +39,14 @@ function mapDoctor(row: Doctor) {
 
 export async function GET(request: Request) {
   try {
-    const auth = requireRole(request, ['hdesk', 'clinician', 'patient']);
+    const auth = requireRole(request, ['hdesk', 'clinician', 'patient', 'family']);
     if (!auth.ok) return auth.response;
 
+    const { searchParams } = new URL(request.url);
+    const requestedHospital = searchParams.get('hospital');
+
     // Filter by hospital if session has hospital info (for hospital desk isolation)
-    const hospital = auth.session.branch;
+    const hospital = auth.session.branch || requestedHospital;
     const whereClause = hospital ? { hospital, status: 'active' } : { status: 'active' };
 
     const rows = await prisma.doctor.findMany({

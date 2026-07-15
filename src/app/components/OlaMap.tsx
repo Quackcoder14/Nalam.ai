@@ -266,21 +266,25 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
     originEl.style.cssText = `width:18px;height:18px;border-radius:50%;background:#0052A5;border:3px solid white;box-shadow:0 0 0 5px rgba(0,82,165,0.2);flex-shrink:0;`;
     originMarkerRef.current = new Marker({ element: originEl }).setLngLat([lng, lat]).addTo(mapRef.current);
 
-    const [hospitals, pharmacies] = await Promise.all([
+    const [hospitals, pharmacies, clinics, doctors, health] = await Promise.all([
       fetchNearby(lat, lng, 'hospital'),
       fetchNearby(lat, lng, 'pharmacy'),
+      fetchNearby(lat, lng, 'clinic'),
+      fetchNearby(lat, lng, 'doctor'),
+      fetchNearby(lat, lng, 'health'),
     ]);
 
-    const allPlaces = dedupePlaces([...hospitals, ...pharmacies]);
+    const allPlaces = dedupePlaces([...hospitals, ...pharmacies, ...clinics, ...doctors, ...health]);
     placesRef.current = allPlaces;
     setLocationLabel(label);
     renderMarkers(mapRef.current, allPlaces, filter, Marker, setSelectedPlace);
-    setMapMessage(allPlaces.length ? `${allPlaces.length} places found nearby` : 'No hospitals or pharmacies found here. Try a nearby road, area, or pincode.');
+    setMapMessage(allPlaces.length ? `${allPlaces.length} places found nearby` : 'No medical facilities found here. Try a nearby road, area, or pincode.');
     setLoadingPlaces(false);
   };
 
   useEffect(() => {
     let cancelled = false;
+    let isReady = false;
     let loadTimeout: NodeJS.Timeout | undefined;
 
     async function init() {
@@ -356,7 +360,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
       // Fallback timeout: if 'load' never fires (can happen on desktop with CORS style),
       // retry with the raw URL string after 12s
       loadTimeout = setTimeout(() => {
-        if (status !== 'ready' && !cancelled) {
+        if (!isReady && !cancelled) {
           console.warn('Map load timeout — trying with plain style URL');
           try {
             map.remove();
@@ -393,6 +397,7 @@ export default function OlaMap({ height = '380px', className = '' }: { height?: 
 
       map.on('load', async () => {
         if (cancelled) return;
+        isReady = true;
         clearTimeout(loadTimeout);
         setStatus('ready');
         loadPlacesForLocation(userLat, userLng, activeLocationLabel);

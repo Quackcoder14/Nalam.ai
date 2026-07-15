@@ -5,7 +5,7 @@ import { Heart, User, Stethoscope, ChevronRight, Monitor, Globe, ArrowLeft } fro
 import { useLanguage, type Lang } from '@/lib/i18n';
 
 type Phase = 'splash' | 'language' | 'login';
-type LoginType = 'patient' | 'clinician' | 'hdesk' | null;
+type LoginType = 'patient' | 'clinician' | 'hdesk' | 'family' | null;
 
 export default function HomePage() {
   const [phase, setPhase] = useState<Phase>('splash');
@@ -36,6 +36,8 @@ export default function HomePage() {
         router.push('/clinician');
       } else if (existingRole === 'hdesk') {
         router.push('/hospital-desk');
+      } else if (existingRole === 'family') {
+        router.push('/family');
       }
       return;
     }
@@ -63,7 +65,7 @@ export default function HomePage() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [showLoadingAnimation, setShowLoadingAnimation] = useState(false);
 
-  const handleLogin = async (role: 'patient' | 'clinician' | 'hdesk') => {
+  const handleLogin = async (role: 'patient' | 'clinician' | 'hdesk' | 'family') => {
     setLoginError(null);
     setLoginLoading(true);
     setShowLoadingAnimation(true);
@@ -107,9 +109,17 @@ export default function HomePage() {
         sessionStorage.setItem('nalamHdeskBranch', data.branch);
         localStorage.setItem('nalamHdeskBranch', data.branch);
       }
-      if (data.staffId && data.role !== 'patient') {
+      if (data.staffId && data.role !== 'patient' && data.role !== 'family') {
         sessionStorage.setItem('nalamStaffId', data.staffId);
         localStorage.setItem('nalamStaffId', data.staffId);
+      }
+      if (data.role === 'family') {
+        sessionStorage.setItem('nalamStaffId', data.staffId);
+        localStorage.setItem('nalamStaffId', data.staffId);
+        if (data.familyName) {
+          sessionStorage.setItem('nalamPatientName', data.familyName);
+          localStorage.setItem('nalamPatientName', data.familyName);
+        }
       }
       if (data.patientName && data.role === 'clinician') {
         sessionStorage.setItem('nalamDoctorName', data.patientName);
@@ -123,6 +133,7 @@ export default function HomePage() {
 
       if (data.role === 'patient') router.push('/dashboard');
       else if (data.role === 'clinician') router.push('/clinician');
+      else if (data.role === 'family') router.push('/family');
       else router.push('/hospital-desk');
     } catch {
       setLoginError('Network error — please try again.');
@@ -282,6 +293,7 @@ export default function HomePage() {
               { role: 'patient' as const, Icon: User, title: t('role.patient.title'), desc: t('role.patient.desc'), accentColor: '#0052A5', bg: 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' },
               { role: 'clinician' as const, Icon: Stethoscope, title: t('role.clinician.title'), desc: t('role.clinician.desc'), accentColor: '#0097A7', bg: 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' },
               { role: 'hdesk' as const, Icon: Monitor, title: t('role.hdesk.title'), desc: t('role.hdesk.desc'), accentColor: '#5C35A1', bg: 'linear-gradient(135deg,#F3E8FF,#D8B4FE)' },
+              { role: 'family' as const, Icon: Heart, title: t('family.myFamily') || 'Family', desc: t('family.registerDesc') || 'Manage family health', accentColor: '#E11D48', bg: 'linear-gradient(135deg,#FFE4E6,#FECDD3)' },
             ].map(({ role, Icon, title, desc, accentColor, bg }) => (
               <button key={role} onClick={() => setLoginType(role)} className="role-btn"
                 style={{
@@ -313,18 +325,18 @@ export default function HomePage() {
               <ArrowLeft size={15} /> {t('login.back')}
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.5rem' }}>
-              <div style={{ width: 40, height: 40, background: loginType === 'patient' ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : loginType === 'clinician' ? 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' : 'linear-gradient(135deg,#F3E8FF,#D8B4FE)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {loginType === 'patient' ? <User size={20} color="#0052A5" /> : loginType === 'clinician' ? <Stethoscope size={20} color="#0097A7" /> : <Monitor size={20} color="#5C35A1" />}
+              <div style={{ width: 40, height: 40, background: loginType === 'patient' ? 'linear-gradient(135deg,#EBF4FF,#BFDBFE)' : loginType === 'clinician' ? 'linear-gradient(135deg,#E0F7FA,#B2EBF2)' : loginType === 'family' ? 'linear-gradient(135deg,#FFE4E6,#FECDD3)' : 'linear-gradient(135deg,#F3E8FF,#D8B4FE)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {loginType === 'patient' ? <User size={20} color="#0052A5" /> : loginType === 'clinician' ? <Stethoscope size={20} color="#0097A7" /> : loginType === 'family' ? <Heart size={20} color="#E11D48" /> : <Monitor size={20} color="#5C35A1" />}
               </div>
               <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--foreground)' }}>
-                {loginType === 'patient' ? t('role.patient.loginTitle') : loginType === 'clinician' ? t('role.clinician.loginTitle') : t('role.hdesk.loginTitle')}
+                {loginType === 'patient' ? t('role.patient.loginTitle') : loginType === 'clinician' ? t('role.clinician.loginTitle') : loginType === 'family' ? t('family.myFamily') : t('role.hdesk.loginTitle')}
               </h2>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.35rem' }}>{t('login.username')}</label>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.35rem' }}>{loginType === 'family' ? 'Email Address' : t('login.username')}</label>
                 <input
-                  type="text"
+                  type={loginType === 'family' ? 'email' : 'text'}
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="Enter username"
@@ -370,7 +382,7 @@ export default function HomePage() {
               <button
                 onClick={() => handleLogin(loginType!)}
                 disabled={loginLoading}
-                style={{ width: '100%', padding: '0.85rem', marginTop: '0.25rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : loginType === 'clinician' ? 'linear-gradient(135deg,#0097A7,#00BCD4)' : 'linear-gradient(135deg,#5C35A1,#8B5CF6)', color: 'white', border: 'none', borderRadius: 12, fontSize: '1rem', fontWeight: 700, cursor: loginLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: loginLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                style={{ width: '100%', padding: '0.85rem', marginTop: '0.25rem', background: loginType === 'patient' ? 'linear-gradient(135deg,#0052A5,#0073D9)' : loginType === 'clinician' ? 'linear-gradient(135deg,#0097A7,#00BCD4)' : loginType === 'family' ? 'linear-gradient(135deg,#E11D48,#F43F5E)' : 'linear-gradient(135deg,#5C35A1,#8B5CF6)', color: 'white', border: 'none', borderRadius: 12, fontSize: '1rem', fontWeight: 700, cursor: loginLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: loginLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                 onMouseOver={e => { if (!loginLoading) e.currentTarget.style.opacity = '0.9'; }}
                 onMouseOut={e => { if (!loginLoading) e.currentTarget.style.opacity = '1'; }}
               >
@@ -378,6 +390,20 @@ export default function HomePage() {
                   <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
                 ) : t('login.signIn')}
               </button>
+
+              {loginType === 'family' && (
+                <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)' }}>
+                    Don't have an account?{' '}
+                    <button
+                      onClick={() => router.push('/family/register')}
+                      style={{ background: 'none', border: 'none', color: '#E11D48', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+                    >
+                      Create one
+                    </button>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}

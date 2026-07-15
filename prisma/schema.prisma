@@ -57,6 +57,7 @@ model Patient {
   files               PatientFile[]
   otpRequests         RecordsOtp[]
   intakeRequests      IntakeRequest[]
+  familyLinks         FamilyPatientLink[]
 
   @@map("patients")
 
@@ -343,4 +344,41 @@ model RookVitals {
 
   @@index([patient_id, recorded_at])
   @@map("rook_vitals")
+}
+
+// ─── Family Account ────────────────────────────────────────────────────────────
+model FamilyAccount {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password_hash String
+  name_enc      String   @db.Text
+  mobile_enc    String?  @db.Text
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  links         FamilyPatientLink[]
+
+  @@map("family_accounts")
+}
+
+// ─── Family ↔ Patient Link (with consent state) ────────────────────────────────
+model FamilyPatientLink {
+  id               String    @id @default(cuid())
+  family_id        String
+  patient_id       String
+  nickname_enc     String?   @db.Text
+  relation_enc     String?   @db.Text
+  consent_status   String    @default("pending")  // "pending" | "approved" | "revoked"
+  consented_at     DateTime?
+  requested_at     DateTime  @default(now())
+  can_view_records Boolean   @default(false)
+  invite_code      String?   // 6-digit OTP sent to patient
+  invite_code_expires_at DateTime?
+
+  family           FamilyAccount @relation(fields: [family_id], references: [id], onDelete: Cascade)
+  patient          Patient       @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  @@unique([family_id, patient_id])
+  @@index([patient_id, consent_status])
+  @@map("family_patient_links")
 }

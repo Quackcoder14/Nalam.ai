@@ -42,10 +42,17 @@ export async function GET(request: Request) {
       return NextResponse.json(rows.map(mapRowToApt));
     }
 
-    // By patient — accessible by the patient themselves, clinicians, or hdesk
+    // By patient — accessible by the patient themselves, clinicians, hdesk, or family
     if (patientId) {
-      const auth = requireRole(request, ['patient', 'clinician', 'hdesk']);
+      const auth = requireRole(request, ['patient', 'clinician', 'hdesk', 'family']);
       if (!auth.ok) return auth.response;
+
+      if (auth.session.role === 'family') {
+        const { assertFamilyAccess } = await import('@/lib/auth');
+        if (!(await assertFamilyAccess(patientId, auth.session.staffId))) {
+          return NextResponse.json({ error: 'Not authorized to view this patient' }, { status: 403 });
+        }
+      }
 
       const rows = await prisma.appointment.findMany({
         where: { patient_id: patientId },
@@ -110,8 +117,8 @@ export async function GET(request: Request) {
 
 /* ── POST — create new appointment ────────────────────────────────────────── */
 export async function POST(request: Request) {
-  // Only patients may book appointments
-  const auth = requireRole(request, ['patient']);
+  // Patients and family members may book appointments
+  const auth = requireRole(request, ['patient', 'family']);
   if (!auth.ok) return auth.response;
 
   try {
@@ -125,6 +132,13 @@ export async function POST(request: Request) {
 
     if (!patientId || !doctorId || !date || !reason) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    if (auth.session.role === 'family') {
+      const { assertFamilyAccess } = await import('@/lib/auth');
+      if (!(await assertFamilyAccess(patientId, auth.session.staffId))) {
+        return NextResponse.json({ error: 'Not authorized to book for this patient' }, { status: 403 });
+      }
     }
 
     // Suppress unused warning — patientName is stored implicitly via patient relation
