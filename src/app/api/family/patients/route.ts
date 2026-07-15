@@ -133,15 +133,19 @@ export async function POST(request: Request) {
     },
   });
 
-  // Notify patient via ClinicalAlert — include the code prominently
+  // Notify patient via ClinicalAlert — encode the text and code as JSON in the message field
+  const messagePayload = JSON.stringify({
+    text: `${familyName} is requesting access to your health records${relation ? ` as your ${relation}` : ''}. Your one-time approval code is: **${inviteCode}**. Share this code with them to grant access. This code expires in 24 hours. You can also approve or deny from your dashboard.`,
+    linkId: link.id,
+    inviteCode: inviteCode
+  });
+
   await prisma.clinicalAlert.create({
     data: {
       patient_id: patientId,
       severity: 'family_link_request',
       title: 'Family Access Request',
-      message: `${familyName} is requesting access to your health records${relation ? ` as your ${relation}` : ''}. Your one-time approval code is: **${inviteCode}**. Share this code with them to grant access. This code expires in 24 hours. You can also approve or deny from your dashboard.`,
-      // @ts-ignore - extra fields attached for FE use
-      meta: JSON.stringify({ linkId: link.id, inviteCode }),
+      message: messagePayload,
     },
   });
 

@@ -1192,11 +1192,16 @@ export default function PatientDashboard() {
                             lineHeight: 1.4,
                           }}
                         >
-                          {alert.message}
+                          {alert.severity === 'family_link_request' ? (() => {
+                            try {
+                                const parsed = JSON.parse(alert.message);
+                                return parsed.text || alert.message;
+                            } catch { return alert.message; }
+                          })() : alert.message}
                         </div>
                         {alert.severity === 'family_link_request' && (() => {
                           try {
-                            const meta = typeof alert.meta === 'string' ? JSON.parse(alert.meta) : alert.meta;
+                            const meta = JSON.parse(alert.message);
                             if (meta?.inviteCode) return (
                               <div style={{ marginTop: '0.75rem', background: '#0052A5', borderRadius: 12, padding: '0.75rem 1rem', textAlign: 'center' }}>
                                 <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.75)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.3rem' }}>Your One-Time Code</div>
