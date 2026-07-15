@@ -150,7 +150,8 @@ export async function POST(request: Request) {
     });
 
     return res;
-  } catch {
+  } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
   }
 }
