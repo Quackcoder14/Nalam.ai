@@ -334,7 +334,7 @@ export default function FamilyDashboard() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '0.95rem' }}>{t('family.patientId') || 'Patient ID'}: {l.patientId}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)', marginTop: 2 }}>
-                        {l.relation || (t('family.familyMember') || 'Family member')} • {t('family.requested') || 'Requested'} {new Date(l.requestedAt).toLocaleDateString(lang === 'ta' ? 'ta-IN' : 'en-IN', { day: 'numeric', month: 'short' })}
+                        {t('family.requested') || 'Requested'} {new Date(l.requestedAt).toLocaleDateString(lang === 'ta' ? 'ta-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </div>
                       <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', background: '#FEF3C7', color: '#92400E', borderRadius: 8, padding: '0.3rem 0.6rem', display: 'inline-block', fontWeight: 600 }}>
                         ⏳ {t('family.waitingForCode') || 'Waiting for patient to share the code'}
@@ -441,7 +441,7 @@ export default function FamilyDashboard() {
                         {l.nickname || p?.name}
                       </h3>
                       <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)', fontWeight: 500 }}>
-                        {l.relation || (t('family.familyMember') || 'Family Member')} • {p?.id}
+                        {p?.id}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>

@@ -130,8 +130,6 @@ export default function PatientFamilyPage() {
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--foreground)' }}>{link.familyName}</div>
-                        {link.relation && <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)', marginTop: '0.15rem' }}>as your <strong>{link.relation}</strong></div>}
-                        {link.nickname && <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)' }}>Nickname: {link.nickname}</div>}
                         <div style={{ fontSize: '0.75rem', color: 'var(--charcoal)', marginTop: '0.35rem' }}>
                           Requested {new Date(link.requestedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
