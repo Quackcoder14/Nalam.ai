@@ -74,6 +74,13 @@ const translations: Record<Lang, Record<string, string>> = {
     'nav.doctorsCalendar': "Doctor's Calendar",
     'nav.addPatient': 'Add Patient',
     'nav.addDoctor': 'Add Doctor',
+    'nav.familyMembers': 'Family Members',
+
+    // ── Family Dashboard ──────────────────────────────────────────────────
+    'family.myFamily': 'My Family',
+    'family.members': 'Family Members',
+    'family.noMembers': 'No family members yet',
+    'family.addMember': 'Add Member',
 
     // ── Patient Dashboard ─────────────────────────────────────────────────
     'dashboard.loading': 'Loading your Health Vault...',
@@ -808,6 +815,13 @@ const translations: Record<Lang, Record<string, string>> = {
     'nav.switchToLight': 'ஒளிர் பயன்முறைக்கு மாற்றவும்',
     'nav.switchToDark': 'இருள் பயன்முறைக்கு மாற்றவும்',
     'nav.back': 'பின்னால்',
+    'nav.familyMembers': 'குடும்ப உறுப்பினர்கள்',
+
+    // ── Family Dashboard ──────────────────────────────────────────────────
+    'family.myFamily': 'என் குடும்பம்',
+    'family.members': 'குடும்ப உறுப்பினர்கள்',
+    'family.noMembers': 'குடும்ப உறுப்பினர்கள் யாரும் இல்லை',
+    'family.addMember': 'உறுப்பினர் சேர்',
     'nav.searchRecords': 'பதிவுகள் தேடவும்',
     'nav.appts': 'முன்பதிவு',
     'nav.chat': 'அரட்டை',

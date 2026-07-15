@@ -295,7 +295,11 @@ export default function FamilyPatientView() {
                             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: isCrit ? '#DC2626' : 'var(--foreground)' }}>{a.title}</span>
                             <span style={{ fontSize: '0.72rem', color: 'var(--charcoal)' }}>{new Date(a.created_at).toLocaleString()}</span>
                           </div>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', lineHeight: 1.5, margin: 0 }}>{a.message}</p>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--charcoal)', lineHeight: 1.5, margin: 0 }}>
+                            {a.severity === 'family_link_request' ? (() => {
+                              try { const p = JSON.parse(a.message); return (p.text || a.message).replace(/\*\*/g, ''); } catch { return a.message; }
+                            })() : a.message}
+                          </p>
                         </div>
                       </div>
                     );
