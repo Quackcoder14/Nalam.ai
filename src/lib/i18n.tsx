@@ -811,12 +811,6 @@ const translations: Record<Lang, Record<string, string>> = {
     'nav.switchToDark': 'இருள் பயன்முறைக்கு மாற்றவும்',
     'nav.back': 'பின்னால்',
     'nav.familyMembers': 'குடும்ப உறுப்பினர்கள்',
-
-    // ── Family Dashboard ──────────────────────────────────────────────────
-    'family.myFamily': 'என் குடும்பம்',
-    'family.members': 'குடும்ப உறுப்பினர்கள்',
-    'family.noMembers': 'குடும்ப உறுப்பினர்கள் யாரும் இல்லை',
-    'family.addMember': 'உறுப்பினர் சேர்',
     'nav.searchRecords': 'பதிவுகள் தேடவும்',
     'nav.appts': 'முன்பதிவு',
     'nav.chat': 'அரட்டை',
