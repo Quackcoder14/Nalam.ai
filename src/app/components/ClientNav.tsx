@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
   Heart, LogOut, LayoutDashboard, Stethoscope,
   Search, Moon, Sun, Menu, X, Brain, Calendar,
-  MessageSquare, Building2, Globe, Shield, Network, UserPlus, ClipboardPlus, FolderOpen, CalendarDays, Bell, Users
+  MessageSquare, Building2, Globe, Shield, Network, UserPlus, ClipboardPlus, FolderOpen, CalendarDays, Bell, Users, UserCog
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -230,6 +230,9 @@ export default function ClientNav() {
                 <button className={`drawer-item${isActive('/dashboard/family') ? ' active' : ''}`} onClick={() => nav('/dashboard/family')}>
                   <Users size={18} /> Family Members
                 </button>
+                <button className={`drawer-item${isActive('/dashboard/profile') ? ' active' : ''}`} onClick={() => nav('/dashboard/profile')}>
+                  <UserCog size={18} /> {t('nav.editProfile')}
+                </button>
               </>
             )}
 
@@ -272,6 +275,9 @@ export default function ClientNav() {
               <>
                 <button className={`drawer-item${isActive('/family') ? ' active' : ''}`} onClick={() => nav('/family')}>
                   <Heart size={18} /> {t('family.myFamily')}
+                </button>
+                <button className={`drawer-item${isActive('/family/profile') ? ' active' : ''}`} onClick={() => nav('/family/profile')}>
+                  <UserCog size={18} /> {t('nav.editProfile')}
                 </button>
               </>
             )}

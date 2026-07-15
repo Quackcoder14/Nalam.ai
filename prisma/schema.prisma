@@ -353,6 +353,11 @@ model FamilyAccount {
   password_hash String
   name_enc      String   @db.Text
   mobile_enc    String?  @db.Text
+  dob_enc       String?  @db.Text
+  gender_enc    String?  @db.Text
+  address_enc   String?  @db.Text
+  city_enc      String?  @db.Text
+  state_enc     String?  @db.Text
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
