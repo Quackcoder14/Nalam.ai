@@ -1,14 +1,15 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Heart, UserPlus, Bell, Activity, ChevronRight, ShieldAlert, X, Shield,
-  CheckCircle, Calendar, ChevronDown, RotateCcw, Trash2, KeyRound, RefreshCw,
+  CheckCircle, Calendar, ChevronDown, RotateCcw, Trash2, KeyRound,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { apiFetch } from '@/lib/apiFetch';
 
 const PAGE_SIZE = 5;
+const POLL_INTERVAL = 5000;
 
 function VitalBadge({ label, value, unit }: { label: string; value: any; unit: string }) {
   return (
@@ -19,6 +20,25 @@ function VitalBadge({ label, value, unit }: { label: string; value: any; unit: s
       </div>
     </div>
   );
+}
+
+/* ─── helper: fire a system notification via SW (works desktop + mobile PWA) ─── */
+async function fireNotification(title: string, body: string) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration('/');
+      if (reg) {
+        await reg.showNotification(title, { body, icon: '/icon.png', badge: '/icon.png' });
+        return;
+      }
+    }
+    // Fallback to basic Notification API
+    new Notification(title, { body, icon: '/icon.png' });
+  } catch {
+    try { new Notification(title, { body, icon: '/icon.png' }); } catch {}
+  }
 }
 
 export default function FamilyDashboard() {
@@ -53,74 +73,77 @@ export default function FamilyDashboard() {
 
   const knownAlertIds = useRef<Set<string>>(new Set());
   const initialLoad = useRef(true);
+  const linksRef = useRef<any[]>([]);
 
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-    loadData();
-    const interval = setInterval(() => loadData(true), 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadData = async (skipCache = false) => {
+  /* ─── main data fetch ─── */
+  const loadData = useCallback(async (skipCache = false) => {
     try {
       const res = await apiFetch('/api/family/patients', { skipCache });
-      if (res.ok) {
-        const data = await res.json();
-        setLinks(data.links || []);
+      if (!res.ok) return;
+      const data = await res.json();
+      const newLinks: any[] = data.links || [];
+      setLinks(newLinks);
+      linksRef.current = newLinks;
 
-        const approvedIds = (data.links || [])
-          .filter((l: any) => l.consentStatus === 'approved')
-          .map((l: any) => l.patientId);
+      const approvedIds = newLinks
+        .filter((l: any) => l.consentStatus === 'approved')
+        .map((l: any) => l.patientId);
 
-        if (approvedIds.length > 0) {
-          const alertResults = await Promise.all(
-            approvedIds.map((pid: string) =>
-              apiFetch(`/api/notify/alerts?patientId=${pid}&lang=${lang}`).then(r => r.ok ? r.json() : { alerts: [] })
-            )
-          );
-          const combined = alertResults
-            .flatMap((r: any) => r.alerts || [])
-            .filter((a: any) => !a.is_read)
-            .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-          
-          // Push system notification for newly arrived alerts
-          if (!initialLoad.current && 'Notification' in window && Notification.permission === 'granted') {
-            const prevKnown = knownAlertIds.current;
-            const newAlerts = combined.filter((a: any) => !prevKnown.has(a.id));
-            
-            newAlerts.forEach((a: any) => {
-              const patient = (data.links || []).find((l: any) => l.patientId === a.patient_id);
-              const pName = patient?.nickname || patient?.patient?.name || 'Patient';
-              
-              let bodyText = a.message;
-              if (a.severity === 'family_link_request') {
-                try { const p = JSON.parse(a.message); bodyText = (p.text || a.message).replace(/\*\*/g, ''); } catch {}
-              }
-              
-              new Notification(`New alert for ${pName}: ${a.title}`, {
-                body: bodyText,
-                icon: '/icon.png'
-              });
-            });
+      if (approvedIds.length > 0) {
+        const alertResults = await Promise.all(
+          approvedIds.map((pid: string) =>
+            apiFetch(`/api/notify/alerts?patientId=${pid}&lang=${lang}`, { skipCache })
+              .then(r => r.ok ? r.json() : { alerts: [] })
+          )
+        );
+        const combined: any[] = alertResults
+          .flatMap((r: any) => r.alerts || [])
+          .filter((a: any) => !a.is_read)
+          .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+        /* fire system notification for newly arrived alerts */
+        if (!initialLoad.current) {
+          const newAlerts = combined.filter((a: any) => !knownAlertIds.current.has(a.id));
+          for (const a of newAlerts) {
+            const link = linksRef.current.find((l: any) => l.patientId === a.patient_id);
+            const pName = link?.nickname || link?.patient?.name || t('family.patient') || 'Patient';
+            let body = a.message;
+            if (a.severity === 'family_link_request') {
+              try { const p = JSON.parse(a.message); body = (p.text || a.message).replace(/\*\*/g, ''); } catch {}
+            }
+            fireNotification(`${pName}: ${a.title}`, body);
           }
-          
-          knownAlertIds.current = new Set(combined.map((a: any) => a.id));
-          initialLoad.current = false;
-          setAlerts(combined);
         }
+
+        knownAlertIds.current = new Set(combined.map((a: any) => a.id));
+        setAlerts(combined);
+      } else {
+        setAlerts([]);
       }
     } catch (e) {
       console.error('Failed to load family data', e);
     } finally {
       setLoading(false);
+      initialLoad.current = false;
     }
-  };
+  }, [lang, t]);
 
+  /* ─── init: request permission, start polling ─── */
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+    loadData();
+    const interval = setInterval(() => loadData(true), POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [loadData]);
+
+  /* ─── handlers ─── */
   const handleAddPatient = async () => {
     setAddError(null);
-    if (!newPatientId.trim()) { setAddError('Patient ID is required'); return; }
+    if (!newPatientId.trim()) { setAddError(t('family.patientIdRequired') || 'Patient ID is required'); return; }
     setAddLoading(true);
     try {
       const res = await apiFetch('/api/family/patients', {
@@ -128,77 +151,58 @@ export default function FamilyDashboard() {
         body: JSON.stringify({ patientId: newPatientId.trim(), nickname: newNickname, relation: newRelation }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setAddError(data.error || 'Failed to add patient');
-      } else {
-        setAddSuccess(true);
-        setPendingLinkId(data.linkId);
-        loadData();
-      }
-    } catch {
-      setAddError('Network error');
-    } finally {
-      setAddLoading(false);
-    }
+      if (!res.ok) { setAddError(data.error || t('family.addFailed') || 'Failed to add patient'); }
+      else { setAddSuccess(true); setPendingLinkId(data.linkId); loadData(); }
+    } catch { setAddError(t('family.networkError') || 'Network error'); }
+    finally { setAddLoading(false); }
   };
 
   const handleVerifyOtp = async (linkId: string) => {
-    if (otpCode.trim().length !== 6) { setOtpError('Enter the 6-digit code'); return; }
-    setOtpLoading(true);
-    setOtpError(null);
+    if (otpCode.trim().length !== 6) { setOtpError(t('family.enter6Digit') || 'Enter the 6-digit code'); return; }
+    setOtpLoading(true); setOtpError(null);
     try {
       const res = await apiFetch('/api/patient/family-links', {
         method: 'PATCH',
         body: JSON.stringify({ linkId, action: 'approve_by_code', inviteCode: otpCode.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) { setOtpError(data.error || 'Invalid code'); }
+      if (!res.ok) { setOtpError(data.error || t('family.invalidCode') || 'Invalid code'); }
       else { setOtpSuccess(true); loadData(true); }
-    } catch { setOtpError('Network error'); }
+    } catch { setOtpError(t('family.networkError') || 'Network error'); }
     finally { setOtpLoading(false); }
   };
 
   const closeAddModal = () => {
-    setShowAddModal(false);
-    setAddSuccess(false);
-    setAddError(null);
-    setNewPatientId('');
-    setNewNickname('');
-    setNewRelation('');
-    setPendingLinkId(null);
-    setOtpCode('');
-    setOtpError(null);
-    setOtpSuccess(false);
+    setShowAddModal(false); setAddSuccess(false); setAddError(null);
+    setNewPatientId(''); setNewNickname(''); setNewRelation('');
+    setPendingLinkId(null); setOtpCode(''); setOtpError(null); setOtpSuccess(false);
   };
 
   const handleResend = async (linkId: string) => {
     setResendLoading(linkId);
     try {
-      const res = await apiFetch('/api/family/patients/resend', {
-        method: 'POST',
-        body: JSON.stringify({ linkId }),
-      });
+      const res = await apiFetch('/api/family/patients/resend', { method: 'POST', body: JSON.stringify({ linkId }) });
       const data = await res.json();
-      if (!res.ok) { alert(data.error || 'Failed to resend'); }
+      if (!res.ok) { alert(data.error || t('family.resendFailed') || 'Failed to resend'); }
       else { await loadData(); }
-    } catch { alert('Network error'); }
+    } catch { alert(t('family.networkError') || 'Network error'); }
     finally { setResendLoading(null); }
   };
 
   const handleCancel = async (linkId: string) => {
-    if (!confirm('Cancel this request? The patient will no longer see the code.')) return;
+    if (!confirm(t('family.cancelConfirm') || 'Cancel this request? The patient will no longer see the code.')) return;
     setCancelLoading(linkId);
     try {
       const res = await apiFetch(`/api/patient/family-links?linkId=${linkId}`, { method: 'DELETE' });
       if (res.ok) await loadData();
-      else { const d = await res.json(); alert(d.error || 'Failed to cancel'); }
-    } catch { alert('Network error'); }
+      else { const d = await res.json(); alert(d.error || t('family.cancelFailed') || 'Failed to cancel'); }
+    } catch { alert(t('family.networkError') || 'Network error'); }
     finally { setCancelLoading(null); }
   };
 
   const handleInlineVerify = async (linkId: string) => {
     const code = (inlineOtp[linkId] || '').trim();
-    if (code.length !== 6) { setInlineOtpError(prev => ({ ...prev, [linkId]: 'Enter the 6-digit code' })); return; }
+    if (code.length !== 6) { setInlineOtpError(prev => ({ ...prev, [linkId]: t('family.enter6Digit') || 'Enter the 6-digit code' })); return; }
     setInlineOtpLoading(linkId);
     setInlineOtpError(prev => ({ ...prev, [linkId]: '' }));
     try {
@@ -207,9 +211,9 @@ export default function FamilyDashboard() {
         body: JSON.stringify({ linkId, action: 'approve_by_code', inviteCode: code }),
       });
       const data = await res.json();
-      if (!res.ok) { setInlineOtpError(prev => ({ ...prev, [linkId]: data.error || 'Invalid code' })); }
+      if (!res.ok) { setInlineOtpError(prev => ({ ...prev, [linkId]: data.error || t('family.invalidCode') || 'Invalid code' })); }
       else { setActiveOtpLinkId(null); await loadData(true); }
-    } catch { setInlineOtpError(prev => ({ ...prev, [linkId]: 'Network error' })); }
+    } catch { setInlineOtpError(prev => ({ ...prev, [linkId]: t('family.networkError') || 'Network error' })); }
     finally { setInlineOtpLoading(null); }
   };
 
@@ -244,7 +248,7 @@ export default function FamilyDashboard() {
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--foreground)', marginBottom: '0.2rem' }}>
               {t('family.myFamily') || 'My Family'}
             </h1>
-            <p style={{ color: 'var(--charcoal)', fontSize: '0.95rem' }}>Welcome back, {familyName}</p>
+            <p style={{ color: 'var(--charcoal)', fontSize: '0.95rem' }}>{t('family.welcomeBack') || 'Welcome back'}, {familyName}</p>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
@@ -264,7 +268,7 @@ export default function FamilyDashboard() {
         {alerts.length > 0 && (
           <div style={{ marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Bell size={18} color="#D97706" /> Active Alerts
+              <Bell size={18} color="#D97706" /> {t('family.activeAlerts') || 'Active Alerts'}
               <span style={{ background: '#FEF3C7', color: '#D97706', borderRadius: 20, padding: '0.1rem 0.5rem', fontSize: '0.75rem', fontWeight: 800 }}>{alerts.length}</span>
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -300,7 +304,6 @@ export default function FamilyDashboard() {
                           try { const p = JSON.parse(a.message); return (p.text || a.message).replace(/\*\*/g, ''); } catch { return a.message; }
                         })() : a.message}
                       </p>
-
                     </div>
                   </div>
                 );
@@ -311,7 +314,7 @@ export default function FamilyDashboard() {
                 onClick={() => setAlertPage(p => p + 1)}
                 style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, color: 'var(--foreground)', cursor: 'pointer', width: '100%', justifyContent: 'center' }}
               >
-                <ChevronDown size={16} /> Show More ({alerts.length - alertPage * PAGE_SIZE} remaining)
+                <ChevronDown size={16} /> {t('family.showMore') || 'Show More'} ({alerts.length - alertPage * PAGE_SIZE} {t('family.remaining') || 'remaining'})
               </button>
             )}
           </div>
@@ -321,7 +324,7 @@ export default function FamilyDashboard() {
         {pendingLinks.length > 0 && (
           <div style={{ marginBottom: '2rem' }}>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Shield size={18} color="var(--charcoal)" /> Pending Approvals
+              <Shield size={18} color="var(--charcoal)" /> {t('family.pendingApprovals') || 'Pending Approvals'}
               <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.75rem', fontWeight: 700, borderRadius: 20, padding: '0.15rem 0.6rem' }}>{pendingLinks.length}</span>
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -329,21 +332,23 @@ export default function FamilyDashboard() {
                 <div key={l.linkId} style={{ background: 'var(--surface)', border: '1.5px solid #FDE68A', borderRadius: 16, padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '0.95rem' }}>Patient ID: {l.patientId}</div>
+                      <div style={{ fontWeight: 700, color: 'var(--foreground)', fontSize: '0.95rem' }}>{t('family.patientId') || 'Patient ID'}: {l.patientId}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--charcoal)', marginTop: 2 }}>
-                        {l.relation || 'Family member'} • Requested {new Date(l.requestedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        {l.relation || (t('family.familyMember') || 'Family member')} • {t('family.requested') || 'Requested'} {new Date(l.requestedAt).toLocaleDateString(lang === 'ta' ? 'ta-IN' : 'en-IN', { day: 'numeric', month: 'short' })}
                       </div>
                       <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', background: '#FEF3C7', color: '#92400E', borderRadius: 8, padding: '0.3rem 0.6rem', display: 'inline-block', fontWeight: 600 }}>
-                        ⏳ Waiting for patient to share the code
+                        ⏳ {t('family.waitingForCode') || 'Waiting for patient to share the code'}
                       </div>
                     </div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#FEF3C7', color: '#D97706', padding: '0.3rem 0.6rem', borderRadius: 8, flexShrink: 0 }}>Pending</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: '#FEF3C7', color: '#D97706', padding: '0.3rem 0.6rem', borderRadius: 8, flexShrink: 0 }}>{t('family.pending') || 'Pending'}</span>
                   </div>
 
-                  {/* Inline OTP entry toggle */}
-                  {activeOtpLinkId === l.linkId ? (
+                  {/* Inline OTP entry */}
+                  {activeOtpLinkId === l.linkId && (
                     <div style={{ background: 'var(--surface-muted)', borderRadius: 12, padding: '1rem', marginBottom: '0.75rem' }}>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Enter 6-Digit Code from Patient</label>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {t('family.enter6DigitLabel') || 'Enter 6-Digit Code from Patient'}
+                      </label>
                       <input
                         type="text"
                         maxLength={6}
@@ -364,12 +369,14 @@ export default function FamilyDashboard() {
                           disabled={inlineOtpLoading === l.linkId || (inlineOtp[l.linkId] || '').length !== 6}
                           style={{ flex: 1, padding: '0.7rem', background: (inlineOtp[l.linkId] || '').length === 6 ? 'linear-gradient(135deg,#059669,#10B981)' : 'var(--surface-muted)', color: (inlineOtp[l.linkId] || '').length === 6 ? 'white' : 'var(--charcoal)', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.88rem' }}
                         >
-                          {inlineOtpLoading === l.linkId ? 'Verifying…' : 'Confirm Access'}
+                          {inlineOtpLoading === l.linkId ? (t('family.verifying') || 'Verifying…') : (t('family.confirmAccess') || 'Confirm Access')}
                         </button>
-                        <button onClick={() => setActiveOtpLinkId(null)} style={{ padding: '0.7rem 1rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', color: 'var(--charcoal)' }}>Cancel</button>
+                        <button onClick={() => setActiveOtpLinkId(null)} style={{ padding: '0.7rem 1rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem', color: 'var(--charcoal)' }}>
+                          {t('family.cancel') || 'Cancel'}
+                        </button>
                       </div>
                     </div>
-                  ) : null}
+                  )}
 
                   {/* Action row */}
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -377,21 +384,21 @@ export default function FamilyDashboard() {
                       onClick={() => setActiveOtpLinkId(activeOtpLinkId === l.linkId ? null : l.linkId)}
                       style={{ flex: 1, padding: '0.6rem 0.75rem', background: '#EFF6FF', color: '#1D4ED8', border: '1.5px solid #BFDBFE', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
                     >
-                      <KeyRound size={13} /> Enter Code
+                      <KeyRound size={13} /> {t('family.enterCode') || 'Enter Code'}
                     </button>
                     <button
                       onClick={() => handleResend(l.linkId)}
                       disabled={resendLoading === l.linkId}
                       style={{ flex: 1, padding: '0.6rem 0.75rem', background: 'var(--surface-muted)', color: 'var(--charcoal)', border: '1px solid var(--border)', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: resendLoading === l.linkId ? 0.6 : 1 }}
                     >
-                      <RotateCcw size={13} /> {resendLoading === l.linkId ? 'Resending…' : 'Resend'}
+                      <RotateCcw size={13} /> {resendLoading === l.linkId ? (t('family.resending') || 'Resending…') : (t('family.resend') || 'Resend')}
                     </button>
                     <button
                       onClick={() => handleCancel(l.linkId)}
                       disabled={cancelLoading === l.linkId}
                       style={{ flex: 1, padding: '0.6rem 0.75rem', background: '#FEF2F2', color: '#B91C1C', border: '1.5px solid #FECACA', borderRadius: 10, fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: cancelLoading === l.linkId ? 0.6 : 1 }}
                     >
-                      <Trash2 size={13} /> {cancelLoading === l.linkId ? 'Cancelling…' : 'Cancel'}
+                      <Trash2 size={13} /> {cancelLoading === l.linkId ? (t('family.cancelling') || 'Cancelling…') : (t('family.cancelRequest') || 'Cancel')}
                     </button>
                   </div>
                 </div>
@@ -403,7 +410,9 @@ export default function FamilyDashboard() {
         {/* Patient Grid */}
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Heart size={18} color="#DC2626" /> {t('family.members') || 'Family Members'}
-          <button onClick={() => loadData(true)} style={{ marginLeft: 'auto', background: 'var(--surface-muted)', border: '1px solid var(--border)', padding: '0.4rem 0.75rem', borderRadius: 10, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--charcoal)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Activity size={14}/> Refresh Vitals</button>
+          <button onClick={() => loadData(true)} style={{ marginLeft: 'auto', background: 'var(--surface-muted)', border: '1px solid var(--border)', padding: '0.4rem 0.75rem', borderRadius: 10, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--charcoal)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Activity size={14}/> {t('family.refreshVitals') || 'Refresh Vitals'}
+          </button>
         </h2>
 
         {approvedLinks.length === 0 ? (
@@ -411,7 +420,7 @@ export default function FamilyDashboard() {
             <UserPlus size={32} color="var(--charcoal)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--foreground)', marginBottom: '0.5rem' }}>{t('family.noMembers') || 'No family members yet'}</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--charcoal)', maxWidth: 400, margin: '0 auto' }}>
-              Add a patient using their Patient ID to monitor their health records, vitals, and appointments.
+              {t('family.noMembersDesc') || 'Add a patient using their Patient ID to monitor their health records, vitals, and appointments.'}
             </p>
           </div>
         ) : (
@@ -425,16 +434,14 @@ export default function FamilyDashboard() {
                   background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 24, padding: '1.5rem',
                   boxShadow: '0 4px 16px rgba(0,0,0,0.03)', position: 'relative', overflow: 'hidden',
                 }}>
-                  {/* Status strip */}
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 5, background: statusColor, borderRadius: '24px 24px 0 0' }} />
-
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', marginTop: '0.25rem' }}>
                     <div>
                       <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--foreground)', marginBottom: '0.1rem' }}>
                         {l.nickname || p?.name}
                       </h3>
                       <div style={{ fontSize: '0.82rem', color: 'var(--charcoal)', fontWeight: 500 }}>
-                        {l.relation || 'Family Member'} • {p?.id}
+                        {l.relation || (t('family.familyMember') || 'Family Member')} • {p?.id}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
@@ -460,24 +467,23 @@ export default function FamilyDashboard() {
                     </div>
                   </div>
 
-                  {/* Full vitals grid */}
                   {v ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1.25rem' }}>
-                      <VitalBadge label="Heart Rate" value={v.hr} unit="bpm" />
-                      <VitalBadge label="SpO₂" value={v.spo2} unit="%" />
-                      <VitalBadge label="BP" value={v.sys && v.dia ? `${v.sys}/${v.dia}` : null} unit="mmHg" />
-                      <VitalBadge label="Temp" value={v.temp} unit="°C" />
-                      <VitalBadge label="Resp" value={v.resp} unit="/min" />
+                      <VitalBadge label={t('dashboard.heartRate') || 'Heart Rate'} value={v.hr} unit="bpm" />
+                      <VitalBadge label={t('dashboard.spo2') || 'SpO₂'} value={v.spo2} unit="%" />
+                      <VitalBadge label={t('dashboard.bp') || 'BP'} value={v.sys && v.dia ? `${v.sys}/${v.dia}` : null} unit="mmHg" />
+                      <VitalBadge label={t('dashboard.temperature') || 'Temp'} value={v.temp} unit="°C" />
+                      <VitalBadge label={t('family.resp') || 'Resp'} value={v.resp} unit="/min" />
                       <div style={{ background: 'var(--surface-muted)', borderRadius: 12, padding: '0.65rem 0.75rem' }}>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--charcoal)', marginBottom: '0.2rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--charcoal)', marginBottom: '0.2rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('family.status') || 'Status'}</div>
                         <div style={{ fontSize: '0.8rem', fontWeight: 800, color: statusColor }}>
-                          {statusColor === '#DC2626' ? '⚠ Critical' : statusColor === '#D97706' ? '⚠ Warning' : '✓ Normal'}
+                          {statusColor === '#DC2626' ? `⚠ ${t('family.critical') || 'Critical'}` : statusColor === '#D97706' ? `⚠ ${t('family.warning') || 'Warning'}` : `✓ ${t('family.normal') || 'Normal'}`}
                         </div>
                       </div>
                     </div>
                   ) : (
                     <div style={{ background: 'var(--surface-muted)', borderRadius: 12, padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--charcoal)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Activity size={14} /> No vitals recorded yet
+                      <Activity size={14} /> {t('family.noVitals') || 'No vitals recorded yet'}
                     </div>
                   )}
 
@@ -489,7 +495,7 @@ export default function FamilyDashboard() {
                       fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
                     }}
                   >
-                    View Profile <ChevronRight size={16} />
+                    {t('family.viewProfile') || 'View Profile'} <ChevronRight size={16} />
                   </button>
                 </div>
               );
@@ -503,7 +509,7 @@ export default function FamilyDashboard() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
           <div style={{ background: 'var(--surface)', width: '100%', maxWidth: 420, borderRadius: 24, padding: '2rem', animation: 'slideUp 0.3s ease', boxShadow: '0 24px 48px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--foreground)' }}>Add Family Member</h3>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--foreground)' }}>{t('family.addMemberTitle') || 'Add Family Member'}</h3>
               <button onClick={closeAddModal} style={{ background: 'var(--surface-muted)', border: 'none', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <X size={18} color="var(--charcoal)" />
               </button>
@@ -514,21 +520,21 @@ export default function FamilyDashboard() {
                 {otpSuccess ? (
                   <>
                     <CheckCircle size={48} color="#059669" style={{ margin: '0 auto 1rem' }} />
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.5rem' }}>Access Granted! 🎉</h4>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--charcoal)', marginBottom: '1.5rem' }}>You now have full access to this patient's health data.</p>
-                    <button onClick={closeAddModal} style={{ padding: '0.75rem 2rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem' }}>Done</button>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.5rem' }}>{t('family.accessGranted') || 'Access Granted!'} 🎉</h4>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--charcoal)', marginBottom: '1.5rem' }}>{t('family.accessGrantedDesc') || 'You now have full access to this patient\'s health data.'}</p>
+                    <button onClick={closeAddModal} style={{ padding: '0.75rem 2rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 12, fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem' }}>{t('family.done') || 'Done'}</button>
                   </>
                 ) : (
                   <>
                     <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                       <Shield size={28} color="#0052A5" />
                     </div>
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.5rem' }}>Request Sent!</h4>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.5rem' }}>{t('family.requestSent') || 'Request Sent!'}</h4>
                     <p style={{ fontSize: '0.88rem', color: 'var(--charcoal)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                      Ask the patient to check their <strong>Notifications</strong> in their dashboard — they will see a 6-digit code. Enter it below to activate access.
+                      {t('family.requestSentDesc') || 'Ask the patient to check their Notifications in their dashboard — they will see a 6-digit code. Enter it below to activate access.'}
                     </p>
                     <div style={{ background: 'var(--surface-muted)', borderRadius: 16, padding: '1.25rem', marginBottom: '1rem', textAlign: 'left' }}>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Enter 6-Digit Code</label>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--charcoal)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('family.enter6Digit') || 'Enter 6-Digit Code'}</label>
                       <input
                         type="text"
                         maxLength={6}
@@ -549,29 +555,31 @@ export default function FamilyDashboard() {
                       disabled={otpLoading || otpCode.length !== 6}
                       style={{ width: '100%', padding: '1rem', background: otpCode.length === 6 ? 'linear-gradient(135deg, #059669, #10B981)' : 'var(--surface-muted)', color: otpCode.length === 6 ? 'white' : 'var(--charcoal)', border: 'none', borderRadius: 12, fontSize: '1rem', fontWeight: 700, cursor: otpCode.length === 6 ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}
                     >
-                      {otpLoading ? 'Verifying...' : 'Confirm Access'}
+                      {otpLoading ? (t('family.verifying') || 'Verifying...') : (t('family.confirmAccess') || 'Confirm Access')}
                     </button>
-                    <button onClick={closeAddModal} style={{ marginTop: '0.75rem', width: '100%', padding: '0.75rem', background: 'none', border: '1px solid var(--border)', borderRadius: 12, fontSize: '0.9rem', fontWeight: 600, color: 'var(--charcoal)', cursor: 'pointer' }}>Do it later</button>
+                    <button onClick={closeAddModal} style={{ marginTop: '0.75rem', width: '100%', padding: '0.75rem', background: 'none', border: '1px solid var(--border)', borderRadius: 12, fontSize: '0.9rem', fontWeight: 600, color: 'var(--charcoal)', cursor: 'pointer' }}>
+                      {t('family.doItLater') || 'Do it later'}
+                    </button>
                   </>
                 )}
               </div>
             ) : (
               <>
                 <p style={{ fontSize: '0.9rem', color: 'var(--charcoal)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
-                  Enter the patient's ID. A one-time code will be sent to their notification panel — share it with them to approve your access.
+                  {t('family.addMemberDesc') || "Enter the patient's ID. A one-time code will be sent to their notification panel — share it with them to approve your access."}
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.4rem' }}>Patient ID *</label>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.4rem' }}>{t('family.patientIdLabel') || 'Patient ID'} *</label>
                     <input type="text" value={newPatientId} onChange={e => setNewPatientId(e.target.value)} placeholder="e.g. P001" style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid var(--border)', borderRadius: 12, fontSize: '0.95rem', background: 'var(--background)', color: 'var(--foreground)', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.4rem' }}>Nickname (Optional)</label>
-                    <input type="text" value={newNickname} onChange={e => setNewNickname(e.target.value)} placeholder="e.g. Dad" style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid var(--border)', borderRadius: 12, fontSize: '0.95rem', background: 'var(--background)', color: 'var(--foreground)', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.4rem' }}>{t('family.nicknameLabel') || 'Nickname'} ({t('family.optional') || 'Optional'})</label>
+                    <input type="text" value={newNickname} onChange={e => setNewNickname(e.target.value)} placeholder={t('family.nicknamePlaceholder') || 'e.g. Dad'} style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid var(--border)', borderRadius: 12, fontSize: '0.95rem', background: 'var(--background)', color: 'var(--foreground)', boxSizing: 'border-box' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.4rem' }}>Relationship (Optional)</label>
-                    <input type="text" value={newRelation} onChange={e => setNewRelation(e.target.value)} placeholder="e.g. Father" style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid var(--border)', borderRadius: 12, fontSize: '0.95rem', background: 'var(--background)', color: 'var(--foreground)', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--charcoal)', marginBottom: '0.4rem' }}>{t('family.relationLabel') || 'Relationship'} ({t('family.optional') || 'Optional'})</label>
+                    <input type="text" value={newRelation} onChange={e => setNewRelation(e.target.value)} placeholder={t('family.relationPlaceholder') || 'e.g. Father'} style={{ width: '100%', padding: '0.8rem 1rem', border: '2px solid var(--border)', borderRadius: 12, fontSize: '0.95rem', background: 'var(--background)', color: 'var(--foreground)', boxSizing: 'border-box' }} />
                   </div>
                 </div>
                 {addError && (
@@ -584,7 +592,7 @@ export default function FamilyDashboard() {
                   disabled={addLoading}
                   style={{ width: '100%', padding: '1rem', marginTop: '1.5rem', background: 'linear-gradient(135deg, #0052A5, #0073D9)', color: 'white', border: 'none', borderRadius: 12, fontSize: '1rem', fontWeight: 700, cursor: addLoading ? 'not-allowed' : 'pointer', opacity: addLoading ? 0.7 : 1 }}
                 >
-                  {addLoading ? 'Sending Request...' : 'Send Access Request'}
+                  {addLoading ? (t('family.sendingRequest') || 'Sending Request...') : (t('family.sendRequest') || 'Send Access Request')}
                 </button>
               </>
             )}
