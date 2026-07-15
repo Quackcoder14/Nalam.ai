@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Heart, UserPlus, Bell, Activity, ChevronRight, ShieldAlert, X, Shield,
@@ -51,7 +51,17 @@ export default function FamilyDashboard() {
     ? (sessionStorage.getItem('nalamPatientName') || localStorage.getItem('nalamPatientName'))
     : '';
 
-  useEffect(() => { loadData(); }, []);
+  const knownAlertIds = useRef<Set<string>>(new Set());
+  const initialLoad = useRef(true);
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+    loadData();
+    const interval = setInterval(() => loadData(true), 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadData = async (skipCache = false) => {
     try {
@@ -74,6 +84,30 @@ export default function FamilyDashboard() {
             .flatMap((r: any) => r.alerts || [])
             .filter((a: any) => !a.is_read)
             .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          
+          // Push system notification for newly arrived alerts
+          if (!initialLoad.current && 'Notification' in window && Notification.permission === 'granted') {
+            const prevKnown = knownAlertIds.current;
+            const newAlerts = combined.filter((a: any) => !prevKnown.has(a.id));
+            
+            newAlerts.forEach((a: any) => {
+              const patient = (data.links || []).find((l: any) => l.patientId === a.patient_id);
+              const pName = patient?.nickname || patient?.patient?.name || 'Patient';
+              
+              let bodyText = a.message;
+              if (a.severity === 'family_link_request') {
+                try { const p = JSON.parse(a.message); bodyText = (p.text || a.message).replace(/\*\*/g, ''); } catch {}
+              }
+              
+              new Notification(`New alert for ${pName}: ${a.title}`, {
+                body: bodyText,
+                icon: '/icon.png'
+              });
+            });
+          }
+          
+          knownAlertIds.current = new Set(combined.map((a: any) => a.id));
+          initialLoad.current = false;
           setAlerts(combined);
         }
       }
