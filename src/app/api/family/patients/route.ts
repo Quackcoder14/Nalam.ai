@@ -106,11 +106,15 @@ export async function POST(request: Request) {
   const patient = await prisma.patient.findUnique({ where: { id: patientId } });
   if (!patient) return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
 
-  // Prevent duplicate active links
-  const existing = await prisma.familyPatientLink.findFirst({
-    where: { family_id: familyId, patient_id: patientId, consent_status: { in: ['pending', 'approved'] } },
+  // Check for ANY existing link (including revoked) to avoid P2002 unique constraint
+  const anyExisting = await prisma.familyPatientLink.findFirst({
+    where: { family_id: familyId, patient_id: patientId },
   });
-  if (existing) return NextResponse.json({ error: 'A link request already exists for this patient' }, { status: 409 });
+
+  // If active pending/approved link already exists, reject with friendly message
+  if (anyExisting && (anyExisting.consent_status === 'pending' || anyExisting.consent_status === 'approved')) {
+    return NextResponse.json({ error: 'A link request already exists for this patient' }, { status: 409 });
+  }
 
   // Get family account name for the alert message
   const familyAccount = await prisma.familyAccount.findUnique({ where: { id: familyId } });
@@ -120,18 +124,33 @@ export async function POST(request: Request) {
   const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
   const inviteCodeExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  // Create the link with the invite code
-  const link = await prisma.familyPatientLink.create({
-    data: {
-      family_id: familyId,
-      patient_id: patientId,
-      nickname_enc: nickname ? encrypt(nickname) : null,
-      relation_enc: relation ? encrypt(relation) : null,
-      consent_status: 'pending',
-      invite_code: inviteCode,
-      invite_code_expires_at: inviteCodeExpiresAt,
-    },
-  });
+  let link;
+  if (anyExisting) {
+    // Reactivate a revoked/rejected link — update in place to preserve the unique constraint
+    link = await prisma.familyPatientLink.update({
+      where: { id: anyExisting.id },
+      data: {
+        nickname_enc: nickname ? encrypt(nickname) : null,
+        relation_enc: relation ? encrypt(relation) : null,
+        consent_status: 'pending',
+        invite_code: inviteCode,
+        invite_code_expires_at: inviteCodeExpiresAt,
+      },
+    });
+  } else {
+    // Create a brand-new link
+    link = await prisma.familyPatientLink.create({
+      data: {
+        family_id: familyId,
+        patient_id: patientId,
+        nickname_enc: nickname ? encrypt(nickname) : null,
+        relation_enc: relation ? encrypt(relation) : null,
+        consent_status: 'pending',
+        invite_code: inviteCode,
+        invite_code_expires_at: inviteCodeExpiresAt,
+      },
+    });
+  }
 
   // Notify patient via ClinicalAlert — encode the text and code as JSON in the message field
   const messagePayload = JSON.stringify({
